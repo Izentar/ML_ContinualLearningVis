@@ -4,19 +4,17 @@ import torch
 import torchmetrics
 import wandb
 from pytorch_lightning import LightningDataModule, LightningModule
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import WandbLogger
 from torch import nn
 from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader, TensorDataset, Subset
 from torchvision import transforms
-from torchvision.datasets import CIFAR10
-from torchvision.models import resnet18
+from torchvision.datasets import CIFAR100
 from lucent.optvis import render, param, objectives
 from math import ceil
 
-from robustness import model_utils, datasets, train, defaults
-from lucent.modelzoo.util import get_model_layers
-from robustness.datasets import CIFAR
+from robustness import model_utils
+from robustness.datasets import CIFAR100 as CIFAR100_robust
 
 
 class CLDataModule(LightningDataModule):
@@ -50,10 +48,10 @@ class CLDataModule(LightningDataModule):
 
     def prepare_data(self):
         transform = transforms.Compose([transforms.ToTensor()])
-        train_dataset = CIFAR10(
+        train_dataset = CIFAR100(
             root="data", train=True, transform=transform, download=True
         )
-        test_dataset = CIFAR10(root="data", train=False, transform=transform)
+        test_dataset = CIFAR100(root="data", train=False, transform=transform)
 
         self.train_datasets = self._split_dataset(train_dataset, self.train_tasks_split)
         self.test_datasets = self._split_dataset(test_dataset, self.val_tasks_split)
@@ -136,11 +134,13 @@ class CLDataModule(LightningDataModule):
         dreams = []
         iterations = ceil(self.dreams_per_target / self.images_per_dreaming_batch)
         for _ in range(iterations):
-            batch_param_f = lambda: param.image(
-                self.image_size, batch=self.images_per_dreaming_batch
-            )
-            print(get_model_layers(self.model))
-            obj = objectives.channel("resnet_model_linear", target) - objectives.diversity("resnet_model_layer4")
+
+            def batch_param_f():
+                param.image(self.image_size, batch=self.images_per_dreaming_batch)
+
+            obj = objectives.channel(
+                "resnet_model_linear", target
+            ) - objectives.diversity("resnet_model_layer4")
             dreams.append(
                 torch.permute(
                     torch.from_numpy(
@@ -164,6 +164,10 @@ def classic_tasks_split(num_classes, num_tasks):
     return [list(range(i * one_split, (i + 1) * one_split)) for i in range(num_tasks)]
 
 
+def decremental_tasks_split(num_classes, num_tasks):
+    return [list(range(num_classes))[i * 2 :] for i in range(num_tasks)]
+
+
 class CLBaseModel(LightningModule):
     def __init__(self, num_tasks):
         super().__init__()
@@ -176,14 +180,14 @@ class CLBaseModel(LightningModule):
         self.test_acc = torchmetrics.Accuracy()
 
         self.attack_kwargs = {
-            'constraint': '2',
-            'eps': 0.5,
-            'step_size': 1.5,
-            'iterations': 20,
-            'random_start': 0,
-            'custom_loss': None,
-            'random_restarts': 0,
-            'use_best': True
+            "constraint": "2",
+            "eps": 0.5,
+            "step_size": 1.5,
+            "iterations": 20,
+            "random_start": 0,
+            "custom_loss": None,
+            "random_restarts": 0,
+            "use_best": True,
         }
 
     def training_step(self, batch, batch_idx):
@@ -233,40 +237,12 @@ class CLBaseModel(LightningModule):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
 
 
-class LeNet5(CLBaseModel):
-    def __init__(self, num_classes, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.feature_extractor = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=6, kernel_size=5, stride=1),
-            nn.Tanh(),
-            nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1),
-            nn.Tanh(),
-            nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=4, stride=1),
-            nn.Tanh(),
-        )
-
-        self.fcn = nn.Sequential(
-            nn.Linear(in_features=128, out_features=16),
-            nn.LeakyReLU(),
-            nn.Linear(in_features=16, out_features=num_classes),
-        )
-
-    def forward(self, x):
-        x = self.feature_extractor(x)
-        x = torch.flatten(x, 1)
-        return self.fcn(x)
-
-
 class ResNet18(CLBaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        #  self.resnet = resnet18(num_classes=10)
-        ds = CIFAR('./data')
-        self.resnet, _ = model_utils.make_and_restore_model(arch='resnet18', dataset=ds)
+        ds = CIFAR100_robust("./data")
+        self.resnet, _ = model_utils.make_and_restore_model(arch="resnet18", dataset=ds)
 
     def forward(self, *args, make_adv=False, **kwargs):
         out = self.resnet(*args, make_adv=make_adv, **kwargs)
@@ -278,21 +254,20 @@ class ResNet18(CLBaseModel):
 
 if __name__ == "__main__":
     num_tasks = 5
-    num_classes = 10
+    num_classes = 100
     epochs_per_task = 3
+    dreams_per_target = 8
     pl.seed_everything(42)
-    train_tasks_split = [list(range(num_classes))[i * 2 :] for i in range(num_tasks)]
-    val_tasks_split = classic_tasks_split(num_classes, num_tasks)
+    train_tasks_split = classic_tasks_split(num_classes, num_tasks)
+    val_tasks_split = train_tasks_split
     model = ResNet18(num_tasks=num_tasks)
     cl_data_module = CLDataModule(
         model,
         train_tasks_split,
         epochs_per_task,
-        dreams_per_target=8,
+        dreams_per_target=dreams_per_target,
         val_tasks_split=val_tasks_split,
     )
-    #  model = LeNet5(num_classes=num_classes, num_tasks=num_tasks)
-    #  logger = TensorBoardLogger("tb_logs")
     logger = WandbLogger(project="cl_toy_example")
     trainer = pl.Trainer(
         max_epochs=num_tasks * epochs_per_task,

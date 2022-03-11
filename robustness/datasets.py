@@ -387,6 +387,33 @@ class CIFAR(DataSet):
         return cifar_models.__dict__[arch](num_classes=self.num_classes)
 
 
+class CIFAR100(DataSet):
+    """
+    CIFAR-100 dataset [Kri09]_.
+    """
+
+    def __init__(self, data_path="/tmp/", **kwargs):
+        """ """
+        ds_kwargs = {
+            "num_classes": 100,
+            # From https://gist.github.com/weiaicunzai/e623931921efefd4c331622c344d8151
+            "mean": ch.tensor([0.5071, 0.4867, 0.4408]),
+            "std": ch.tensor([0.2675, 0.2565, 0.2761]),
+            "custom_class": datasets.CIFAR100,
+            "label_mapping": None,
+            "transform_train": da.TRAIN_TRANSFORMS_DEFAULT(32),
+            "transform_test": da.TEST_TRANSFORMS_DEFAULT(32),
+        }
+        ds_kwargs = self.override_args(ds_kwargs, kwargs)
+        super(CIFAR, self).__init__("cifar100", data_path, **ds_kwargs)
+
+    def get_model(self, arch, pretrained):
+        """ """
+        if pretrained:
+            raise ValueError("CIFAR does not support pytorch_pretrained=True")
+        return cifar_models.__dict__[arch](num_classes=self.num_classes)
+
+
 class CINIC(DataSet):
     """
     CINIC-10 dataset [DCA+18]_.
