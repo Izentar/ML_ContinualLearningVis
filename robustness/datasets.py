@@ -344,7 +344,7 @@ class CustomImageNet(DataSet):
         return imagenet_models.__dict__[arch](num_classes=self.num_classes)
 
 
-class CIFAR(DataSet):
+class CIFAR10(DataSet):
     """
     CIFAR-10 dataset [Kri09]_.
 
@@ -366,10 +366,10 @@ class CIFAR(DataSet):
         from Tiny Images. Technical Report.
     """
 
-    def __init__(self, data_path="/tmp/", **kwargs):
+    def __init__(self, num_classes=10, data_path="/tmp/", **kwargs):
         """ """
         ds_kwargs = {
-            "num_classes": 10,
+            "num_classes": num_classes,
             "mean": ch.tensor([0.4914, 0.4822, 0.4465]),
             "std": ch.tensor([0.2023, 0.1994, 0.2010]),
             "custom_class": datasets.CIFAR10,
@@ -378,7 +378,7 @@ class CIFAR(DataSet):
             "transform_test": da.TEST_TRANSFORMS_DEFAULT(32),
         }
         ds_kwargs = self.override_args(ds_kwargs, kwargs)
-        super(CIFAR, self).__init__("cifar", data_path, **ds_kwargs)
+        super(CIFAR10, self).__init__("cifar10", data_path, **ds_kwargs)
 
     def get_model(self, arch, pretrained):
         """ """
@@ -392,10 +392,10 @@ class CIFAR100(DataSet):
     CIFAR-100 dataset [Kri09]_.
     """
 
-    def __init__(self, data_path="/tmp/", **kwargs):
+    def __init__(self, data_path="/tmp/", num_classes=100, **kwargs):
         """ """
         ds_kwargs = {
-            "num_classes": 100,
+            "num_classes": num_classes,
             # From https://gist.github.com/weiaicunzai/e623931921efefd4c331622c344d8151
             "mean": ch.tensor([0.5071, 0.4867, 0.4408]),
             "std": ch.tensor([0.2675, 0.2565, 0.2761]),
@@ -405,7 +405,7 @@ class CIFAR100(DataSet):
             "transform_test": da.TEST_TRANSFORMS_DEFAULT(32),
         }
         ds_kwargs = self.override_args(ds_kwargs, kwargs)
-        super(CIFAR, self).__init__("cifar100", data_path, **ds_kwargs)
+        super(CIFAR100, self).__init__("cifar100", data_path, **ds_kwargs)
 
     def get_model(self, arch, pretrained):
         """ """
@@ -539,7 +539,7 @@ DATASETS = {
     "imagenet": ImageNet,
     "restricted_imagenet": RestrictedImageNet,
     "custom_imagenet": CustomImageNet,
-    "cifar": CIFAR,
+    "cifar": CIFAR10,
     "cinic": CINIC,
     "a2b": A2B,
     "places365": Places365,

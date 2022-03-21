@@ -7,14 +7,44 @@ from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loggers import WandbLogger
 from torch import nn
 from torch.nn.functional import cross_entropy
-from torch.utils.data import DataLoader, TensorDataset, Subset
+from torch.utils.data import ConcatDataset, DataLoader, TensorDataset, Subset
 from torchvision import transforms
-from torchvision.datasets import CIFAR100
+from torchvision.transforms.functional import to_pil_image
 from lucent.optvis import render, param, objectives
 from math import ceil
 
+
 from robustness import model_utils
+
+from torchvision.datasets import CIFAR100
+from torchvision.datasets import CIFAR10
 from robustness.datasets import CIFAR100 as CIFAR100_robust
+from robustness.datasets import CIFAR10 as CIFAR10_robust
+
+
+class DreamDataset:
+    def __init__(self, transform=None) -> None:
+        self.dreams = []
+        self.targets = []
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.dreams)
+
+    def __getitem__(self, idx):
+        dream = self.dreams[idx]
+        if self.transform:
+            dream = self.transform(dream)
+
+        return dream, self.targets[idx]
+
+    def extend(self, new_dreams, new_targets):
+        assert len(new_dreams) == len(new_targets)
+        for dream in new_dreams:
+            if self.transform:
+                dream = to_pil_image(dream)
+            self.dreams.append(dream)
+        self.targets.extend(new_targets)
 
 
 class CLDataModule(LightningDataModule):
@@ -24,8 +54,11 @@ class CLDataModule(LightningDataModule):
         train_tasks_split,
         epochs_per_dataset,
         dreams_per_target,
+        dataset_class,
         images_per_dreaming_batch=8,
         val_tasks_split=None,
+        dream_transforms=None,
+        max_logged_dreams=8,
     ):
         """
         Args:
@@ -43,15 +76,18 @@ class CLDataModule(LightningDataModule):
         self.images_per_dreaming_batch = images_per_dreaming_batch
         # TODO
         self.image_size = 32
-        self.dreams = torch.tensor([])
-        self.dreams_targets = torch.tensor([])
+        self.max_logged_dreams = max_logged_dreams
+        self.dreams_dataset = DreamDataset(transform=dream_transforms)
+        self.dataset_class = dataset_class
+        #  self.dreams = torch.tensor([])
+        #  self.dreams_targets = torch.tensor([])
 
     def prepare_data(self):
         transform = transforms.Compose([transforms.ToTensor()])
-        train_dataset = CIFAR100(
+        train_dataset = self.dataset_class(
             root="data", train=True, transform=transform, download=True
         )
-        test_dataset = CIFAR100(root="data", train=False, transform=transform)
+        test_dataset = self.dataset_class(root="data", train=False, transform=transform)
 
         self.train_datasets = self._split_dataset(train_dataset, self.train_tasks_split)
         self.test_datasets = self._split_dataset(test_dataset, self.val_tasks_split)
@@ -67,10 +103,10 @@ class CLDataModule(LightningDataModule):
 
     def train_dataloader(self):
         if self.curr_index > 0:
-            self.update_dreams()
-            dreams_dataset = TensorDataset(self.dreams, self.dreams_targets)
+            self.generate_new_dreams()
+            #  dreams_dataset = TensorDataset(self.dreams, self.dreams_targets)
             dream_loader = DataLoader(
-                dreams_dataset, batch_size=32, num_workers=4, shuffle=True
+                self.dreams_dataset, batch_size=32, num_workers=4, shuffle=True
             )
         else:
             dream_loader = None
@@ -93,9 +129,11 @@ class CLDataModule(LightningDataModule):
         ]
 
     def test_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=32, num_workers=4)
+        return DataLoader(
+            ConcatDataset(self.train_datasets), batch_size=32, num_workers=4
+        )
 
-    def update_dreams(self):
+    def generate_new_dreams(self):
         current_split = set(self.train_tasks_split[self.curr_index])
         previous_split = set(self.train_tasks_split[self.curr_index - 1])
         diff_targets = current_split.symmetric_difference(previous_split)
@@ -112,6 +150,7 @@ class CLDataModule(LightningDataModule):
             new_dreams.append(target_dreams)
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
+        num_dreams = new_dreams.shape[0]
         wandb.log(
             {
                 "examples": [
@@ -119,13 +158,13 @@ class CLDataModule(LightningDataModule):
                         new_dreams[i, :, :, :],
                         caption=f"sample: {i} target: {new_targets[i]}",
                     )
-                    for i in range(new_dreams.shape[0])
+                    for i in range(min(num_dreams, self.max_logged_dreams))
                 ]
             }
         )
-
-        self.dreams = torch.cat([self.dreams, new_dreams])
-        self.dreams_targets = torch.cat([self.dreams_targets, new_targets]).long()
+        self.dreams_dataset.extend(new_dreams, new_targets)
+        #  self.dreams = torch.cat([self.dreams, new_dreams])
+        #  self.dreams_targets = torch.cat([self.dreams_targets, new_targets]).long()
 
         if model_mode:
             self.model = self.model.train()
@@ -136,7 +175,10 @@ class CLDataModule(LightningDataModule):
         for _ in range(iterations):
 
             def batch_param_f():
-                param.image(self.image_size, batch=self.images_per_dreaming_batch)
+                return param.image(
+                    self.image_size, batch=self.images_per_dreaming_batch,
+                    sd=0.4
+                )
 
             obj = objectives.channel(
                 "resnet_model_linear", target
@@ -169,7 +211,7 @@ def decremental_tasks_split(num_classes, num_tasks):
 
 
 class CLBaseModel(LightningModule):
-    def __init__(self, num_tasks):
+    def __init__(self, num_tasks, attack_kwargs):
         super().__init__()
 
         self.train_acc = torchmetrics.Accuracy()
@@ -179,16 +221,7 @@ class CLBaseModel(LightningModule):
         )
         self.test_acc = torchmetrics.Accuracy()
 
-        self.attack_kwargs = {
-            "constraint": "2",
-            "eps": 0.5,
-            "step_size": 1.5,
-            "iterations": 20,
-            "random_start": 0,
-            "custom_loss": None,
-            "random_restarts": 0,
-            "use_best": True,
-        }
+        self.attack_kwargs = attack_kwargs
 
     def training_step(self, batch, batch_idx):
         batch_normal = batch["normal"]
@@ -238,10 +271,9 @@ class CLBaseModel(LightningModule):
 
 
 class ResNet18(CLBaseModel):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, ds, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        ds = CIFAR100_robust("./data")
         self.resnet, _ = model_utils.make_and_restore_model(arch="resnet18", dataset=ds)
 
     def forward(self, *args, make_adv=False, **kwargs):
@@ -254,21 +286,46 @@ class ResNet18(CLBaseModel):
 
 if __name__ == "__main__":
     num_tasks = 5
-    num_classes = 100
-    epochs_per_task = 3
-    dreams_per_target = 8
+    num_classes = 50
+    epochs_per_task = 15
+    dreams_per_target = 48
+    cifar_100 = True  # CIFAR10 if false
+    if not cifar_100:
+        assert num_classes <= 10
+    attack_kwargs = attack_kwargs = {
+        "constraint": "2",
+        "eps": 0.5,
+        "step_size": 1.5,
+        "iterations": 10,
+        "random_start": 0,
+        "custom_loss": None,
+        "random_restarts": 0,
+        "use_best": True,
+    }
     pl.seed_everything(42)
+    dreams_transforms = transforms.Compose(
+        [
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ]
+    )
+    ds_class = CIFAR100 if cifar_100 else CIFAR10
+    ds_class_robust = CIFAR100_robust if cifar_100 else CIFAR10_robust
+    ds_robust = ds_class_robust(data_path="./data", num_classes=num_classes)
     train_tasks_split = classic_tasks_split(num_classes, num_tasks)
     val_tasks_split = train_tasks_split
-    model = ResNet18(num_tasks=num_tasks)
+    model = ResNet18(ds=ds_robust, num_tasks=num_tasks, attack_kwargs=attack_kwargs)
     cl_data_module = CLDataModule(
         model,
         train_tasks_split,
         epochs_per_task,
+        dataset_class=ds_class,
         dreams_per_target=dreams_per_target,
         val_tasks_split=val_tasks_split,
+        dream_transforms=dreams_transforms,
     )
-    logger = WandbLogger(project="cl_toy_example")
+    logger = WandbLogger(project="continual_dreaming", tags=["dummy", "profile"])
     trainer = pl.Trainer(
         max_epochs=num_tasks * epochs_per_task,
         reload_dataloaders_every_n_epochs=epochs_per_task,
@@ -276,4 +333,4 @@ if __name__ == "__main__":
         gpus="0,",
     )
     trainer.fit(model, datamodule=cl_data_module)
-    trainer.test(ckpt_path="best")
+    trainer.test(datamodule=cl_data_module)
