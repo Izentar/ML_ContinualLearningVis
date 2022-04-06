@@ -7,8 +7,16 @@ import torch
 import torchmetrics
 import wandb
 from lucent.optvis import objectives, param, render
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import LightningModule
+from pytorch_lightning.callbacks import RichProgressBar
 from pytorch_lightning.loggers import WandbLogger
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from torch import nn
 from torch.nn.functional import cross_entropy
 from torch.utils.data import ConcatDataset, DataLoader, Subset
@@ -16,6 +24,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10, CIFAR100
 from torchvision.transforms.functional import to_pil_image
 
+from cl_loop import BaseCLDataModule, CLLoop
 from robustness import model_utils
 from robustness.datasets import CIFAR10 as CIFAR10_robust
 from robustness.datasets import CIFAR100 as CIFAR100_robust
@@ -46,12 +55,10 @@ class DreamDataset:
         self.targets.extend(new_targets)
 
 
-class CLDataModule(LightningDataModule):
+class CLDataModule(BaseCLDataModule):
     def __init__(
         self,
-        model,
         train_tasks_split,
-        epochs_per_dataset,
         dreams_per_target,
         dataset_class,
         images_per_dreaming_batch=8,
@@ -69,9 +76,6 @@ class CLDataModule(LightningDataModule):
         self.val_tasks_split = (
             val_tasks_split if val_tasks_split is not None else train_tasks_split
         )
-        self.curr_index = 0
-        self.epochs_per_dataset = epochs_per_dataset
-        self.model = model
         self.dreams_per_target = dreams_per_target
         self.images_per_dreaming_batch = images_per_dreaming_batch
         if fast_dev_run:
@@ -91,9 +95,17 @@ class CLDataModule(LightningDataModule):
         )
         test_dataset = self.dataset_class(root="data", train=False, transform=transform)
 
-        self.train_datasets = self._split_dataset(train_dataset, self.train_tasks_split)
-        self.test_datasets = self._split_dataset(test_dataset, self.val_tasks_split)
         self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
+        self.setup_tasks()
+
+    def setup_tasks(self):
+        self.train_datasets = self._split_dataset(
+            self.train_dataset, self.train_tasks_split
+        )
+        self.test_datasets = self._split_dataset(
+            self.test_dataset, self.val_tasks_split
+        )
 
     @staticmethod
     def _split_dataset(dataset, tasks_split):
@@ -103,22 +115,22 @@ class CLDataModule(LightningDataModule):
             split_dataset.append(Subset(dataset, np.where(task_indices)[0]))
         return split_dataset
 
+    def setup_task_index(self, task_index: int) -> None:
+        self.train_task = self.train_datasets[task_index]
+        self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
+
     def train_dataloader(self):
-        generate_dreams = self.curr_index >= 0 if fast_dev_run else self.curr_index > 0
-        if generate_dreams:
-            self.generate_new_dreams()
+        dream_loader = None
+        if self.dream_task:
             dream_loader = DataLoader(
-                self.dreams_dataset, batch_size=32, num_workers=4, shuffle=True
+                self.dream_task, batch_size=32, num_workers=4, shuffle=True
             )
-        else:
-            dream_loader = None
         normal_loader = DataLoader(
-            self.train_datasets[self.curr_index],
+            self.train_task,
             batch_size=32,
             num_workers=4,
             shuffle=True,
         )
-        self.curr_index += 1
         if dream_loader is not None:
             return {"normal": normal_loader, "dream": dream_loader}
         else:
@@ -135,21 +147,44 @@ class CLDataModule(LightningDataModule):
             ConcatDataset(self.train_datasets), batch_size=32, num_workers=4
         )
 
-    def generate_new_dreams(self):
-        current_split = set(self.train_tasks_split[self.curr_index])
-        previous_split = set(self.train_tasks_split[self.curr_index - 1])
-        diff_targets = current_split.symmetric_difference(previous_split)
+    def generate_synthetic_data(self, model, task_index):
+        """Generate new dreams."""
+        current_split = set(self.train_tasks_split[task_index])
+        previous_split = set(self.train_tasks_split[task_index - 1])
+        diff_targets = previous_split - current_split
 
-        model_mode = self.model.training
+        model_mode = model.training
         if model_mode:
-            self.model = self.model.eval()
+            model = model.eval()
 
         new_dreams = []
         new_targets = []
-        for target in diff_targets:
-            target_dreams = self.generate_dreams_for_target(target)
-            new_targets.extend([target] * target_dreams.shape[0])
-            new_dreams.append(target_dreams)
+        iterations = ceil(self.dreams_per_target / self.images_per_dreaming_batch)
+        with Progress(
+            "[progress.description]{task.description}",
+            BarColumn(complete_style="magenta"),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+        ) as progress:
+            dreaming_progress = progress.add_task(
+                "[bright_blue]Dreaming...", total=(len(diff_targets) * iterations)
+            )
+            for target in sorted(diff_targets):
+                target_progress = progress.add_task(
+                    f"[bright_red]Class: {target}", total=iterations
+                )
+
+                def update_progress():
+                    progress.update(target_progress, advance=1)
+                    progress.update(dreaming_progress, advance=1)
+
+                target_dreams = self._generate_dreams_for_target(
+                    model, target, iterations, update_progress
+                )
+                new_targets.extend([target] * target_dreams.shape[0])
+                new_dreams.append(target_dreams)
+                progress.remove_task(target_progress)
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         if not self.fast_dev_run:
@@ -168,11 +203,10 @@ class CLDataModule(LightningDataModule):
         self.dreams_dataset.extend(new_dreams, new_targets)
 
         if model_mode:
-            self.model = self.model.train()
+            model = model.train()
 
-    def generate_dreams_for_target(self, target):
+    def _generate_dreams_for_target(self, model, target, iterations, update_progress):
         dreams = []
-        iterations = ceil(self.dreams_per_target / self.images_per_dreaming_batch)
         for _ in range(iterations):
 
             def batch_param_f():
@@ -187,7 +221,7 @@ class CLDataModule(LightningDataModule):
                 torch.permute(
                     torch.from_numpy(
                         render.render_vis(
-                            self.model,
+                            model,
                             obj,
                             batch_param_f,
                             fixed_image_size=self.image_size,
@@ -198,6 +232,7 @@ class CLDataModule(LightningDataModule):
                     (0, 3, 1, 2),
                 )
             )
+            update_progress()
         return torch.cat(dreams)
 
 
@@ -331,9 +366,7 @@ if __name__ == "__main__":
         attack_kwargs=attack_kwargs,
     )
     cl_data_module = CLDataModule(
-        model,
         train_tasks_split,
-        epochs_per_task,
         dataset_class=ds_class,
         dreams_per_target=dreams_per_target,
         val_tasks_split=val_tasks_split,
@@ -342,13 +375,17 @@ if __name__ == "__main__":
     )
     tags = [] if not fast_dev_run else ["debug"]
     logger = WandbLogger(project="continual_dreaming", tags=tags)
+    callbacks = [RichProgressBar()]
     trainer = pl.Trainer(
-        max_epochs=num_tasks * epochs_per_task,
-        reload_dataloaders_every_n_epochs=epochs_per_task,
+        max_epochs=-1,  # This value doesn't matter
         logger=logger,
+        callbacks=callbacks,
         fast_dev_run=fast_dev_run_batches,
         gpus="0,",
     )
+    internal_fit_loop = trainer.fit_loop
+    trainer.fit_loop = CLLoop([epochs_per_task] * num_tasks)
+    trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
     if not fast_dev_run:
         trainer.test(datamodule=cl_data_module)
