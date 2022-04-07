@@ -18,8 +18,8 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
-from torch import nn
-from torch.nn.functional import cross_entropy, mse_loss, relu, sigmoid
+from torch import nn, sigmoid
+from torch.nn.functional import cross_entropy, mse_loss, relu
 from torch.utils.data import ConcatDataset, DataLoader, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, CIFAR100
@@ -367,7 +367,7 @@ class SAE(CLBaseModel):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__(*args, num_classes=num_classes, **kwargs)
 
-        self.sae = SAE()
+        self.sae = SAE_CIFAR(num_classes)
 
     def forward(self, *args):
         return self.sae(*args)
