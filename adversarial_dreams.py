@@ -4,6 +4,7 @@ from math import ceil
 import numpy as np
 import pytorch_lightning as pl
 import torch
+from torch.autograd.variable import Variable
 import torchmetrics
 import wandb
 from lucent.optvis import objectives, param, render
@@ -18,14 +19,14 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from torch import nn
-from torch.nn.functional import cross_entropy
+from torch.nn.functional import cross_entropy, mse_loss, relu, sigmoid
 from torch.utils.data import ConcatDataset, DataLoader, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, CIFAR100
 from torchvision.transforms.functional import to_pil_image
 
 from cl_loop import BaseCLDataModule, CLLoop
-from robustness import model_utils
+#  from robustness import model_utils
 from robustness.datasets import CIFAR10 as CIFAR10_robust
 from robustness.datasets import CIFAR100 as CIFAR100_robust
 
@@ -214,9 +215,9 @@ class CLDataModule(BaseCLDataModule):
                     self.image_size, batch=self.images_per_dreaming_batch, sd=0.4
                 )
 
-            obj = objectives.channel(
-                "resnet_model_linear", target
-            ) - objectives.diversity("resnet_model_layer4")
+            obj = objectives.channel("sae_fc", target) - objectives.diversity(
+                "sae_conv2"
+            )
             dreams.append(
                 torch.permute(
                     torch.from_numpy(
@@ -269,25 +270,35 @@ class CLBaseModel(LightningModule):
 
     def training_step_normal(self, batch):
         x, y = batch
-        y_hat, _final_input = self(x, target=y, make_adv=True, **self.attack_kwargs)
-        loss = cross_entropy(y_hat, y)
-        self.log("train_loss", loss)
+        y_hat, y_reconstruction = self(x)
+        loss_classification = cross_entropy(y_hat, y)
+        loss_reconstruction = mse_loss(y_reconstruction, Variable(x))
+        alpha = 0.05
+        loss = alpha * loss_classification + (1 - alpha) * loss_reconstruction
+        self.log("train_loss/total", loss)
+        self.log("train_loss/classification", loss_classification)
+        self.log("train_loss/reconstrucion", loss_reconstruction)
         self.train_acc(y_hat, y)
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss
 
     def training_step_dream(self, batch):
         x, y = batch
-        y_hat = self(x)
-        loss = cross_entropy(y_hat, y)
-        self.log("train_loss_dream", loss)
+        y_hat, y_reconstruction = self(x)
+        loss_classification = cross_entropy(y_hat, y)
+        loss_reconstruction = mse_loss(y_reconstruction, Variable(x))
+        alpha = 0.05
+        loss = alpha * loss_classification + (1 - alpha) * loss_reconstruction
+        self.log("train_loss_dream/total", loss)
+        self.log("train_loss_dream/classification", loss_classification)
+        self.log("train_loss_dream/reconstrucion", loss_reconstruction)
         self.train_acc_dream(y_hat, y)
         self.log("train_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         x, y = batch
-        y_hat = self(x)
+        y_hat, _ = self(x)
         val_loss = cross_entropy(y_hat, y)
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
@@ -296,7 +307,7 @@ class CLBaseModel(LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
+        y_hat, _ = self(x)
         test_loss = cross_entropy(y_hat, y)
         self.log("test_loss", test_loss)
         self.test_acc(y_hat, y)
@@ -306,18 +317,60 @@ class CLBaseModel(LightningModule):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
 
 
-class ResNet18(CLBaseModel):
-    def __init__(self, ds, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class SAE_CIFAR(nn.Module):
+    def __init__(self, num_classes, hidd1=256, hidd2=32, multi_head=False):
+        super(SAE_CIFAR, self).__init__()
+        self.multi_head = multi_head
+        self.conv1 = nn.Conv2d(
+            in_channels=3, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
+        )
+        self.conv2 = nn.Conv2d(
+            in_channels=32, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
+        )
+        self.fc1_2 = nn.Linear(in_features=50176, out_features=hidd1)
+        self.fc2_3 = nn.Linear(in_features=hidd1, out_features=hidd2)
 
-        self.resnet, _ = model_utils.make_and_restore_model(arch="resnet18", dataset=ds)
+        self.fc3_2 = nn.Linear(in_features=hidd2, out_features=hidd1)
+        self.fc2_1 = nn.Linear(in_features=hidd1, out_features=50176)
+        self.conv3 = nn.ConvTranspose2d(
+            in_channels=64, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
+        )
+        self.conv4 = nn.ConvTranspose2d(
+            in_channels=64, out_channels=3, kernel_size=(3, 3), stride=(1, 1)
+        )
 
-    def forward(self, *args, make_adv=False, **kwargs):
-        out = self.resnet(*args, make_adv=make_adv, **kwargs)
-        if make_adv:
-            return out
+        self.fc = nn.Linear(in_features=hidd2, out_features=num_classes)
+
+    def forward(self, x):
+        xe = relu(self.conv1(x))
+        xe = relu(self.conv2(xe))
+        shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]]
+        xe = xe.view(-1, shp[1] * shp[2] * shp[3])
+        xe = relu(self.fc1_2(xe))
+        xe = relu(self.fc2_3(xe))
+
+        xd = relu(self.fc3_2(xe))
+        xd = relu(self.fc2_1(xd))
+        xd = torch.reshape(xd, (shp[0], shp[1], shp[2], shp[3]))
+        xd = relu(self.conv3(xd))
+        # xd = F.upsample(xd,30)
+        x_hat = sigmoid(self.conv4(xd))
+
+        if self.multi_head:
+            return xe, x_hat
         else:
-            return out[0]
+            y_hat = self.fc(xe)
+            return y_hat, x_hat
+
+
+class SAE(CLBaseModel):
+    def __init__(self, num_classes, *args, **kwargs):
+        super().__init__(*args, num_classes=num_classes, **kwargs)
+
+        self.sae = SAE()
+
+    def forward(self, *args):
+        return self.sae(*args)
 
 
 if __name__ == "__main__":
@@ -359,8 +412,7 @@ if __name__ == "__main__":
     ds_robust = ds_class_robust(data_path="./data", num_classes=num_classes)
     train_tasks_split = classic_tasks_split(num_classes, num_tasks)
     val_tasks_split = train_tasks_split
-    model = ResNet18(
-        ds=ds_robust,
+    model = SAE(
         num_tasks=num_tasks,
         num_classes=num_classes,
         attack_kwargs=attack_kwargs,
