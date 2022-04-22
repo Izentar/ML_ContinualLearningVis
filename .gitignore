@@ -3,3 +3,6 @@ data/generated_impressions
 **/__pycache__
 
 .ipynb_checkpoints
+
+*data
+*wandb
