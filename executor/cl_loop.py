@@ -14,28 +14,16 @@
 #
 # Based on
 # https://github.com/PyTorchLightning/pytorch-lightning/blob/master/pl_examples/loop_examples/kfold.py
-from abc import ABC, abstractmethod
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.loops.base import Loop
 from pytorch_lightning.loops.fit_loop import FitLoop
 from pytorch_lightning.trainer.states import TrainerFn
+from dataset.CLModule import BaseCLDataModule, CLDataModule
 
-
-class BaseCLDataModule(LightningDataModule, ABC):
-    @abstractmethod
-    def setup_tasks(self) -> None:
-        pass
-
-    @abstractmethod
-    def setup_task_index(self, task_index: int) -> None:
-        pass
-
-    def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
-        pass
+from config.default import fast_dev_run_config
 
 
 ########################################################################
@@ -62,6 +50,10 @@ class CLLoop(Loop):
         reset_model_after_task: bool = False,
         export_path: Optional[str] = None,
     ) -> None:
+        """
+            epochs_per_task: list of epoches per task
+            export_path: save model parameters to path on current task
+        """
         super().__init__()
         self.num_tasks = len(epochs_per_task)
         self.epochs_per_task = epochs_per_task
@@ -83,7 +75,7 @@ class CLLoop(Loop):
         self.current_task = 0
         self.fit_loop.reset()
         if self.trainer.fast_dev_run:
-            self.num_tasks = 1
+            self.num_tasks = fast_dev_run_config["num_tasks"]
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the

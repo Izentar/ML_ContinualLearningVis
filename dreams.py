@@ -14,6 +14,8 @@ from torchvision.models import resnet18
 from lucent.optvis import render, param, objectives
 from math import ceil
 
+from utils import data_manipulation as datMan 
+
 
 class CLDataModule(LightningDataModule):
     def __init__(
@@ -153,11 +155,6 @@ class CLDataModule(LightningDataModule):
         return torch.cat(dreams)
 
 
-def classic_tasks_split(num_classes, num_tasks):
-    one_split = num_classes // num_tasks
-    return [list(range(i * one_split, (i + 1) * one_split)) for i in range(num_tasks)]
-
-
 class CLBaseModel(LightningModule):
     def __init__(self, num_tasks):
         super().__init__()
@@ -258,8 +255,8 @@ if __name__ == "__main__":
     num_classes = 10
     epochs_per_task = 3
     pl.seed_everything(42)
-    train_tasks_split = [list(range(num_classes))[i * 2 :] for i in range(num_tasks)]
-    val_tasks_split = classic_tasks_split(num_classes, num_tasks)
+    train_tasks_split = datMan.decremental_tasks_split(num_classes, num_tasks)
+    val_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
     model = ResNet18(num_tasks=num_tasks)
     cl_data_module = CLDataModule(
         model,

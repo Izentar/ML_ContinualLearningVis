@@ -23,38 +23,14 @@ from torch.nn.functional import cross_entropy, mse_loss, relu
 from torch.utils.data import ConcatDataset, DataLoader, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, CIFAR100
-from torchvision.transforms.functional import to_pil_image
 
-from cl_loop import BaseCLDataModule, CLLoop
+from executor.cl_loop import BaseCLDataModule, CLLoop
 #  from robustness import model_utils
 from robustness.datasets import CIFAR10 as CIFAR10_robust
 from robustness.datasets import CIFAR100 as CIFAR100_robust
 
-
-class DreamDataset:
-    def __init__(self, transform=None) -> None:
-        self.dreams = []
-        self.targets = []
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.dreams)
-
-    def __getitem__(self, idx):
-        dream = self.dreams[idx]
-        if self.transform:
-            dream = self.transform(dream)
-
-        return dream, self.targets[idx]
-
-    def extend(self, new_dreams, new_targets):
-        assert len(new_dreams) == len(new_targets)
-        for dream in new_dreams:
-            if self.transform:
-                dream = to_pil_image(dream)
-            self.dreams.append(dream)
-        self.targets.extend(new_targets)
-
+from dataset import dream_sets
+from utils import data_manipulation as datMan
 
 class CLDataModule(BaseCLDataModule):
     def __init__(
@@ -86,7 +62,7 @@ class CLDataModule(BaseCLDataModule):
         # TODO
         self.image_size = 32
         self.max_logged_dreams = max_logged_dreams
-        self.dreams_dataset = DreamDataset(transform=dream_transforms)
+        self.dreams_dataset = dream_sets.DreamDataset(transform=dream_transforms)
         self.dataset_class = dataset_class
 
     def prepare_data(self):
@@ -237,15 +213,6 @@ class CLDataModule(BaseCLDataModule):
         return torch.cat(dreams)
 
 
-def classic_tasks_split(num_classes, num_tasks):
-    one_split = num_classes // num_tasks
-    return [list(range(i * one_split, (i + 1) * one_split)) for i in range(num_tasks)]
-
-
-def decremental_tasks_split(num_classes, num_tasks):
-    return [list(range(num_classes))[i * 2 :] for i in range(num_tasks)]
-
-
 class CLBaseModel(LightningModule):
     def __init__(self, num_tasks, num_classes, attack_kwargs):
         super().__init__()
@@ -379,6 +346,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     fast_dev_run = args.fast_dev_run
     cifar_100 = True  # CIFAR10 if false
+    train_with_logits = True
     num_tasks = 5
     num_classes = 50
     epochs_per_task = 15
@@ -407,10 +375,11 @@ if __name__ == "__main__":
             transforms.ToTensor(),
         ]
     )
+    dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     ds_class = CIFAR100 if cifar_100 else CIFAR10
     ds_class_robust = CIFAR100_robust if cifar_100 else CIFAR10_robust
     ds_robust = ds_class_robust(data_path="./data", num_classes=num_classes)
-    train_tasks_split = classic_tasks_split(num_classes, num_tasks)
+    train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
     val_tasks_split = train_tasks_split
     model = SAE(
         num_tasks=num_tasks,
