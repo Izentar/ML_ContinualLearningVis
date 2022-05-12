@@ -105,7 +105,7 @@ class DataSet(object):
             req_type = type(default_args[k])
             no_nones = (default_args[k] is not None) and (kwargs[k] is not None)
             if no_nones and (not isinstance(kwargs[k], req_type)):
-                raise ValueError(f"Argument {k} should have type {req_type}")
+                raise ValueError(f"Argument {k} should has type {req_type}")
         return {**default_args, **kwargs}
 
     def get_model(self, arch, pretrained):

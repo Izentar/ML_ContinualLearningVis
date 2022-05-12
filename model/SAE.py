@@ -69,7 +69,7 @@ class SAE(base.CLBase):
         self.log("train_loss/total", loss)
         self.log("train_loss/classification", loss_classification)
         self.log("train_loss/reconstrucion", loss_reconstruction)
-        self.train_acc(y_hat, y)
+        self.train_acc(y_hat, y) #TODO - do zmainy, gdy y_hat jest wektorem, a y jest taskiem
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss
 

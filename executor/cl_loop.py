@@ -91,7 +91,9 @@ class CLLoop(Loop):
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         print(f"STARTING TASK {self.current_task}")
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
-        if self.trainer.fast_dev_run or self.current_task > 0:
+        if (self.trainer.fast_dev_run or self.current_task > 0):
+            # self.trainer.fast_dev_run to check if the data generation works
+            self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
             )

@@ -1,8 +1,10 @@
 from numpy import random
 from lucent.optvis import objectives
 import math
-import numpy
+import numpy as np
 from lucent.optvis.objectives import wrap_objective, handle_batch
+from torch.utils.data import Subset, random_split, ConcatDataset
+import torch
 
 def classic_tasks_split(num_classes, num_tasks):
     # [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
@@ -95,25 +97,22 @@ def with_fading_memory_select_tasks(tasks, task_index, fading_scale, random_dist
 def default_tasks_processing(tasks, *args, **kwargs):
     return tasks
 
-def normall_dist_tasks_processing(tasks, get_mean_var_f):
+def normall_dist_tasks_processing(tasks, mean, std):
     """
         Return a set of points taken from the normal distribution.
-        The mean and variance will be taken from get_mean_var function that
-        have signature of f(task_id).
-        Use lambda to pass this function into invoker.
+        
     """
     #if not hasattr(source_obj, "get_mean_var"):
     #    raise Exception(f"Passed object {type(source_obj)} must implement the get_mean_var(task) "
     #        "functions from loss_function.point_scope.AbstractNormalDistr")
-    out = []
-    for t in tasks:
-        processed_task_mean, processed_task_var = get_mean_var_f(t)
-        point = []
-        for m, v in zip(processed_task_mean, processed_task_var):
-            value = numpy.random.normal(loc=m, scale=v)
-            point.append(value)
-        out.append(point)
-    return out
+    tmp = torch.normal(mean=mean, std=std)
+    return tmp
+    #out = torch.empty((len(tasks), len(mean)), dtype=torch.float64)
+    #for i, t in enumerate(tasks):
+    #    for idx, (m, v) in enumerate(zip(mean, std)):
+    #        value = torch.normal(loc=mean, scale=std)
+    #        out[i][idx] = value
+    #return out
 
 #--------------------------------------------------------------
 
@@ -121,7 +120,7 @@ def normall_dist_tasks_processing(tasks, get_mean_var_f):
 def multidim_objective_channel(layer, n_channel, batch=None):
     @handle_batch(batch)
     def inner(model):
-        return -model(layer)[:, ].mean()
+        return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane?
     return inner
 
 
@@ -149,3 +148,64 @@ def test(target, model, source_dataset_obj):
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+#--------------------------------------------------
+
+def split_by_class_dataset(dataset, all_classes):
+    split_dataset = []
+    for cl in all_classes:
+        cl_indices = np.isin(np.array(dataset.targets), [cl])
+        cl_indices_list = np.where(cl_indices)[0]
+        new_set = Subset(dataset, cl_indices_list)
+        split_dataset.append(new_set)
+    return split_dataset
+
+def pair_sets(split_dataset, main_task_part, mode='strict'):
+    """
+        mode: 
+            strict - in the remaining (1 - main_task_part) dataset, the main class will not be present.
+            loose - in the remaining (1 - main_task_part) dataset, the main class can be still present.
+            In any mode, the data sample is present only once.
+    """
+    split_sets_main = []
+    all_except_one_sets = []
+    return_sets = []
+    other_sets = []
+    tasks_numb = len(split_dataset)
+    for task_dataset in split_dataset:
+        size = len(task_dataset)
+        main_size = size * main_task_part
+        other_size = size - main_size
+        main_task_dataset, other_task_dataset = random_split(task_dataset, [main_size, other_size],
+            generator=torch.Generator())
+        split_sets_main.append(main_task_dataset)
+        other_sets.append(other_task_dataset)
+
+    numb_of_sets = len(split_sets_main)
+
+    if mode == 'strict':
+        for idx,(_, _) in enumerate(other_sets):
+            tmp = other_sets[:idx] + other_sets[idx+1:]
+            all_except_one_sets.append(tmp)
+    elif mode == 'loose':
+        remaining_dataset = ConcatDataset(other_sets)
+        split_by = len(remaining_dataset) / tasks_numb
+        all_except_one_sets.extend(random_split(remaining_dataset, [split_by] * tasks_numb, 
+            generator=torch.Generator()))
+
+    for main_task_dataset, all_except_one_dataset in zip(split_sets_main, all_except_one_sets):
+        return_sets.append(
+            ConcatDataset([main_task_dataset, all_except_one_dataset])
+        )
+
+    return return_sets
+
+def get_target_from_dataset(dataset, toTensor=False) -> list:
+    if isinstance(dataset, torch.utils.data.Subset):
+        target_subset = np.take(dataset.dataset.targets, dataset.indices)
+        if toTensor:
+            return torch.tensor(target_subset)
+        return target_subset.tolist()
+    return dataset.targets
+
