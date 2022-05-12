@@ -22,8 +22,9 @@ class DreamDataset:
         return dream, self.targets[idx]
 
     def extend(self, new_dreams: torch.Tensor, new_targets: torch.Tensor, model: torch.nn.Module=None):
-        if len(new_dreams) == len(new_targets):
-            raise Exception(f"Wrong size between new dreams and targets. Dreams: {new_dreams.size()}\nTargets: {new_targets.size()}")
+        if len(new_dreams) != len(new_targets):
+            raise Exception(f"Wrong size between new dreams and targets."
+            f"\nDreams: {new_dreams.size()}; {len(new_dreams)}\nTargets: {new_targets.size()}; {len(new_targets)}")
         with torch.no_grad():
             for dream, target in zip(new_dreams, new_targets):
                 self._generate_additional_data(dream, target, model)

@@ -8,21 +8,8 @@ import torch
 
 def classic_tasks_split(num_classes, num_tasks):
     # [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
-    # for multidim tasks this would look like (task_id, mean[vector], var[vector])
-    # where the vector represents a point in multidimensional plane
-    # [
-    #   [
-    #       (0, (0.2, 2.4, 8.9), (3.5, 5.7, 9.4)), 
-    #       (1, (0.3, 7.6, 1.5), (4.5, 8.5, 7.3))
-    #   ], 
-    #   [
-    #       (2, (4, 5.1, 3.7), (0.5, 8.1, 6.1)), 
-    #       (3, (2.1, 8.2, 1.6), (2.4, 9.1, 2.2))
-    #   ]
-    # ]
     one_split = num_classes // num_tasks
     return [list(range(i * one_split, (i + 1) * one_split)) for i in range(num_tasks)]
-
 
 def decremental_tasks_split(num_classes, num_tasks):
     # [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
@@ -100,37 +87,37 @@ def default_tasks_processing(tasks, *args, **kwargs):
 def normall_dist_tasks_processing(tasks, mean, std):
     """
         Return a set of points taken from the normal distribution.
-        
+        Mean and std already have the shape of <class <mean / std of the points in this class>> so
+        the tasks variable is excessive. It always calculate for the all tasks, because it is faster 
+        than using python loop.
+        Function returns an array <class <calculated point for this class>>.
+        If you want to have a constant value of std, then use lambda expression to set an std to
+        torch.tensor([std_value]). It will repeat it to the size of the mean. 
     """
-    #if not hasattr(source_obj, "get_mean_var"):
-    #    raise Exception(f"Passed object {type(source_obj)} must implement the get_mean_var(task) "
-    #        "functions from loss_function.point_scope.AbstractNormalDistr")
+    if std.size()[0] == 1:
+        std = std.repeat(mean.size()[0])
     tmp = torch.normal(mean=mean, std=std)
-    return tmp
-    #out = torch.empty((len(tasks), len(mean)), dtype=torch.float64)
-    #for i, t in enumerate(tasks):
-    #    for idx, (m, v) in enumerate(zip(mean, std)):
-    #        value = torch.normal(loc=mean, scale=std)
-    #        out[i][idx] = value
-    #return out
+    if isinstance(tasks, list):
+        return torch.index_select(tmp, dim=0, index=torch.tensor(tasks))
+    return tmp[tasks]
 
 #--------------------------------------------------------------
 
 @wrap_objective()
-def multidim_objective_channel(layer, n_channel, batch=None):
+def multidim_objective_channel(layer, batch=None):
     @handle_batch(batch)
     def inner(model):
-        return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane?
+        return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane? Chcemy wszystkie "punkty"
     return inner
 
 
 def SAE_multidim_dream_objective_f(target, model, source_dataset_obj):
-    return multidim_objective_channel(model.get_objective_target(), target) - objectives.diversity(
+    return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
         "sae_conv2"
     )
 
 def SAE_dream_objective_f(target, model, source_dataset_obj):
-    # be carrefour for recursion by calling methods from source_dataset_obj
+    # be careful for recursion by calling methods from source_dataset_obj
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
     # channel - diversity penalty
@@ -153,6 +140,7 @@ def count_parameters(model):
 #--------------------------------------------------
 
 def split_by_class_dataset(dataset, all_classes):
+    # TODO not finished
     split_dataset = []
     for cl in all_classes:
         cl_indices = np.isin(np.array(dataset.targets), [cl])
@@ -162,6 +150,7 @@ def split_by_class_dataset(dataset, all_classes):
     return split_dataset
 
 def pair_sets(split_dataset, main_task_part, mode='strict'):
+    # TODO not finished
     """
         mode: 
             strict - in the remaining (1 - main_task_part) dataset, the main class will not be present.

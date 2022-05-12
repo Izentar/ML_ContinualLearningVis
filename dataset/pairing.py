@@ -8,12 +8,30 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
     """
         For the dataset with a subset of classes.
         DO NOT use this with BatchSampler to return a batch of indices.
-        BatchSampler only groups an indices. This logic is already implemented in this class
+        Use this as a argument for batch_sampler.
+        It divide the batch into 2 groups: main and rest. The main part has an indices of majority / main class 
+        and rest part has indices from any other classes except the main class.
+        You can choose the size of the main part and the frequency of the appearance of
+        the batches of specified main class. For example you can choose that class 0 will be a majority class
+        in batches in 20% of cases.
+
+        If the interface is incompatible, then use lambda as adapter.
     """
     def __init__(self, dataset, batch_size, shuffle, classes, 
         main_class_split:float, 
         classes_frequency:list[float],
-        try_at_least_x_main_batches=2):
+        try_at_least_x_main_batches=2
+    ):
+        """
+            main_class_split: 0.55 for batch size = 32 will mean that 18 samples will be from majority class 
+                and 14 will be from rest.
+                Note: main_class_split may be less than 0.5, then the main class will not be for the most part
+                and if there are only 2 classes, then vocabulary will remain the same in this class but 
+                another part of the framework may interpret this differently.
+            classes_frequency: length of the list must be the same size as the number of classes.
+            try_at_least_x_main_batches: at least this many batches will represent every class. 
+                Class is represented by batch by their main part. 
+        """
         #super().__init__() # optional
         self.main_class_split = main_class_split
         self.batch_size = batch_size
@@ -214,8 +232,8 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
 
 class PairingSampler(torch.utils.data.Sampler):
     """
-        For the dataset that has all classes.
         TODO not finished
+        For the dataset that has all classes.
     """
     
     def __init__(self, dataset, batch_size, main_class_split:float, classes:list, task_split:list):

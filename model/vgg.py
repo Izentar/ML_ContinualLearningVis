@@ -13,7 +13,6 @@ import numpy as np
 import math
 
 import os, sys
-from utils.data_manipulation import count_parameters
 
 ##############################################################################
 # Based on source https://github.com/bearpaw/pytorch-classification/
@@ -28,7 +27,6 @@ from utils.data_manipulation import count_parameters
 '''
 
 class VGG(nn.Module):
-
     def __init__(self, features, num_classes=1000):
         super(VGG, self).__init__()
         self.features = features

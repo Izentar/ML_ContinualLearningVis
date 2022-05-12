@@ -55,16 +55,17 @@ class DreamDataModule(BaseCLDataModule, ABC):
         fast_dev_run=False,
         dream_transforms=None,
         image_size = 32,
-        is_multidim = False
     ):
         """
         Args:
             task_split: list containing list of class indices per task
             select_dream_tasks_f: function f(tasks:list, task_index:int) that will be used to select 
-                the tasks to use during dreaming. If function uses more parameters, use lambda expression. 
+                the tasks to use during dreaming. If function uses more parameters, use lambda expression as adapter. 
             dream_objective_f: function f(target: list, model: model.base.CLBase, <source CLDataModule object, self>)
-            tasks_processing_f: function that will take the list of targets and process them to the desired form. 
+            tasks_processing_f: function that will take the list of targets and process them to the desired form.
+                For example it will take a task and transform it to the point from normal distribution.
                 The default function do nothing to targets. 
+            dream_transforms: pytorch transformation that will be applied on dream dataset
         """
         super().__init__()
         self.train_tasks_split = train_tasks_split
@@ -76,10 +77,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.image_size = image_size
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams = max_logged_dreams
-        self.is_multidim = is_multidim
 
         self.dreams_dataset = dream_sets.DreamDataset(transform=dream_transforms)
-
+        self.calculated_mean_std = False
+    
 
     @abstractmethod
     def prepare_data(self):
@@ -103,8 +104,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def generate_synthetic_data(self, model: LightningModule, task_index):
         """Generate new dreams."""
-        dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
-        dream_targets = self.transform_targets(model=model, dream_targets=dream_targets, task_index=task_index)
+        primal_dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
+        #dream_targets = self.transform_targets(model=model, dream_targets=primal_dream_targets, task_index=task_index)
+        dream_targets = primal_dream_targets
 
         model_mode = model.training # from torch.nn.Module
         if model_mode:
@@ -114,17 +116,19 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_dreams, new_targets = self.__generate_dreams(
             model=model,
             dream_targets=dream_targets, 
-            iterations=iterations
+            iterations=iterations,
+            task_index=task_index,
         )
 
         self.__log_fast_dev_run(new_dreams=new_dreams, new_targets=new_targets)
 
         self.dreams_dataset.extend(new_dreams, new_targets)
 
+        self.calculated_mean_std = False
         if model_mode:
             model.train()
 
-    def __generate_dreams(self, model, dream_targets, iterations):
+    def __generate_dreams(self, model, dream_targets, iterations, task_index):
         new_dreams = []
         new_targets = []
         with Progress(
@@ -138,7 +142,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 "[bright_blue]Dreaming...", total=(len(dream_targets) * iterations)
             )
 
-            for target in dream_targets: #TODO do we really need sorted targets? It throws error for point like target
+            for target in sorted(dream_targets):
                 target_progress = progress.add_task(
                     f"[bright_red]Class: {target}\n", total=iterations
                 )
@@ -151,16 +155,14 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     model=model, 
                     target=target, 
                     iterations=iterations, 
-                    update_progress=update_progress
+                    update_progress=update_progress,
+                    task_index=task_index
                 )
-                # TODO possible error? Why it returns target of 32, when we have only 10 classes?
-                #print(target)
                 new_targets.extend([target] * target_dreams.shape[0])
-                #print(new_targets)
                 new_dreams.append(target_dreams)
                 progress.remove_task(target_progress)
         new_dreams = torch.cat(new_dreams)
-        new_targets = torch.cat(new_targets)
+        new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
     def __log_fast_dev_run(self, new_dreams, new_targets):
@@ -178,7 +180,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def __generate_dreams_for_target(self, model, target, iterations, update_progress):
+    def __generate_dreams_for_target(self, model, target, iterations, update_progress, task_index):
         dreams = []
         for _ in range(iterations):
 
@@ -188,7 +190,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 return param.image(
                     self.image_size, batch=self.images_per_dreaming_batch, sd=0.4
                 )
-            objective = self.dream_objective_f(target, model, self)
+
+            target_point = self.transform_targets(model=model, dream_targets=target, task_index=task_index)
+            objective = self.dream_objective_f(target_point, model, self)
 
             numpy_render = torch.from_numpy(
                 render.render_vis(
@@ -212,9 +216,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
         return torch.cat(dreams)
 
     def transform_targets(self, model, dream_targets, task_index) -> torch.Tensor:
+        """
+            Invoked after every new dreaming that produces an image.
+            Override this if you need more than what the function tasks_processing_f itself can offer.
+            Returns tensor representing target. It can be one number or an array of numbers (point)
+        """
         return self.tasks_processing_f(dream_targets)
 
-            
 
 class CLDataModule(DreamDataModule):
     def __init__(
@@ -233,6 +241,14 @@ class CLDataModule(DreamDataModule):
         root="data",
         **kwargs
     ):
+        """
+            dataset_class: pytorch dataset like CIFAR10. Pass only a class, not an object.
+            steps_to_locate_mean: how many iterations you want to do search for mean and std in current train dataset.
+                It may be an intiger or float from [0, 1].
+            datasampler: pytorch sampler. Pass the Class or lambda adapter of the signature 
+                f(dataset, batch_size, shuffle, classes), where classes is a unique set of 
+                all classes that are present in dataset.
+        """
         super().__init__(**kwargs)
         self.val_tasks_split = (val_tasks_split if val_tasks_split is not None else self.train_tasks_split)
 
@@ -376,12 +392,17 @@ class CLDataModule(DreamDataModule):
 
     def transform_targets(self, model, dream_targets, task_index):
         if self.steps_to_locate_mean is not None:
-            std, mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
-            return self.tasks_processing_f(dream_targets, mean=mean, std=std)
+            if not self.calculated_mean_std:
+                self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
+            return self.tasks_processing_f(dream_targets, mean=self.mean, std=self.std)
 
         return self.tasks_processing_f(dream_targets)
 
     def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
+        """
+            Calculate mean and std from current train_task dataset.
+            Returns a tuple of std and mean (in that order!) in a shape (<class <mean>>, <class <std>>)
+        """
         normal_loader = DataLoader(
             self.train_task,
             batch_size=self.batch_size if self.datasampler is None else 1,

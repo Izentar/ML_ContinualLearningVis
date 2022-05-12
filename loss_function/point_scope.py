@@ -105,6 +105,7 @@ class TargetBuffer():
         self.mean = None
 
 class AbstractLoss(): 
+    # TODO not finished
     @abstractmethod 
     def process_task(self, task):
         pass
@@ -122,12 +123,14 @@ class AbstractLoss():
         pass
 
 class AbstractNormalDistr(AbstractLoss):
+    # TODO not finished
     @abstractmethod
     def get_mean_var(self, task):
         pass
 
 class PointScopeLoss(AbstractNormalDistr):
     #TODO this need to be optimized. A lot of memory copying is used here
+    # TODO not finished
     def __init__(self, 
         border_obj,
         dim:int,
