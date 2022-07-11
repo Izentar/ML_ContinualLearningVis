@@ -137,8 +137,11 @@ class CLLoop(Loop):
         self.current_task = state_dict["current_task"]
 
     def _reset_fitting(self) -> None:
+        # removed as for fast_dev_run it sets _last_val_dl_reload_epoch as 0 and not as -inf, causing 
+        # to not reload dataloaders in function _reload_evaluation_dataloaders() 
+        #self.trainer.reset_val_dataloader() 
+
         self.trainer.reset_train_dataloader()
-        self.trainer.reset_val_dataloader()
         self.trainer.state.fn = TrainerFn.FITTING
         self.trainer.training = True
 

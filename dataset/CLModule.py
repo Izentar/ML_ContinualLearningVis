@@ -303,6 +303,8 @@ class CLDataModule(DreamDataModule):
         #TODO - to log
         if task_index == self.current_task_index: # guard
             return
+        if task_index >= len(self.train_datasets):
+            raise Exception(f"Index {task_index} out of range {len(self.train_datasets)}")
         print(f"Selected task number: {task_index}")
         self.current_task_index = task_index
         self.train_task = self.train_datasets[task_index]
@@ -336,7 +338,6 @@ class CLDataModule(DreamDataModule):
             )
 
         shuffle = self.shuffle if self.datasampler is None else False
-        print(type(self.train_task))
         normal_loader = DataLoader(
             self.train_task,
             batch_size=self.batch_size if self.datasampler is None else 1,
