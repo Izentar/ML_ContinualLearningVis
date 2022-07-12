@@ -113,7 +113,7 @@ def multidim_objective_channel(layer, batch=None):
 
 def SAE_multidim_dream_objective_f(target, model, source_dataset_obj):
     return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
-        "sae_conv2"
+        "model_model_conv2"
     )
 
 def SAE_dream_objective_f(target, model, source_dataset_obj):
@@ -122,7 +122,7 @@ def SAE_dream_objective_f(target, model, source_dataset_obj):
     # and apply the objective on this layer. Used only for dreams.
     # channel - diversity penalty
     return objectives.channel(model.get_objective_target(), target) - objectives.diversity(
-        "sae_conv2"
+        "model_model_conv2"
     )
 
 def default_dream_objective_f(target, model, source_dataset_obj):

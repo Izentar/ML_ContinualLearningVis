@@ -48,7 +48,7 @@ class CLBase(LightningModule):
             Returns the list of strings with layers names of the objective target.
             It should return the target layer name currently used in model.
         """
-        pass
+        raise Exception("Not implemented")
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])

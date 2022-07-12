@@ -24,3 +24,16 @@ datasets = {
     "RC100": CIFAR100_robust,
     "RC10": CIFAR10_robust
 }
+
+datasets_map = {
+    "TORCH_CIFAR100": [CIFAR100, CIFAR100_robust],
+    "TORCH_CIFAR10": [CIFAR10, CIFAR10_robust],
+    "CIFAR100": [CIFAR100, CIFAR100_robust],
+    "CIFAR10": [CIFAR10, CIFAR10_robust],
+    "C100": [CIFAR100, CIFAR100_robust],
+    "C10": [CIFAR10, CIFAR10_robust],
+    "ROBUST_CIFAR100": [CIFAR100, CIFAR100_robust],
+    "ROBUST_CIFAR10": [CIFAR10, CIFAR10_robust],
+    "RC100": [CIFAR100, CIFAR100_robust],
+    "RC10": [CIFAR10, CIFAR10_robust]
+}

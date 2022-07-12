@@ -49,11 +49,11 @@ class DreamDataModule(BaseCLDataModule, ABC):
         select_dream_tasks_f,
         dream_objective_f,
         dreams_per_target,
+        empty_dream_dataset,
         tasks_processing_f=datMan.default_tasks_processing,
         images_per_dreaming_batch=8,
         max_logged_dreams=8, 
         fast_dev_run=False,
-        dream_transforms=None,
         image_size = 32,
     ):
         """
@@ -65,7 +65,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
             tasks_processing_f: function that will take the list of targets and process them to the desired form.
                 For example it will take a task and transform it to the point from normal distribution.
                 The default function do nothing to targets. 
-            dream_transforms: pytorch transformation that will be applied on dream dataset
         """
         super().__init__()
         self.train_tasks_split = train_tasks_split
@@ -78,7 +77,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams = max_logged_dreams
 
-        self.dreams_dataset = dream_sets.DreamDataset(transform=dream_transforms)
+        self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
     
 
@@ -122,7 +121,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         self.__log_fast_dev_run(new_dreams=new_dreams, new_targets=new_targets)
 
-        self.dreams_dataset.extend(new_dreams, new_targets)
+        self.dreams_dataset.extend(new_dreams, new_targets, model)
 
         self.calculated_mean_std = False
         if model_mode:
@@ -245,7 +244,7 @@ class CLDataModule(DreamDataModule):
             dataset_class: pytorch dataset like CIFAR10. Pass only a class, not an object.
             steps_to_locate_mean: how many iterations you want to do search for mean and std in current train dataset.
                 It may be an intiger or float from [0, 1].
-            datasampler: pytorch sampler. Pass the Class or lambda adapter of the signature 
+            datasampler: pytorch batch sampler. Pass the Class or lambda adapter of the signature 
                 f(dataset, batch_size, shuffle, classes), where classes is a unique set of 
                 all classes that are present in dataset.
         """
@@ -314,10 +313,9 @@ class CLDataModule(DreamDataModule):
         """
             Returns the dictionary of :
             - "normal": normal_loader
-            - "dream": dream_loader [Optional]
+            - "dream": dream_loader [Optional position]
         """
-        # check
-        if self.train_task is None:
+        if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
         if self.dream_task:

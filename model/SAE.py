@@ -3,11 +3,11 @@ import torch
 from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
+from robustness.tools import custom_modules
 
 class SAE_CIFAR(nn.Module):
-    def __init__(self, num_classes, hidd1=256, hidd2=32, multi_head=False):
-        super(SAE_CIFAR, self).__init__()
-        self.multi_head = multi_head
+    def __init__(self, num_classes, hidd1=256, hidd2=32):
+        super().__init__()
         self.conv1 = nn.Conv2d(
             in_channels=3, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
         )
@@ -26,15 +26,18 @@ class SAE_CIFAR(nn.Module):
             in_channels=64, out_channels=3, kernel_size=(3, 3), stride=(1, 1)
         )
 
+        self.fake_relu = custom_modules.FakeReLUM()
         self.fc = nn.Linear(in_features=hidd2, out_features=num_classes)
 
-    def forward(self, x):
+    # based on https://robustness.readthedocs.io/en/latest/example_usage/training_lib_part_2.html#training-with-custom-architectures
+    def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
         xe = relu(self.conv1(x))
         xe = relu(self.conv2(xe))
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]]
-        xe = xe.view(-1, shp[1] * shp[2] * shp[3])
+        xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
         xe = relu(self.fc1_2(xe))
-        xe = relu(self.fc2_3(xe))
+        xe_pre_relu = self.fc2_3(xe)
+        xe = relu(xe_pre_relu)
 
         xd = relu(self.fc3_2(xe))
         xd = relu(self.fc2_1(xd))
@@ -43,18 +46,18 @@ class SAE_CIFAR(nn.Module):
         # xd = F.upsample(xd,30)
         x_hat = sigmoid(self.conv4(xd))
 
-        if self.multi_head:
-            return xe, x_hat
-
-        y_hat = self.fc(xe)
+        out = self.fake_relu(xe_pre_relu) if fake_relu else xe
+        y_hat = self.fc(out)
+        if with_latent:
+            return ((y_hat, xe_pre_relu), x_hat) if no_relu else (y_hat, out)
         return y_hat, x_hat
         
 
-class SAE(base.CLBase):
+class SAE_standalone(base.CLBase):
     def __init__(self, num_classes, loss_f=None, reconstruction_loss_f=None, *args, **kwargs):
         super().__init__(num_classes=num_classes, *args, **kwargs)
 
-        self.sae = SAE_CIFAR(num_classes)
+        self.model = SAE_CIFAR(num_classes)
 
         self.loss_f = loss_f if loss_f is not None else cross_entropy
         self.reconstruction_loss_f = reconstruction_loss_f if reconstruction_loss_f is not None else mse_loss
@@ -69,7 +72,7 @@ class SAE(base.CLBase):
         self.log("train_loss/total", loss)
         self.log("train_loss/classification", loss_classification)
         self.log("train_loss/reconstrucion", loss_reconstruction)
-        self.train_acc(y_hat, y) #TODO - do zmainy, gdy y_hat jest wektorem, a y jest taskiem
+        self.train_acc(y_hat, y)
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss
 
@@ -105,22 +108,10 @@ class SAE(base.CLBase):
         self.log("test_acc", self.test_acc)
 
     def get_objective_target(self):
-        if self.sae.multi_head:
-            return "sae_xe"
-        return "sae_fc"
+        if self.model.multi_head:
+            return "model_xe"
+        return "model_fc"
 
     def forward(self, *args):
-        return self.sae(*args)
+        return self.model(*args)
 
-#class SAE(SAEBaseModel):
-#    def __init__(self, num_classes, *args, **kwargs):
-#        super().__init__(*args, num_classes=num_classes, **kwargs)
-#
-#        self.sae = SAE_CIFAR(num_classes)
-#
-#    def forward(self, *args):
-#        return self.sae(*args)
-#
-#    def get_objective_target(self):
-#        ret = super().get_objective_target()
-#        return "sae_" + ret
