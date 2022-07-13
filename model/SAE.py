@@ -108,8 +108,6 @@ class SAE_standalone(base.CLBase):
         self.log("test_acc", self.test_acc)
 
     def get_objective_target(self):
-        if self.model.multi_head:
-            return "model_xe"
         return "model_fc"
 
     def forward(self, *args):

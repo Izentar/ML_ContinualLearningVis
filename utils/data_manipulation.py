@@ -8,12 +8,21 @@ import torch
 
 def classic_tasks_split(num_classes, num_tasks):
     # [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
+    if(num_classes < num_tasks):
+        raise Exception(f"Bad number of classes: {num_classes} and tasks: {num_tasks}")
     one_split = num_classes // num_tasks
-    return [list(range(i * one_split, (i + 1) * one_split)) for i in range(num_tasks)]
+    ret = [list(range(i * one_split, (i + 1) * one_split)) for i in range(num_tasks)]
+    diff = num_classes - one_split * num_tasks
+    if(diff == 0):
+        return ret
+    ret.append(list(range(num_tasks * one_split, num_tasks * one_split + diff)))
+    return ret
 
-def decremental_tasks_split(num_classes, num_tasks):
+def decremental_tasks_split(num_classes, num_tasks, jump=2):
     # [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
-    return [list(range(num_classes))[i * 2 :] for i in range(num_tasks)]
+    if(np.ceil(num_classes / jump) < num_tasks):
+        raise Exception(f"Bad number of classes: {num_classes}, tasks: {num_tasks}, jump: {jump}")
+    return [list(range(num_classes))[i * jump :] for i in range(num_tasks)]
 
 #--------------------------------------------------------------
 
@@ -38,15 +47,17 @@ def with_memory_select_tasks(tasks, task_index):
     """
         Get difference between all of the previous tasks and current tasks.
     """
+    if(task_index == 0):
+        return set(tasks[task_index])
     accumulator = set()
     for idx, t in enumerate(tasks):
-        accumulator += set(t)
+        accumulator = accumulator.union(set(t))    
         if idx == task_index:
             break
     current_split = set(tasks[task_index])
     return accumulator - current_split
 
-def with_fading_memory_select_tasks(tasks, task_index, fading_scale, random_distr_f):
+def with_fading_memory_select_tasks(tasks, task_index, fading_scale, random_distr_f=None):
     """
         Get difference between all of the previous tasks and current tasks.
         fading_scale: [0.0, 1.0], uses geometric sequence to calculate probability threshold of
@@ -57,19 +68,23 @@ def with_fading_memory_select_tasks(tasks, task_index, fading_scale, random_dist
         random_distr_f: function that returns random variable from some selected distribution.
             Function signature looks like fun(lower_boundary, upper_boundary).
             Use lambda expression to easily pass function.
+            Default np.random.uniform.
     """
+    if(task_index == 0):
+        return set(tasks[task_index])
     accumulator = set()
+    if(random_distr_f is None):
+        random_distr_f = np.random.uniform
     for idx, t in enumerate(tasks):
-        rand_val = random_distr_f(0.0, 1.0)
-        fading = math.pow(fading_scale, (task_index - (idx + 1)))
-        prob_threshold = fading if idx != task_index else 0.0 # special case
-        
-        if( rand_val >= prob_threshold):
-            accumulator += set(t)
         if idx == task_index:
             break
+        rand_val = random_distr_f(0.0, 1.0)
+        fading = math.pow(fading_scale, (task_index - idx))
+        prob_threshold = fading if idx != task_index else 0.0 # special case
+        if(rand_val <= prob_threshold):
+            accumulator = accumulator.union(set(t))
     current_split = set(tasks[task_index])
-    return accumulator - current_split
+    return current_split - accumulator
 
 #--------------------------------------------------------------
 
@@ -94,7 +109,8 @@ def normall_dist_tasks_processing(tasks, mean, std):
         If you want to have a constant value of std, then use lambda expression to set an std to
         torch.tensor([std_value]). It will repeat it to the size of the mean. 
     """
-    if std.size()[0] == 1:
+    size = list(std.size())
+    if len(size) == 0 or size[0] == 1:
         std = std.repeat(mean.size()[0])
     tmp = torch.normal(mean=mean, std=std)
     if isinstance(tasks, list):
@@ -110,6 +126,11 @@ def multidim_objective_channel(layer, batch=None):
         return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane? Chcemy wszystkie "punkty"
     return inner
 
+
+def SAE_standalone_multidim_dream_objective_f(target, model, source_dataset_obj):
+    return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
+        "model_conv2"
+    )
 
 def SAE_multidim_dream_objective_f(target, model, source_dataset_obj):
     return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
@@ -196,5 +217,7 @@ def get_target_from_dataset(dataset, toTensor=False) -> list:
         if toTensor:
             return torch.tensor(target_subset)
         return target_subset.tolist()
+    if toTensor:
+        return torch.tensor(dataset.targets)
     return dataset.targets
 
