@@ -24,7 +24,8 @@ from pytorch_lightning.trainer.states import TrainerFn
 from dataset.CLModule import BaseCLDataModule, CLDataModule
 
 from config.default import fast_dev_run_config
-
+import gc
+import torch
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -89,7 +90,7 @@ class CLLoop(Loop):
 
     def on_advance_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
-        print(f"STARTING TASK {self.current_task}")
+        print(f"STARTING TASK {self.current_task} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
         if (self.trainer.fast_dev_run or self.current_task > 0):
             # self.trainer.fast_dev_run to check if the data generation works
@@ -108,6 +109,7 @@ class CLLoop(Loop):
         self.replace(
             fit_loop=FitLoop(max_epochs=self.epochs_per_task[self.current_task])
         )
+        # TODO I think there is no function named like that
         if callable(getattr(self.trainer.lightning_module, "on_task_start", None)):
             self.trainer.lightning_module.on_task_start()
 
@@ -126,6 +128,8 @@ class CLLoop(Loop):
             self.trainer.save_checkpoint(
                 self.export_path / f"model.{self.current_task - 1}.pt"
             )
+        torch.cuda.empty_cache()
+        gc.collect()
 
     def on_run_end(self) -> None:
         """Used to compute the performance of the ensemble model on the test set."""

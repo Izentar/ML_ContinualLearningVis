@@ -59,7 +59,7 @@ def second_demo():
     pl.seed_everything(42)
 
     num_tasks = 5
-    num_classes = num_tasks * 10
+    num_classes = 10
     epochs_per_task = 15
     dreams_per_target = 48
 
@@ -127,17 +127,6 @@ def second_demo():
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))
     #exit()
-    
-    cl_data_module = CLDataModule(
-        train_tasks_split=train_tasks_split,
-        dataset_class=dataset_class,
-        dreams_per_target=dreams_per_target,
-        val_tasks_split=val_tasks_split,
-        select_dream_tasks_f=select_dream_tasks_f,
-        fast_dev_run=fast_dev_run,
-        dream_objective_f=objective_f,
-        empty_dream_dataset=dream_dataset_class(transform=dreams_transforms)
-    )
 
     tags = []
     if train_with_logits:
@@ -149,7 +138,21 @@ def second_demo():
     if fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags)
-    callbacks = [RichProgressBar()]
+    progress_bar = RichProgressBar()
+    callbacks = [progress_bar]
+    
+
+    cl_data_module = CLDataModule(
+        train_tasks_split=train_tasks_split,
+        dataset_class=dataset_class,
+        dreams_per_target=dreams_per_target,
+        val_tasks_split=val_tasks_split,
+        select_dream_tasks_f=select_dream_tasks_f,
+        fast_dev_run=fast_dev_run,
+        dream_objective_f=objective_f,
+        empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
+        progress_bar=progress_bar
+    )
 
     trainer = pl.Trainer(
         max_epochs=-1,  # This value doesn't matter
@@ -160,7 +163,7 @@ def second_demo():
     )
 
     internal_fit_loop = trainer.fit_loop
-    trainer.fit_loop = CLLoop([epochs_per_task] * num_tasks)
+    trainer.fit_loop = CLLoop([epochs_per_task] * num_tasks, progress_bar)
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
     if not fast_dev_run:

@@ -12,6 +12,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from lucent.optvis import param, render
+import wandb
 
 import numpy as np
 from math import ceil
@@ -55,6 +56,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         max_logged_dreams=8, 
         fast_dev_run=False,
         image_size = 32,
+        progress_bar = None,
     ):
         """
         Args:
@@ -76,9 +78,11 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.image_size = image_size
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams = max_logged_dreams
+        self.progress_bar = progress_bar
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
+        self.tasks_ids = None
     
 
     @abstractmethod
@@ -127,39 +131,75 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.train()
 
+    def __generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
+        dreaming_progress = progress.add_task(
+            "[bright_blue]Dreaming...", total=(len(dream_targets) * iterations)
+        )
+        #print('dreaming_progress', dreaming_progress)
+        tasks_ids = []
+        tasks_ids.append(dreaming_progress)
+
+        tasks_ids = []
+        for target in sorted(dream_targets):
+            target_progress = progress.add_task(
+                f"[bright_red]Class: {target}\n", total=iterations
+            )
+            tasks_ids.append(target_progress)
+            #print('target_progress', target_progress)
+
+            def update_progress():
+                progress.update(target_progress, advance=1)
+                progress.update(dreaming_progress, advance=1)
+
+            target_dreams = self.__generate_dreams_for_target(
+                model=model, 
+                target=target, 
+                iterations=iterations, 
+                update_progress=update_progress,
+                task_index=task_index
+            )
+            new_targets.extend([target] * target_dreams.shape[0])
+            new_dreams.append(target_dreams)
+            #print('aaa', progress._tasks, '\n\n')
+            #progress.remove_task(target_progress)
+            #progress.stop_task(target_progress)
+        #progress.remove_task(dreaming_progress)
+        #print('bbb', progress._tasks, '\n\n')
+        self.tasks_ids = tasks_ids
+        
     def __generate_dreams(self, model, dream_targets, iterations, task_index):
         new_dreams = []
         new_targets = []
-        with Progress(
-            "[progress.description]{task.description}",
-            BarColumn(complete_style="magenta"),
-            MofNCompleteColumn(),
-            TimeElapsedColumn(),
-            TimeRemainingColumn(),
-        ) as progress:
-            dreaming_progress = progress.add_task(
-                "[bright_blue]Dreaming...", total=(len(dream_targets) * iterations)
+
+        if (self.progress_bar is not None):
+            #self.progress_bar._stop_progress()
+            self.__generate_dreams_impl(
+                model=model, 
+                dream_targets=dream_targets, 
+                iterations=iterations, 
+                task_index=task_index,
+                new_dreams=new_dreams, 
+                new_targets=new_targets, 
+                progress=self.progress_bar.progress,
             )
-
-            for target in sorted(dream_targets):
-                target_progress = progress.add_task(
-                    f"[bright_red]Class: {target}\n", total=iterations
-                )
-
-                def update_progress():
-                    progress.update(target_progress, advance=1)
-                    progress.update(dreaming_progress, advance=1)
-
-                target_dreams = self.__generate_dreams_for_target(
+            #self.progress_bar._init_progress()
+        else:
+            with Progress(
+                "[progress.description]{task.description}",
+                BarColumn(complete_style="magenta"),
+                MofNCompleteColumn(),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+            ) as progress:
+                self.__generate_dreams_impl(
                     model=model, 
-                    target=target, 
+                    dream_targets=dream_targets, 
                     iterations=iterations, 
-                    update_progress=update_progress,
-                    task_index=task_index
+                    task_index=task_index,
+                    new_dreams=new_dreams, 
+                    new_targets=new_targets, 
+                    progress=progress,
                 )
-                new_targets.extend([target] * target_dreams.shape[0])
-                new_dreams.append(target_dreams)
-                progress.remove_task(target_progress)
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
@@ -222,6 +262,15 @@ class DreamDataModule(BaseCLDataModule, ABC):
         """
         return self.tasks_processing_f(dream_targets)
 
+    def clear_task_progress(self):
+        # DO NOT USE, it throws error for some reason for RichProgressBar I dont know
+        if(self.progress_bar is not None and self.tasks_ids is not None):
+            for t in self.tasks_ids:
+                self.progress_bar.progress.remove_task(t)
+            self.tasks_ids = None
+
+    def get_task_classes(self, task_number):
+        return self.train_tasks_split[task_number]
 
 class CLDataModule(DreamDataModule):
     def __init__(
@@ -309,6 +358,9 @@ class CLDataModule(DreamDataModule):
         self.train_task = self.train_datasets[task_index]
         self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
 
+        if(self.train_task is None or len(self.train_task) <= 0):
+            raise Exception(f"Train task dataset not set properly. Used index {task_index} from {len(self.train_datasets)}")
+
     def train_dataloader(self):
         """
             Returns the dictionary of :
@@ -327,6 +379,7 @@ class CLDataModule(DreamDataModule):
                 batch_size=self.batch_size if self.datasampler is None else 1, 
                 num_workers=self.dream_num_workers, 
                 shuffle=shuffle if self.datasampler is None else False, 
+                pin_memory=True,
                 batch_sampler=self.datasampler(
                     dataset=self.dream_task, 
                     shuffle=self.dream_shuffle,
@@ -341,6 +394,7 @@ class CLDataModule(DreamDataModule):
             batch_size=self.batch_size if self.datasampler is None else 1,
             num_workers=self.num_workers,
             shuffle=shuffle if self.datasampler is None else False, 
+            pin_memory=True,
             batch_sampler=self.datasampler(
                     dataset=self.train_task, 
                     shuffle=self.shuffle,
@@ -361,6 +415,7 @@ class CLDataModule(DreamDataModule):
             DataLoader(dataset, 
             batch_size=self.batch_size if self.datasampler is None else 1, 
             num_workers=self.test_val_num_workers, 
+            pin_memory=True,
             batch_sampler=self.datasampler(
                 dataset=dataset, 
                 shuffle=False,
@@ -373,7 +428,7 @@ class CLDataModule(DreamDataModule):
     def test_dataloader(self):
         full_dataset = ConcatDataset(self.train_datasets)
         full_classes = []
-        for tasks in val_tasks_split:
+        for tasks in self.val_tasks_split:
             full_classes.extend(tasks)
         full_classes = list(set(full_classes))
             
@@ -381,6 +436,7 @@ class CLDataModule(DreamDataModule):
             full_dataset, 
             batch_size=self.batch_size if self.datasampler is None else 1, 
             num_workers=self.test_val_num_workers,
+            pin_memory=True,
             batch_sampler=self.datasampler(
                 dataset=full_dataset, 
                 shuffle=False,
@@ -407,6 +463,7 @@ class CLDataModule(DreamDataModule):
             batch_size=self.batch_size if self.datasampler is None else 1,
             num_workers=self.num_workers,
             shuffle=shuffle if self.datasampler is None else False, 
+            pin_memory=True,
             batch_sampler=self.datasampler(
                     dataset=self.train_task, 
                     shuffle=self.shuffle,

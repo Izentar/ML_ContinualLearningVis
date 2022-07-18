@@ -5,8 +5,11 @@ import multidimensional_dreams as md
 from torchvision import transforms
 from torch import testing as tst
 
-from model.SAE import SAE
+from model.SAE import SAE_standalone
 from loss_function.chiLoss import ChiLoss
+from dataset import dream_sets
+
+from torchvision.datasets import CIFAR10, CIFAR100
 
 class TestCLDataModule(unittest.TestCase):
 
@@ -15,11 +18,20 @@ class TestCLDataModule(unittest.TestCase):
         self.num_classes = 10
         self.num_tasks = 5
 
-        self.model = SAE(
+        self.model = SAE_standalone(
             num_tasks=self.num_tasks,
             num_classes=self.num_classes,
             loss_f = ChiLoss(sigma=0.2)
         )    
+
+        self.dreams_transforms = transforms.Compose(
+                [
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                ]
+            )
+        self.dream_dataset_class = dream_sets.DreamDataset(transform=self.dreams_transforms)
 
         self.main = CLDataModule(
             train_tasks_split=datMan.classic_tasks_split(self.num_classes, self.num_tasks),
@@ -27,13 +39,7 @@ class TestCLDataModule(unittest.TestCase):
             dreams_per_target=self.dreams_per_target,
             val_tasks_split=datMan.classic_tasks_split(self.num_classes, self.num_tasks),
             select_dream_tasks_f=datMan.decremental_select_tasks,
-            dream_transforms=transforms.Compose(
-                [
-                    transforms.RandomCrop(32, padding=4),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                ]
-            ),
+            empty_dream_dataset=self.dream_dataset_class,
             fast_dev_run=True,
             dream_objective_f=datMan.SAE_dream_objective_f,
         )
@@ -89,17 +95,13 @@ class TestCLDataModule(unittest.TestCase):
         with self.assertRaises(Exception):
             self.setup_task_index(5)
         
-    def test_generate_synthetic_data(self):
-        pass
-        #self.main.prepare_data()
-        #self.main.setup_task_index(0)
-        #self.main.generate_synthetic_data(self.model, 0)
-
-        #self.assertEqual(len(self.main.dreams_dataset), 0)
-
-    def test_iterate(self):
-        pass
-        #self.main.prepare_data()
-        #self.main.setup_task_index(0)
-
+    def test_split_dataset(self):
+        transform = transforms.Compose([transforms.ToTensor()])
+        train_dataset = CIFAR10(
+            root="data", train=True, transform=transform, download=True
+        )
+        tasks = [[0,1], [2,3], [4,5], [6,7], [8,9]]
+        split_dataset = CLDataModule._split_dataset(train_dataset, tasks)
+        for idx, t in enumerate(tasks):
+            self.assertEqual(len(split_dataset[idx]), 10000)
         
