@@ -77,25 +77,30 @@ def second_demo():
         "custom_loss": None,
         "random_restarts": 0,
         "use_best": True,
+        'with_latent': True,
+        'fake_relu': True,
     }
-
-    fast_dev_run = args.fast_dev_run
-    fast_dev_run_batches = False
-    if fast_dev_run:
-        num_classes = 10
-        fast_dev_run_batches = 3
-        images_per_dreaming_batch = 8
-        dreams_per_target = 16
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
     val_tasks_split = train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
     select_dream_tasks_f = datMan.decremental_select_tasks
     dataset_class_robust = getDatasetList(args.dataset)[1]
-    dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
     model_overlay = getModelType(auxiliary_reconstruction)
     
     dreams_transforms = data_transform()
+
+    fast_dev_run = args.fast_dev_run
+    fast_dev_run_batches = False
+    if fast_dev_run:
+        num_classes = 4
+        fast_dev_run_batches = 10
+        images_per_dreaming_batch = 8
+        dreams_per_target = 16
+        num_tasks = 2
+        val_tasks_split = train_tasks_split = [[0, 1], [2, 3]]
+
+    dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
 
     model = model_overlay(
         model=SAE_CIFAR(num_classes=num_classes),

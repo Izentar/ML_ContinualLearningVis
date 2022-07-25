@@ -75,8 +75,8 @@ class CLLoop(Loop):
         """Nothing to reset in this loop."""
         self.current_task = 0
         self.fit_loop.reset()
-        if self.trainer.fast_dev_run:
-            self.num_tasks = fast_dev_run_config["num_tasks"]
+        #if self.trainer.fast_dev_run:
+        #    self.num_tasks = fast_dev_run_config["num_tasks"]
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the
@@ -92,8 +92,7 @@ class CLLoop(Loop):
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         print(f"STARTING TASK {self.current_task} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
-        if (self.trainer.fast_dev_run or self.current_task > 0):
-            # self.trainer.fast_dev_run to check if the data generation works
+        if (self.current_task > 0):
             self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
