@@ -295,7 +295,16 @@ class CLDataModule(DreamDataModule):
                 It may be an intiger or float from [0, 1].
             datasampler: pytorch batch sampler. Pass the Class or lambda adapter of the signature 
                 f(dataset, batch_size, shuffle, classes), where classes is a unique set of 
-                all classes that are present in dataset.
+                all classes that are present in dataset. Example (pass this as datasampler)
+                def f(dataset, batch_size, shuffle, classes): 
+                    return PairingBatchSampler(
+                        dataset=dataset,
+                        batch_size=batch_size,
+                        shuffle=shuffle,
+                        classes=classes,
+                        main_class_split=0.55,
+                        classes_frequency=[1 / len(classes)] * len(classes)
+                    )
         """
         super().__init__(**kwargs)
         self.val_tasks_split = (val_tasks_split if val_tasks_split is not None else self.train_tasks_split)
@@ -427,10 +436,7 @@ class CLDataModule(DreamDataModule):
 
     def test_dataloader(self):
         full_dataset = ConcatDataset(self.train_datasets)
-        full_classes = []
-        for tasks in self.val_tasks_split:
-            full_classes.extend(tasks)
-        full_classes = list(set(full_classes))
+        full_classes = list(set(x for split in self.val_tasks_split for x in split))
             
         return DataLoader(
             full_dataset, 

@@ -6,7 +6,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import RichProgressBar
 from executor.cl_loop import BaseCLDataModule, CLLoop
 from config.default import datasets, datasets_map
-from model.overlay import CLModelWithReconstruction, CLModel
+from model.overlay import CLModelWithReconstruction, CLModelWithIslands, CLModel
 #from loss_function import point_scope
 
 from utils import data_manipulation as datMan
@@ -50,8 +50,13 @@ def getDatasetList(name:str):
             return datasets_map[cap]
     raise Exception(f"Unknown dataset {name}.")
 
-def getModelType(auxiliary_reconstruction):
-    return CLModelWithReconstruction if auxiliary_reconstruction else CLModel
+def getModelType(mtype: str):
+    model_types = {
+        "auxiliary_reconstruction": CLModelWithReconstruction,
+        "islands": CLModelWithIslands,
+        "default": CLModel,
+    }
+    return model_types.get(mtype, CLModel)
     
 def second_demo():
     # normal dreaming
@@ -66,7 +71,7 @@ def second_demo():
     train_with_logits = True
     train_normal_robustly = False
     train_dreams_robustly = False
-    auxiliary_reconstruction = True
+    aux_task_type = "islands"
 
     attack_kwargs = attack_kwargs = {
         "constraint": "2",
@@ -86,7 +91,7 @@ def second_demo():
     val_tasks_split = train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
     select_dream_tasks_f = datMan.decremental_select_tasks
     dataset_class_robust = getDatasetList(args.dataset)[1]
-    model_overlay = getModelType(auxiliary_reconstruction)
+    model_overlay = getModelType(aux_task_type)
     
     dreams_transforms = data_transform()
 
@@ -138,8 +143,10 @@ def second_demo():
         tags.append("logits")
     if train_normal_robustly or train_dreams_robustly:
         tags.append("robust")
-    if auxiliary_reconstruction:
+    if aux_task_type == "auxiliary_reconstruction":
         tags.append("auxiliary")
+    if aux_task_type == "island":
+        tags.append("island")
     if fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags)
@@ -156,7 +163,16 @@ def second_demo():
         fast_dev_run=fast_dev_run,
         dream_objective_f=objective_f,
         empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
-        progress_bar=progress_bar
+        progress_bar=progress_bar,
+        datasampler=lambda dataset, batch_size, shuffle, classes: 
+            PairingBatchSampler(
+                dataset=dataset,
+                batch_size=batch_size,
+                shuffle=shuffle,
+                classes=classes,
+                main_class_split=0.55,
+                classes_frequency=[1 / len(classes)] * len(classes)
+            )
     )
 
     trainer = pl.Trainer(

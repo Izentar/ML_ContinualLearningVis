@@ -4,6 +4,7 @@ from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 from robustness import model_utils
+from loss_function.chiLoss import ChiLoss
 
 class CLModel(base.CLBase):
     def __init__(
@@ -115,5 +116,25 @@ class CLModelWithReconstruction(CLModel):
 
     def process_losses_dreams(self, x, y, y_hat, y_auxiliary, label, loss_fn):
         if self.dreams_reconstruction_loss:
+            return self.process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
+        return super().process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
+
+class CLModelWithIslands(CLModel):
+    def __init__(self, *args, islands=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.islands = islands
+        self.island_loss = ChiLoss()
+
+    def process_losses_normal(self, x, y, y_hat, y_auxiliary, label, loss_fn):
+        loss_classification = loss_fn(y_hat)
+        loss_island = self.island_loss(y_auxiliary[0], y)
+        alpha = 0.05
+        loss = alpha * loss_classification + (1 - alpha) * loss_island
+        self.log(f"{label}/classification", loss_classification)
+        self.log(f"{label}/island", loss_island)
+        return loss
+
+    def process_losses_dreams(self, x, y, y_hat, y_auxiliary, label, loss_fn):
+        if self.islands:
             return self.process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
         return super().process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)

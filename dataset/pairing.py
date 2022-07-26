@@ -9,7 +9,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         For the dataset with a subset of classes.
         DO NOT use this with BatchSampler to return a batch of indices.
         Use this as a argument for batch_sampler.
-        It divide the batch into 2 groups: main and rest. The main part has an indices of majority / main class 
+        It splits the batch into 2 groups: main and rest. The main part has an indices of majority / main class 
         and rest part has indices from any other classes except the main class.
         You can choose the size of the main part and the frequency of the appearance of
         the batches of specified main class. For example you can choose that class 0 will be a majority class
