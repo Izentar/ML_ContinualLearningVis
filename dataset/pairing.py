@@ -16,6 +16,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         in batches in 20% of cases.
 
         If the interface is incompatible, then use lambda as adapter.
+        This class operates only on its own dataset indices, where it points to the corresponding data.
     """
     def __init__(self, dataset, batch_size, shuffle, classes, 
         main_class_split:float, 
@@ -24,7 +25,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
     ):
         """
             main_class_split: 0.55 for batch size = 32 will mean that 18 samples will be from majority class 
-                and 14 will be from rest.
+                and 14 will be from the rest.
                 Note: main_class_split may be less than 0.5, then the main class will not be for the most part
                 and if there are only 2 classes, then vocabulary will remain the same in this class but 
                 another part of the framework may interpret this differently.
@@ -72,24 +73,24 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
 
         real_number_of_batches = len(targets) // self.batch_size
 
-        all_targets_indices, \
-        correct_batched_classes_main_indices, \
-        correct_batched_classes_rest_main_indices = self.__change_main_classes_quantity(
+        mixed_targets_indices, \
+        batched_classes_main_indices, \
+        batched_classes_other_indices = self.__change_main_classes_quantity(
             classes_frequency=classes_frequency, 
             batched_class_indices=batched_class_indices, 
             real_number_of_batches=real_number_of_batches,
             try_at_least_x_main_batches=try_at_least_x_main_batches
         )
   
-        correct_batched_classes_main_indices = self.__fill_up_batches(
-            correct_batched_classes_main_indices=correct_batched_classes_main_indices, 
-            correct_batched_classes_rest_main_indices=correct_batched_classes_rest_main_indices,
-            all_targets_indices=all_targets_indices
+        batched_classes_main_indices = self.__fill_up_batches(
+            batched_classes_main_indices=batched_classes_main_indices, 
+            batched_classes_other_indices=batched_classes_other_indices,
+            mixed_targets_indices=mixed_targets_indices
         )
 
         # remove dimention of the class and shuffle
         self.batches_sequences = []
-        for classes in correct_batched_classes_main_indices:
+        for classes in batched_classes_main_indices:
             for batch in classes:
                 if shuffle:
                     random.shuffle(batch)
@@ -103,7 +104,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
                 raise Exception(f"Batch {idx} does not have required size of {self.batch_size}. It has length of {len(b)}")
         
         #print("---------------------------------")
-        #print(correct_batched_classes_main_indices)
+        #print(batched_classes_main_indices)
         #print(self.batches_sequences)
         #exit()
 
@@ -111,7 +112,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         """
             Convert the class label into sequence of the data indices belonging to this class.
             Split class indices into batches of size number_of_main_class_idx_in_batch.
-            Later thise batches should be expanded to the size of batch_size.
+            Later these batches should be expanded to the size of batch_size.
             Return list like <classes<batches<indices>>>
         """
         # 
@@ -145,16 +146,16 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         """
             From the class frequency decide how many batches will be used from this class.
             Rest of the batches are set to be used as fillers to other classes.
-            Returns list like <classes<batches<indices>>>
+            Return list like <classes<batches<indices>>>.
         """
-        all_targets_indices = []
-        correct_batched_classes_main_indices = []
-        correct_batched_classes_rest_main_indices = []
+        mixed_targets_indices = []
+        batched_classes_main_indices = []
+        batched_classes_other_indices = []
         for freq, class_batch in zip(classes_frequency, batched_class_indices):
             numb_of_batches = int(np.floor(freq * real_number_of_batches))
             if(numb_of_batches < try_at_least_x_main_batches):
                 numb_of_batches = try_at_least_x_main_batches
-            correct_batched_classes_main_indices.append(class_batch[:numb_of_batches])
+            batched_classes_main_indices.append(class_batch[:numb_of_batches])
             
             tmp = class_batch[numb_of_batches:]
             #print("----------------")
@@ -162,38 +163,38 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
             #print(len(class_batch))
             #print(real_number_of_batches)
             #print(freq)
-            correct_batched_classes_rest_main_indices.append(tmp)
-            all_targets_indices.extend(tmp) # add ony those that wont be used as main
-        return all_targets_indices, correct_batched_classes_main_indices, correct_batched_classes_rest_main_indices
+            batched_classes_other_indices.append(tmp)
+            mixed_targets_indices.extend(tmp) # add ony those that wont be used as main
+        return mixed_targets_indices, batched_classes_main_indices, batched_classes_other_indices
 
     def __fill_up_batches(self,
-            correct_batched_classes_main_indices, 
-            correct_batched_classes_rest_main_indices,
-            all_targets_indices
+            batched_classes_main_indices, 
+            batched_classes_other_indices,
+            mixed_targets_indices
         ):
         """
             Fill the main batches to the size of batch_size, where the filler of the main batch
-            do not has any indices of current class.
+            does not have any indices of current class.
             Returns list like <classes<batches<indices>>>
         """
         for batched_main_indices, batched_rest_main_indices in zip(
-                correct_batched_classes_main_indices, correct_batched_classes_rest_main_indices
+                batched_classes_main_indices, batched_classes_other_indices
             ):
             if len(batched_main_indices) == 0:
                 #print("No batch")
                 continue
 
             #print("----------------")
-            #print(all_targets_indices)
+            #print(mixed_targets_indices)
             #print(np.reshape(batched_main_indices, [-1]))
             #print("aa", batched_main_indices)
             #print(np.reshape(batched_rest_main_indices, [-1]))
             complement_main = np.setdiff1d(
-                np.setdiff1d(all_targets_indices, np.reshape(batched_main_indices, [-1])),
+                np.setdiff1d(mixed_targets_indices, np.reshape(batched_main_indices, [-1])),
                     np.reshape(batched_rest_main_indices, [-1]))
 
             
-            #list(all_targets_indices - 
+            #list(mixed_targets_indices - 
             #    set(np.reshape(batched_main_indices, [-1])) - 
             #    set(np.reshape(batched_rest_main_indices, [-1]))) # remove all indices of main class
             #print("complement", complement_main)
@@ -202,7 +203,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
 
             #print(batched_main_indices)
             #print(complement_main)
-            #print(all_targets_indices)
+            #print(mixed_targets_indices)
             #print(batched_main_indices)
             #print(batched_rest_main_indices)
             buffer_used = []
@@ -214,8 +215,11 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
 
             #print(buffer_used)
             #exit()
-            all_targets_indices = np.setdiff1d(all_targets_indices, buffer_used) # remove indices used in batch
-        return correct_batched_classes_main_indices
+            mixed_targets_indices = np.setdiff1d(mixed_targets_indices, buffer_used) # remove indices used in batch
+
+        if(len(mixed_targets_indices) != 0):
+            raise Exception(f"STOP {mixed_targets_indices}")
+        return batched_classes_main_indices
 
     def __iter__(self):
         return iter(self.batches_sequences)
