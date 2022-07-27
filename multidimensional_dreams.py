@@ -172,7 +172,8 @@ def second_demo():
                 classes=classes,
                 main_class_split=0.55,
                 classes_frequency=[1 / len(classes)] * len(classes)
-            )
+            ),
+        batch_size=32
     )
 
     trainer = pl.Trainer(

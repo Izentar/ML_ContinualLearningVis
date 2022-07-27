@@ -4,14 +4,6 @@ import itertools
 import matplotlib.pyplot as plt
 
 
-class DataBuffer():
-    def __init__(self):
-        pass
-
-
-
-
-
 def collect(model, dataloader, num_epoch):
     buffer = []
     model.train()
@@ -55,11 +47,12 @@ class PointPlot():
         ax.grid()
         if(show):
             plt.show()
-        if(idx is None):
-            fig.savefig(name)
-        else:
-            print(f"{name}_{idx}")
-            fig.savefig(f"{name}_{idx}.svg")
+        if(name is not None):
+            if(idx is None):
+                fig.savefig(name)
+            else:
+                print(f"{name}_{idx}")
+                fig.savefig(f"{name}_{idx}.svg")
 
     def plot(self, buffer, plot_type, with_batch=True, with_target=True, symetric=True, name='point-plot', show=False):
         '''
@@ -111,7 +104,7 @@ class PointPlot():
                     data_dims[t].append((dim_x, dim_y))
                 if(plot_type == 'singular'):
                     stash.append((data_x_target, data_y_target, data_dims))
-                    data_x_target, data_y_target, data_dims = create_buffers(target_set)  
+                    data_x_target, data_y_target, data_dims = self.create_buffers(target_set)  
 
         def plot_loop(data_x_target, data_y_target, data_dims):
             fig, ax = plt.subplots()
@@ -134,31 +127,31 @@ class PointPlot():
             fig, ax = plot_loop(data_x_target, data_y_target, data_dims)
             self.flush(fig, ax, name, show)
 
-x1 = torch.tensor([
-    [0, 1, 2 ,3],
-    [4, 5, 6, 7],
-    [8, 9, 10, 11],
-])
+if __name__ == '__main__':
+    x1 = torch.tensor([
+        [0, 1, 2 ,3],
+        [4, 5, 6, 7],
+        [8, 9, 10, 11],
+    ])
 
 
-x2 = torch.tensor([
-    [12, 13, 14, 15],
-    [16, 17, 18, 19],
-    [20, 21, 22, 23],
-])
-'''
-x1 = torch.tensor([
-    [0, 1],
-    [4, 5],
-    [8, 9],
-])
+    x2 = torch.tensor([
+        [12, 13, 14, 15],
+        [16, 17, 18, 19],
+        [20, 21, 22, 23],
+    ])
 
+    y1 = torch.tensor([
+        [0, 1],
+        [4, 5],
+        [8, 9],
+    ])
 
-x2 = torch.tensor([
-    [12, 13],
-    [16, 17],
-    [20, 21],
-])'''
+    y2 = torch.tensor([
+        [12, 13],
+        [16, 17],
+        [20, 21],
+    ])
 
-plotter = PointPlot()
-plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='multi', show=True)
+    plotter = PointPlot()
+    plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='singular', show=True)

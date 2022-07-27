@@ -31,27 +31,48 @@ class SAE_CIFAR(nn.Module):
 
     # based on https://robustness.readthedocs.io/en/latest/example_usage/training_lib_part_2.html#training-with-custom-architectures
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
+        xe_latent_pre_relu, xe_latent, xe_latent_second, encoder_hat, shp = self.forward_encoder(
+            x, 
+            with_latent=with_latent, 
+            fake_relu=fake_relu, 
+            no_relu=no_relu
+        )
+        print(xe_latent.size())
+        print(xe_latent)
+        exit()
+
+        x_hat = self.forward_decoder(
+            xe_latent, 
+            shp,
+            with_latent=with_latent, 
+            fake_relu=fake_relu, 
+            no_relu=no_relu
+        )
+
+        if with_latent:
+            return ((encoder_hat, xe_latent_pre_relu), x_hat) if no_relu else (encoder_hat, xe_latent_second)
+        return encoder_hat, xe_latent_pre_relu, x_hat
+        
+    def forward_encoder(self, x, with_latent=False, fake_relu=False, no_relu=False):
         xe = relu(self.conv1(x))
         xe = relu(self.conv2(xe))
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]]
         xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
         xe = relu(self.fc1_2(xe))
-        xe_pre_relu = self.fc2_3(xe)
-        xe = relu(xe_pre_relu)
 
+        xe_latent_pre_relu = self.fc2_3(xe)
+        xe_latent = relu(xe_latent_pre_relu)
+        xe_latent_second = self.fake_relu(xe_latent_pre_relu) if fake_relu else xe_latent
+        encoder_hat = self.fc(xe_latent_second)
+        return xe_latent_pre_relu, xe_latent, xe_latent_second, encoder_hat, shp
+
+    def forward_decoder(self, xe, shp, with_latent=False, fake_relu=False, no_relu=False):
         xd = relu(self.fc3_2(xe))
         xd = relu(self.fc2_1(xd))
         xd = torch.reshape(xd, (shp[0], shp[1], shp[2], shp[3]))
         xd = relu(self.conv3(xd))
         # xd = F.upsample(xd,30)
-        x_hat = sigmoid(self.conv4(xd))
-
-        out = self.fake_relu(xe_pre_relu) if fake_relu else xe
-        y_hat = self.fc(out)
-        if with_latent:
-            return ((y_hat, xe_pre_relu), x_hat) if no_relu else (y_hat, out)
-        return y_hat, x_hat
-        
+        return sigmoid(self.conv4(xd))
 
 class SAE_standalone(base.CLBase):
     def __init__(self, num_classes, loss_f=None, reconstruction_loss_f=None, *args, **kwargs):
