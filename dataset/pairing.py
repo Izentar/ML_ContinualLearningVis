@@ -22,7 +22,8 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         main_class_split:float, 
         classes_frequency:list[float],
         try_at_least_x_main_batches=2,
-        try_to_full_fill_up=True,
+        try_to_full_fill_up=False,
+        min_dataset_size=4,
     ):
         """
             main_class_split: 0.55 for batch size = 32 will mean that 18 samples will be from majority class 
@@ -36,6 +37,7 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
             try_to_full_fill_up: try to use all avaliable data to create all possible batches. It means 
                 that some borders like classes_frequency may be slightly affected. For example if in summary exist
                 only 40 unique items, then create two batches of size 32 (default size) and 8.
+            min_dataset_size: minimum dataset size that is a multiple of the batch size for each class
         """
         #super().__init__() # optional
         self.main_class_split = main_class_split
@@ -58,6 +60,11 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
             if cl not in targets:
                 raise Exception(f"In target of this dataset found no class of label: {cl}. " +
                 f"Target has classes of labels {set(targets)}")
+
+        boundary = min_dataset_size * self.batch_size * len(self.classes_frequency)
+        if(len(dataset) <= boundary):
+            raise Exception(f"Size of the dataset too low. Not enough items to create datasampler." +
+                f"Length of dataset: {len(dataset)} must be greater than: {boundary}")
 
         number_of_idxs_in_main_class = int(np.ceil(batch_size * main_class_split)) # or np.floor
 
@@ -175,11 +182,11 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         return mixed_targets_indices, batched_classes_main_indices, batched_classes_other_indices
 
     def __flatten_list(self, l) -> list:
-        if(isinstance(l, list) and isinstance(l[-1], list)):
-            newl = [item for sublist in l for item in sublist]
-            return self.__flatten_list(newl)
-        else:
-            return l
+        if(isinstance(l, list)):
+            if(len(l) != 0 and isinstance(l[-1], list)):
+                newl = [item for sublist in l for item in sublist]
+                return self.__flatten_list(newl)
+        return l
 
     def concatenate_dict(self, buffers: dict, exclude):
         ret = []
@@ -210,7 +217,8 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
             ):
 
             #complement_current_main = self.concatenate_dict(batched_classes_other_indices, classs)
-            complement_current_main = self.__flatten_list(batch_main) + (self.__flatten_list(batch_other))
+            complement_current_main = self.__flatten_list(batch_main) 
+            complement_current_main += self.__flatten_list(batch_other)
 
             # get all possible items for this class
             complement_current_main = np.setdiff1d(mixed_targets_indices, complement_current_main) 
@@ -342,7 +350,7 @@ class SharedData():
                     break
             
         if(not_loops):
-            raise Exception("Error: no more items in any buffer left.")
+            raise Exception("Error: no more items left in any buffer.")
         index = self.possible_buffer[mykey][pos]
 
         # remove item from all buffers

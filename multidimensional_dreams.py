@@ -72,14 +72,15 @@ def second_demo():
     num_tasks = 5
     num_classes = 10
     epochs_per_task = 15
-    dreams_per_target = 48
+    dreams_per_target = 64
 
     if(fast_dev_run):
-        num_tasks = 2
-        num_classes = 4
-        fast_dev_run_batches = 30
+        num_tasks = 3
+        num_classes = 6
+        fast_dev_run_batches = 3000 # change it to increase epoch count
         images_per_dreaming_batch = 8
-        dreams_per_target = 16
+        epochs_per_task = 2
+        dreams_per_target = 64
 
     train_with_logits = True
     train_normal_robustly = False
@@ -109,9 +110,11 @@ def second_demo():
     dreams_transforms = data_transform()
 
     if fast_dev_run:
-        val_tasks_split = train_tasks_split = [[0, 1], [2, 3]]
+        val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
     dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
+
+    check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
         model=SAE_CIFAR(num_classes=num_classes),
@@ -224,7 +227,16 @@ def collect_stats(model, dataset):
     buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=100, to_invoke=invoker)
     plotter = PointPlot()
     
-    plotter.plot(buffer, plot_type='multi', show=True, name=None)
+    plotter.plot(buffer, plot_type='multi', show=True)
+
+def check(split, num_classes, num_tasks):
+    test = set()
+    for s in split:
+        test = test.union(s)
+    if(len(test) != num_classes):
+        raise Exception(f"Wrong number of classes: {num_classes} / train or validation split: {len(test)}.")
+    if(len(split) != num_tasks):
+        raise Exception(f"Wrong number of tasks: {num_tasks} / train or validation split size: {len(split)}.")
 
 if __name__ == "__main__":
     second_demo()

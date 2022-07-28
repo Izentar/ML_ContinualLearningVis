@@ -58,7 +58,7 @@ class PointPlot():
             plt.show()
         if(name is not None):
             if(idx is None):
-                fig.savefig(name)
+                fig.savefig(f"{name}.svg")
             else:
                 print(f"{name}_{idx}")
                 fig.savefig(f"{name}_{idx}.svg")

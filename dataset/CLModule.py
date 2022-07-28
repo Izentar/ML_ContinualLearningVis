@@ -105,7 +105,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def test_dataloader(self):
         pass
 
-    def generate_synthetic_data(self, model: LightningModule, task_index):
+    def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
         """Generate new dreams."""
         primal_dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
         #dream_targets = self.transform_targets(model=model, dream_targets=primal_dream_targets, task_index=task_index)
@@ -279,6 +279,7 @@ class CLDataModule(DreamDataModule):
         val_tasks_split=None,
         max_logged_dreams=8, 
         batch_size=32,
+        dream_batch_size=8,
         num_workers=4,
         shuffle=True,
         steps_to_locate_mean = None,
@@ -319,6 +320,7 @@ class CLDataModule(DreamDataModule):
         self.test_val_num_workers = test_val_num_workers if test_val_num_workers is not None else num_workers
         self.datasampler = datasampler if datasampler is not None else None
         self.root = root
+        self.dream_batch_size = dream_batch_size
 
         self.train_task = None
         self.dream_task = None
@@ -353,6 +355,9 @@ class CLDataModule(DreamDataModule):
             split_dataset.append(Subset(dataset, np.where(task_indices)[0]))
         return split_dataset
 
+    def __setup_dream_dataset(self):
+        self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
+
     def setup_task_index(self, task_index: int) -> None:
         """
             Choose the index of the task that will be used during training.
@@ -365,10 +370,14 @@ class CLDataModule(DreamDataModule):
         print(f"Selected task number: {task_index}")
         self.current_task_index = task_index
         self.train_task = self.train_datasets[task_index]
-        self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
+        self.__setup_dream_dataset()
 
         if(self.train_task is None or len(self.train_task) <= 0):
             raise Exception(f"Train task dataset not set properly. Used index {task_index} from {len(self.train_datasets)}")
+
+    def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
+        super().generate_synthetic_data(model=model, task_index=task_index)
+        self.__setup_dream_dataset()
 
     def train_dataloader(self):
         """
@@ -383,6 +392,16 @@ class CLDataModule(DreamDataModule):
             # first loop is always False. After accumulating dreams this dataloader will be used.
             shuffle = self.dream_shuffle if self.datasampler is None else False
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
+
+            #dream_tasks_classes = self.val_tasks_split[self.current_task_index]
+            if(self.current_task_index < 1):
+                raise Exception("Cannot create dream dataloader. No tasks were done before / no data avaliable.")
+            dream_tasks_classes = set()
+            
+            for i in range(self.current_task_index):
+                dream_tasks_classes = dream_tasks_classes.union(self.val_tasks_split[i])
+            dream_tasks_classes = list(dream_tasks_classes)
+
             dream_loader = DataLoader(
                 self.dream_task, 
                 batch_size=self.batch_size if self.datasampler is None else 1, 
@@ -392,8 +411,8 @@ class CLDataModule(DreamDataModule):
                 batch_sampler=self.datasampler(
                     dataset=self.dream_task, 
                     shuffle=self.dream_shuffle,
-                    classes=self.val_tasks_split[self.current_task_index],
-                    batch_size=self.batch_size,
+                    classes=dream_tasks_classes,
+                    batch_size=self.dream_batch_size,
                 ) if self.datasampler is not None else None
             )
 

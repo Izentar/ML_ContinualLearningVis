@@ -144,7 +144,8 @@ class CLLoop(Loop):
         # to not reload dataloaders in function _reload_evaluation_dataloaders() 
         #self.trainer.reset_val_dataloader() 
 
-        self.trainer.reset_train_dataloader()
+        #TODO may be not needed
+        #self.trainer.reset_train_dataloader()
         self.trainer.state.fn = TrainerFn.FITTING
         self.trainer.training = True
 
