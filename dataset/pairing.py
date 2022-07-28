@@ -21,7 +21,8 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
     def __init__(self, dataset, batch_size, shuffle, classes, 
         main_class_split:float, 
         classes_frequency:list[float],
-        try_at_least_x_main_batches=2
+        try_at_least_x_main_batches=2,
+        try_to_full_fill_up=True,
     ):
         """
             main_class_split: 0.55 for batch size = 32 will mean that 18 samples will be from majority class 
@@ -32,12 +33,16 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
             classes_frequency: length of the list must be the same size as the number of classes.
             try_at_least_x_main_batches: at least this many batches will represent every class. 
                 Class is represented by batch by their main part. 
+            try_to_full_fill_up: try to use all avaliable data to create all possible batches. It means 
+                that some borders like classes_frequency may be slightly affected. For example if in summary exist
+                only 40 unique items, then create two batches of size 32 (default size) and 8.
         """
         #super().__init__() # optional
         self.main_class_split = main_class_split
         self.batch_size = batch_size
         self.classes = classes
         self.classes_frequency = classes_frequency
+        self.try_to_full_fill_up = try_to_full_fill_up
 
         if len(self.classes) != len(classes_frequency):
             raise Exception(f"Wrong number of classes and classes_frequency:"
@@ -54,22 +59,12 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
                 raise Exception(f"In target of this dataset found no class of label: {cl}. " +
                 f"Target has classes of labels {set(targets)}")
 
-        number_of_main_class_idx_in_batch = int(np.ceil(batch_size * main_class_split)) # or np.floor
-
-        #print("-------------------------------")
-        #print(targets)
-        #print(len(targets))
-        #print(number_of_main_class_idx_in_batch)
+        number_of_idxs_in_main_class = int(np.ceil(batch_size * main_class_split)) # or np.floor
 
         batched_class_indices = self.__split_to_main_classes(
             targets=targets, 
-            number_of_main_class_idx_in_batch=number_of_main_class_idx_in_batch
+            number_of_idxs_in_main_class=number_of_idxs_in_main_class
         )
-
-        #print("-------------------------------")
-        #print(sum_number_of_batches)
-        #print(len(batched_class_indices))
-        #print(batched_class_indices)
 
         real_number_of_batches = len(targets) // self.batch_size
 
@@ -82,60 +77,69 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
             try_at_least_x_main_batches=try_at_least_x_main_batches
         )
   
-        batched_classes_main_indices = self.__fill_up_batches(
+        batched_classes_main_indices, data_buffer = self.__fill_up_batches(
             batched_classes_main_indices=batched_classes_main_indices, 
             batched_classes_other_indices=batched_classes_other_indices,
-            mixed_targets_indices=mixed_targets_indices
+            mixed_targets_indices=mixed_targets_indices,
+            targets=targets, 
         )
 
         # remove dimention of the class and shuffle
         self.batches_sequences = []
-        for classes in batched_classes_main_indices:
-            for batch in classes:
-                if shuffle:
-                    random.shuffle(batch)
-                self.batches_sequences.append(batch)
-
-        if shuffle:
-            random.shuffle(self.batches_sequences)
+        for batch in batched_classes_main_indices.values():
+            if shuffle:
+                random.shuffle(batch)
+            self.batches_sequences.extend(batch)
 
         for idx, b in enumerate(self.batches_sequences):
             if(len(b) != self.batch_size):
                 raise Exception(f"Batch {idx} does not have required size of {self.batch_size}. It has length of {len(b)}")
-        
-        #print("---------------------------------")
-        #print(batched_classes_main_indices)
-        #print(self.batches_sequences)
-        #exit()
 
-    def __split_to_main_classes(self, targets, number_of_main_class_idx_in_batch):
+        # here batch can be the size different than self.batch_size
+        #data_buffer.print()
+        #print(len(self.batches_sequences))
+        if(self.try_to_full_fill_up):
+            reused = self.__reuse_unused(data_buffer)
+            self.batches_sequences.extend(reused)
+        #data_buffer.print()
+        #print(len(self.batches_sequences))
+
+        if shuffle:
+            random.shuffle(self.batches_sequences)
+
+    def __split_to_main_classes(self, targets, number_of_idxs_in_main_class):
         """
             Convert the class label into sequence of the data indices belonging to this class.
-            Split class indices into batches of size number_of_main_class_idx_in_batch.
+            Split class indices into batches of size number_of_idxs_in_main_class.
             Later these batches should be expanded to the size of batch_size.
-            Return list like <classes<batches<indices>>>
+            Return dictionary like -- classes: [batches[indices]]
         """
-        # 
-        # and split them into batches of size number_of_main_class_idx_in_batch
-        batched_class_indices = []
-        #sum_number_of_batches = 0
+        # and split them into batches of size number_of_idxs_in_main_class
+        batched_class_indices = {}
 
         for cl in self.classes:
             cl_indices = np.isin(np.array(targets), [cl])
             cl_indices_list = np.where(cl_indices)[0].tolist()
-            # add everything from this class to one batch
-            if(number_of_main_class_idx_in_batch > len(cl_indices_list)):
-                batched_class_indices.append([cl_indices_list])
-                #sum_number_of_batches += len(cl_indices_list)
-            else:# split by the size of the main part. The rest part will be added later.
-                numb_of_batches = int(len(cl_indices_list) // number_of_main_class_idx_in_batch)
+
+            # add everything from this class to one batch (only one batch of this class can be created)
+            if(number_of_idxs_in_main_class > len(cl_indices_list)):
+                batched_class_indices[cl] = [cl_indices_list]
+
+            else: # split by the size of the main part. The other part will be added later.
+                numb_of_batches = int(len(cl_indices_list) // number_of_idxs_in_main_class)
                 split_cl_indices_list = []
                 for split_array in np.array_split(cl_indices_list, numb_of_batches): 
-                    # must be like that to cast numpy array to list
-                    split_cl_indices_list.append(split_array.tolist())
-                batched_class_indices.append(split_cl_indices_list)
-                #sum_number_of_batches += numb_of_batches
+                    split_cl_indices_list.append(split_array.tolist()) # must be like that to cast numpy array to list
+                batched_class_indices[cl] = split_cl_indices_list
         return batched_class_indices
+
+    def get_nth_key(dictionary, n=0):
+        if n < 0:
+            n += len(dictionary)
+        for i, key in enumerate(dictionary.keys()):
+            if i == n:
+                return key
+        raise IndexError("dictionary index out of range") 
 
     def __change_main_classes_quantity(self, 
             classes_frequency, 
@@ -146,80 +150,110 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         """
             From the class frequency decide how many batches will be used from this class.
             Rest of the batches are set to be used as fillers to other classes.
-            Return list like <classes<batches<indices>>>.
+            Return
+                mixed_targets_indices - list of unused (not main) indices
+                batched_classes_main_indices - dictionary of main part like -- classes: [batches[indices]]
+                batched_classes_other_indices - dictionary of the rest part of the class like -- classes: [batches[indices]]
         """
         mixed_targets_indices = []
-        batched_classes_main_indices = []
-        batched_classes_other_indices = []
-        for freq, class_batch in zip(classes_frequency, batched_class_indices):
-            numb_of_batches = int(np.floor(freq * real_number_of_batches))
-            if(numb_of_batches < try_at_least_x_main_batches):
-                numb_of_batches = try_at_least_x_main_batches
-            batched_classes_main_indices.append(class_batch[:numb_of_batches])
+        batched_classes_main_indices = {}
+        batched_classes_other_indices = {}
+        remaining_number_of_batches = real_number_of_batches
+        for freq, (classs, batch) in zip(classes_frequency, batched_class_indices.items()):
+            numb_of_main_batches = int(np.floor(freq * real_number_of_batches))
+            remaining_number_of_batches -= numb_of_main_batches
+
+            if(numb_of_main_batches < try_at_least_x_main_batches):
+                numb_of_main_batches = try_at_least_x_main_batches
+
+            batched_classes_main_indices[classs] = batch[:numb_of_main_batches]
             
-            tmp = class_batch[numb_of_batches:]
-            #print("----------------")
-            #print(numb_of_batches)
-            #print(len(class_batch))
-            #print(real_number_of_batches)
-            #print(freq)
-            batched_classes_other_indices.append(tmp)
-            mixed_targets_indices.extend(tmp) # add ony those that wont be used as main
+            other = batch[numb_of_main_batches:]
+            batched_classes_other_indices[classs] = other
+            mixed_targets_indices.extend(np.reshape(other, -1)) # add ony those that wont be used as main
+
         return mixed_targets_indices, batched_classes_main_indices, batched_classes_other_indices
+
+    def __flatten_list(self, l) -> list:
+        if(isinstance(l, list) and isinstance(l[-1], list)):
+            newl = [item for sublist in l for item in sublist]
+            return self.__flatten_list(newl)
+        else:
+            return l
+
+    def concatenate_dict(self, buffers: dict, exclude):
+        ret = []
+        for classs, buffer in buffers.items():
+            if(classs != exclude):
+                b = self.__flatten_list(buffer)
+                ret.extend(b)
+        return ret
 
     def __fill_up_batches(self,
             batched_classes_main_indices, 
             batched_classes_other_indices,
-            mixed_targets_indices
+            mixed_targets_indices,
+            targets, 
         ):
         """
             Fill the main batches to the size of batch_size, where the filler of the main batch
             does not have any indices of current class.
-            Returns list like <classes<batches<indices>>>
+            It is the same as removing partial batches from 'mixed_targets_indices' that are already used in
+            'batched_classes_main_indices' or 'batched_classes_other_indices'.
+            Return dictionary like -- classes: [batches[indices]]
         """
-        for batched_main_indices, batched_rest_main_indices in zip(
-                batched_classes_main_indices, batched_classes_other_indices
+        data_buffer = SharedData()
+        
+        random.shuffle(mixed_targets_indices) # needs to be to prevent from forming a cycle of the size less than len(classes)
+        for (classs, batch_main), batch_other in zip(
+                batched_classes_main_indices.items(), batched_classes_other_indices.values()
             ):
-            if len(batched_main_indices) == 0:
-                #print("No batch")
-                continue
 
-            #print("----------------")
-            #print(mixed_targets_indices)
-            #print(np.reshape(batched_main_indices, [-1]))
-            #print("aa", batched_main_indices)
-            #print(np.reshape(batched_rest_main_indices, [-1]))
-            complement_main = np.setdiff1d(
-                np.setdiff1d(mixed_targets_indices, np.reshape(batched_main_indices, [-1])),
-                    np.reshape(batched_rest_main_indices, [-1]))
+            #complement_current_main = self.concatenate_dict(batched_classes_other_indices, classs)
+            complement_current_main = self.__flatten_list(batch_main) + (self.__flatten_list(batch_other))
 
-            
-            #list(mixed_targets_indices - 
-            #    set(np.reshape(batched_main_indices, [-1])) - 
-            #    set(np.reshape(batched_rest_main_indices, [-1]))) # remove all indices of main class
-            #print("complement", complement_main)
-            #print("main", batched_main_indices)
-            #print("rest", batched_rest_main_indices)
+            # get all possible items for this class
+            complement_current_main = np.setdiff1d(mixed_targets_indices, complement_current_main) 
 
-            #print(batched_main_indices)
-            #print(complement_main)
-            #print(mixed_targets_indices)
-            #print(batched_main_indices)
-            #print(batched_rest_main_indices)
-            buffer_used = []
-            for batch_indices in batched_main_indices:
-                diff = self.batch_size - len(batch_indices)
-                batch_indices.extend(complement_main[:diff]) # extend to full batch
-                buffer_used.extend(batch_indices) # add full batch to used indices
-                complement_main = complement_main[diff:] # remove used indices
+            data_buffer.add(classs, complement_current_main)
+            #self.__show_to_what_class_belongs_to(targets, complement_current_main)
+            #print(classs, len(complement_current_main), len(self.__flatten_list(batch_main)), len(self.__flatten_list(batch_other)), len(self.__flatten_list(batch_main)) + len(self.__flatten_list(batch_other)))
 
-            #print(buffer_used)
-            #exit()
-            mixed_targets_indices = np.setdiff1d(mixed_targets_indices, buffer_used) # remove indices used in batch
+        for classs, batch_main in batched_classes_main_indices.items():
 
-        if(len(mixed_targets_indices) != 0):
-            raise Exception(f"STOP {mixed_targets_indices}")
-        return batched_classes_main_indices
+            buffer_used_idxs = []
+            for idx, indices in enumerate(batch_main):
+                diff = self.batch_size - len(indices)
+
+                complement = []
+                for _ in range(diff):
+                    complement.append(data_buffer.popReversed(classs))
+                indices.extend(complement) # extend to full batch
+
+        return batched_classes_main_indices, data_buffer
+
+    def __show_to_what_class_belongs_to(self, targets, buffer):
+        for cl in self.classes:
+            cl_indices = np.isin(np.array(targets), [cl])
+            cl_indices_list = np.where(cl_indices)[0].tolist()
+            b = np.reshape(buffer, -1)
+            r = np.setdiff1d(b, np.reshape(cl_indices_list, -1))
+
+            string = ''
+            if(len(buffer) == len(r)):
+                string += ' fully not belongs to;'
+            if(len(r) == 0):
+                string += ' fully belongs to;'
+
+            print(len(r), cl, string)
+
+    def __reuse_unused(self, data_buffer):
+        rest = data_buffer.dumpAllUnique()
+        batch = []
+        while len(rest) != 0:
+            batch.append(rest[:self.batch_size])
+            rest = rest[self.batch_size:]
+        return batch
 
     def __iter__(self):
         return iter(self.batches_sequences)
@@ -233,6 +267,107 @@ class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
         array =  array[:by_amount]
 
         return array
+
+class SharedData():
+    """.git/
+        Class that treats items in buffers as shared. Removing from one buffer can remove from others
+        if selected item exist in them.
+    """
+    def __init__(self):
+        self.possible_buffer = {}
+        self.internal_counter = 0
+
+    def size(self, key):
+        return len(self.possible_buffer[key])
+
+    def fullSize(self):
+        s = 0
+        for v in self.possible_buffer.values():
+            s += len(v)
+        return s
+
+    def add(self, key, possible_buffer: list):
+        if(isinstance(possible_buffer, list)):
+            self.possible_buffer[key] = possible_buffer
+        elif(isinstance(possible_buffer, np.ndarray)):
+            self.possible_buffer[key] = possible_buffer.tolist()
+
+    def pop(self, key, rand=True):
+        '''
+            Return item assigned to the key.
+        '''
+        if(len(self.possible_buffer[key]) == 0):
+            raise Exception(f"Cannot pop value. Buffer for key {key} is empty (len = 0).")
+        if(rand):
+            pos = random.randint(0, len(self.possible_buffer[key]) - 1)
+        else:
+            pos = 0
+        index = self.possible_buffer[key][pos]
+        self.possible_buffer[key].remove(index)
+        for v in self.possible_buffer.values():
+            if(index in v):
+                v.remove(index)
+        return index
+
+    def popReversed(self, key, rand=True):
+        '''
+            Return from any buffer except from buffer with 'key'.
+        '''
+        if(len(self.possible_buffer) == 1):
+            raise Exception("Only one buffer exist. Cannot get reversed item")
+
+        keys = list(self.possible_buffer.keys())
+        not_loops = True
+        if(rand):
+            while sum([len(x) for x in list(self.possible_buffer.values())]) != 0:
+                not_loops = False
+                mykey = keys[random.randint(0, len(keys) - 1)]
+                if(mykey != key):
+                    b = self.possible_buffer[mykey]
+                    if(len(b) == 0):
+                        continue
+                    pos = random.randint(0, len(b) - 1)
+                    break
+        else:
+            while sum([x for x in list(self.possible_buffer.values())]) != 0:
+                not_loops = False
+                mykey = keys[self.internal_counter]
+                pos = 0
+                self.internal_counter += 1
+                if self.internal_counter >= len(keys):
+                    self.internal_counter = 0
+                if(len(mykey) == 0):
+                    continue
+                if(mykey != key):
+                    break
+            
+        if(not_loops):
+            raise Exception("Error: no more items in any buffer left.")
+        index = self.possible_buffer[mykey][pos]
+
+        # remove item from all buffers
+        for v in self.possible_buffer.values():
+            if(index in v):
+                v.remove(index)
+        return index
+
+    def print(self):
+        s = 0
+        unique = set()
+        for k, v in self.possible_buffer.items():
+            print(f"Key: {k} -- Size: {len(v)}")
+            s += len(v)
+            unique = unique.union(v)
+        print(f"In total: {s}")
+        print(f"In total unique: {len(unique)}")
+
+    def dumpAllUnique(self):
+        unique = set()
+        for k, v in self.possible_buffer.items():
+            unique = unique.union(v)
+            self.possible_buffer[k] = []
+        return list(unique)
+
 
 class PairingSampler(torch.utils.data.Sampler):
     """

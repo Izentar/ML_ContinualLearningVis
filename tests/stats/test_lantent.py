@@ -8,7 +8,10 @@ from dataset import dream_sets
 from multidimensional_dreams import getDataset, getDatasetList, getModelType
 from utils import data_manipulation as datMan
 import pytorch_lightning as pl
-from stats.point_plot import PointPlot 
+from stats.point_plot import PointPlot, Statistics
+from torchvision import transforms
+from torchvision.datasets import CIFAR10
+from torch.utils.data import DataLoader
 
 class TestCLModel(unittest.TestCase):
     def setUp(self):
@@ -54,6 +57,14 @@ class TestCLModel(unittest.TestCase):
             train_dreams_robustly=train_dreams_robustly,
         ).to('cpu')
 
+        transform = transforms.Compose([transforms.ToTensor()])
+        dataset = CIFAR10(root="./data", train=False, transform=transform)
+        self.dataloader = DataLoader(dataset, 
+            batch_size=64, 
+            num_workers=4, 
+            pin_memory=False,
+        )
+
 
     def test_plot_singular(self):
         x1 = torch.tensor([
@@ -82,3 +93,20 @@ class TestCLModel(unittest.TestCase):
         ])
         plotter = PointPlot()
         plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='multi', show=True, name=None, symetric=False)
+
+    def test_collector(self):
+        stats = Statistics()
+        def invoker(model, input):
+            _, xe_latent, _, _, _ = model.source_model.forward_encoder(
+                input,
+                with_latent=True,
+                fake_relu=False,
+                no_relu=False,
+            )
+            return xe_latent
+            
+        buffer = stats.collect(model=self.model, dataloader=self.dataloader, num_of_points=100, to_invoke=invoker)
+        plotter = PointPlot()
+        
+        #plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='singular', show=True)
+        plotter.plot(buffer, plot_type='multi', show=True, name=None)

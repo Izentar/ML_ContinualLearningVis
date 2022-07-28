@@ -21,6 +21,9 @@ import torch
 import numpy as np
 from loss_function.chiLoss import ChiLoss
 
+from stats.point_plot import PointPlot, Statistics
+from torch.utils.data import DataLoader
+
 def arg_parser():
     parser = ArgumentParser()
     parser.add_argument("-f", "--fast-dev-run", action="store_true")
@@ -63,10 +66,20 @@ def second_demo():
     args = arg_parser()
     pl.seed_everything(42)
 
+    fast_dev_run = args.fast_dev_run
+    fast_dev_run_batches = False
+
     num_tasks = 5
     num_classes = 10
     epochs_per_task = 15
     dreams_per_target = 48
+
+    if(fast_dev_run):
+        num_tasks = 2
+        num_classes = 4
+        fast_dev_run_batches = 30
+        images_per_dreaming_batch = 8
+        dreams_per_target = 16
 
     train_with_logits = True
     train_normal_robustly = False
@@ -95,14 +108,7 @@ def second_demo():
     
     dreams_transforms = data_transform()
 
-    fast_dev_run = args.fast_dev_run
-    fast_dev_run_batches = False
     if fast_dev_run:
-        num_classes = 4
-        fast_dev_run_batches = 10
-        images_per_dreaming_batch = 8
-        dreams_per_target = 16
-        num_tasks = 2
         val_tasks_split = train_tasks_split = [[0, 1], [2, 3]]
 
     dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
@@ -191,8 +197,34 @@ def second_demo():
     if not fast_dev_run:
         trainer.test(datamodule=cl_data_module)
 
+    transform = transforms.Compose([transforms.ToTensor()])
+    dataset = dataset_class(root="./data", train=False, transform=transform)
+    collect_stats(model=model, dataset=dataset)
+
     # show dream png
     cl_data_module.dreams_dataset.dreams[-1].show()
+
+def collect_stats(model, dataset):
+    stats = Statistics()
+    dataloader = DataLoader(dataset, 
+        batch_size=64, 
+        num_workers=4, 
+        pin_memory=False,
+    )
+
+    def invoker(model, input):
+        _, xe_latent, _, _, _ = model.source_model.forward_encoder(
+            input,
+            with_latent=True,
+            fake_relu=False,
+            no_relu=False,
+        )
+        return xe_latent
+        
+    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=100, to_invoke=invoker)
+    plotter = PointPlot()
+    
+    plotter.plot(buffer, plot_type='multi', show=True, name=None)
 
 if __name__ == "__main__":
     second_demo()

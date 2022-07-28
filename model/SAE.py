@@ -37,9 +37,6 @@ class SAE_CIFAR(nn.Module):
             fake_relu=fake_relu, 
             no_relu=no_relu
         )
-        print(xe_latent.size())
-        print(xe_latent)
-        exit()
 
         x_hat = self.forward_decoder(
             xe_latent, 

@@ -27,6 +27,7 @@ class CLModel(base.CLBase):
         self.model = model_utils.make_and_restore_model(
             arch=model, dataset=robust_dataset
         )[0]
+        self.source_model = model
 
     def forward(self, *args, make_adv=False, with_image=False, **kwargs):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)

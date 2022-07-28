@@ -2,22 +2,31 @@ import torch
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
+from model.overlay import CLModel
 
+class Statistics():
+    def __init__(self):
+        pass
 
-def collect(model, dataloader, num_epoch):
-    buffer = []
-    model.train()
-    for epoch in range(num_epoch):
-        for idx, (input, target) in enumerate(dataloader):
-            xe_latent_pre_relu, xe_latent, xe_latent_second, encoder_hat, shp = model.forward_encoder(
-                input,
-                with_latent=True,
-                fake_relu=False,
-                no_relu=False,
-            )
-            buffer.append((xe_latent, target))
+    def collect(self, model, dataloader, num_of_points, to_invoke):
+        '''
+            to_invoke: function to invoke that returns points to collect
+        '''
+        buffer = []
+        model.eval()
+        epoch_size = np.maximum(num_of_points // len(dataloader) // dataloader.batch_size, 1)
+        counter = 0
 
-    return buffer
+        for epoch in range(epoch_size):
+            for idx, (input, target) in enumerate(dataloader):
+                if(counter >= num_of_points):
+                    break
+                out = to_invoke(model, input)
+
+                buffer.append((out, target))
+                counter += dataloader.batch_size
+
+        return buffer
 
 
 class PointPlot():
@@ -152,6 +161,17 @@ if __name__ == '__main__':
         [16, 17],
         [20, 21],
     ])
+
+    attack_kwargs = attack_kwargs = {
+        "constraint": "2",
+        "eps": 0.5,
+        "step_size": 1.5,
+        "iterations": 10,
+        "random_start": 0,
+        "custom_loss": None,
+        "random_restarts": 0,
+        "use_best": True,
+    }
 
     plotter = PointPlot()
     plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='singular', show=True)
