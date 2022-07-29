@@ -355,6 +355,10 @@ class CLDataModule(DreamDataModule):
             split_dataset.append(Subset(dataset, np.where(task_indices)[0]))
         return split_dataset
 
+    def _get_subset(dataset, classes: list):
+        task_indices = np.isin(np.array(dataset.targets), classes)
+        return Subset(dataset, np.where(task_indices)[0])
+
     def __setup_dream_dataset(self):
         self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
 
@@ -454,9 +458,10 @@ class CLDataModule(DreamDataModule):
         ]
 
     def test_dataloader(self):
-        full_dataset = ConcatDataset(self.train_datasets)
         full_classes = list(set(x for split in self.val_tasks_split for x in split))
-            
+        full_dataset = CLDataModule._get_subset(self.train_dataset, full_classes)  
+        #ConcatDataset(self.train_datasets) # creates error / no easy way to get targets from this dataset
+        
         return DataLoader(
             full_dataset, 
             batch_size=self.batch_size if self.datasampler is None else 1, 

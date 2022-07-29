@@ -3,6 +3,10 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from model.overlay import CLModel
+import pickle
+import json
+import os
+import pathlib
 
 class Statistics():
     def __init__(self):
@@ -63,6 +67,9 @@ class PointPlot():
                 print(f"{name}_{idx}")
                 fig.savefig(f"{name}_{idx}.svg")
 
+    def __tryCreatePath(self, name):
+        path = pathlib.Path(name).parent.resolve().mkdir(parents=True, exist_ok=True)
+
     def plot(self, buffer, plot_type, with_batch=True, with_target=True, symetric=True, name='point-plot', show=False):
         '''
             buffer[0] - list of batches of points
@@ -71,6 +78,8 @@ class PointPlot():
         '''
         if not (plot_type in ['singular', 'multi']):
             raise Exception(f"Unknown plot type: {plot_type}")
+
+        self.__tryCreatePath(name)
 
         target = None
         if(with_batch and with_target):
@@ -135,6 +144,33 @@ class PointPlot():
         elif(plot_type == 'multi'):
             fig, ax = plot_loop(data_x_target, data_y_target, data_dims)
             self.flush(fig, ax, name, show)
+
+    def saveBuffer(self, buffer, name):
+        self.__tryCreatePath(name)
+
+        newb = []
+        for (a, b) in buffer:
+            newb.append((a.cpu().detach().numpy().tolist(), b.cpu().detach().numpy().tolist()))
+
+        with open(f'{name}.pickle', 'wb') as fp:
+            pickle.dump(newb, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
+        with open(f'{name}.json', 'w') as fp:
+            json.dump(newb, fp)
+
+    def loadBuffer(self, name):
+        buffer = None
+        if('.json' in name):
+            with open(name, 'r') as fp:
+                buffer = json.load(fp)
+        elif('.pickle' in name):
+            with open(name, 'rb') as fp:
+                buffer = pickle.load(fp)
+
+        newb = []
+        for (a, b) in buffer:
+            newb.append((torch.from_numpy(np.asarray(a)), torch.from_numpy(np.asarray(b))))
+        return newb
 
 if __name__ == '__main__':
     x1 = torch.tensor([

@@ -69,15 +69,15 @@ def second_demo():
     fast_dev_run = args.fast_dev_run
     fast_dev_run_batches = False
 
-    num_tasks = 5
+    num_tasks = 2
     num_classes = 10
-    epochs_per_task = 15
+    epochs_per_task = 25
     dreams_per_target = 64
 
     if(fast_dev_run):
         num_tasks = 3
         num_classes = 6
-        fast_dev_run_batches = 3000 # change it to increase epoch count
+        fast_dev_run_batches = 30 # change it to increase epoch count
         images_per_dreaming_batch = 8
         epochs_per_task = 2
         dreams_per_target = 64
@@ -226,8 +226,10 @@ def collect_stats(model, dataset):
         
     buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=100, to_invoke=invoker)
     plotter = PointPlot()
-    
-    plotter.plot(buffer, plot_type='multi', show=True)
+    name = 'plots/multi'
+
+    plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False)
+    plotter.saveBuffer(buffer, name='saves/latent')
 
 def check(split, num_classes, num_tasks):
     test = set()

@@ -6,3 +6,7 @@ data/generated_impressions
 
 *data
 *wandb
+*plots
+*continual_dreaming
+*.json
+*.pickle
