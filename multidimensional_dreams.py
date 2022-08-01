@@ -70,8 +70,9 @@ def second_demo():
     fast_dev_run_batches = False
 
     num_tasks = 2
+    num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 25
+    epochs_per_task = 5
     dreams_per_target = 64
 
     if(fast_dev_run):
@@ -112,12 +113,12 @@ def second_demo():
     if fast_dev_run:
         val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
-    dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
+    dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes_dataset)
 
     check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
-        model=SAE_CIFAR(num_classes=num_classes),
+        model=SAE_CIFAR(num_classes=num_classes, hidd2=2),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
@@ -125,6 +126,7 @@ def second_demo():
         dreams_with_logits=train_with_logits,
         train_normal_robustly=train_normal_robustly,
         train_dreams_robustly=train_dreams_robustly,
+        dream_frequency=10,
     )
 
     objective_f = datMan.SAE_dream_objective_f
@@ -158,7 +160,7 @@ def second_demo():
         tags.append("island")
     if fast_dev_run:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags)
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=False)
     progress_bar = RichProgressBar()
     callbacks = [progress_bar]
     
@@ -179,7 +181,7 @@ def second_demo():
                 batch_size=batch_size,
                 shuffle=shuffle,
                 classes=classes,
-                main_class_split=0.55,
+                main_class_split=0.85,
                 classes_frequency=[1 / len(classes)] * len(classes)
             ),
         batch_size=32
@@ -205,7 +207,7 @@ def second_demo():
     collect_stats(model=model, dataset=dataset)
 
     # show dream png
-    cl_data_module.dreams_dataset.dreams[-1].show()
+    #cl_data_module.dreams_dataset.dreams[-1].show()
 
 def collect_stats(model, dataset):
     stats = Statistics()
@@ -216,12 +218,13 @@ def collect_stats(model, dataset):
     )
 
     def invoker(model, input):
-        _, xe_latent, _, _, _ = model.source_model.forward_encoder(
+        a, xe_latent, b, c, d = model.model.model.forward_encoder(
             input,
             with_latent=True,
             fake_relu=False,
             no_relu=False,
         )
+        #print(a, xe_latent, b, c, d)
         return xe_latent
         
     buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=100, to_invoke=invoker)

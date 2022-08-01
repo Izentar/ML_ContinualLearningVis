@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
-from model.overlay import CLModel
 import pickle
 import json
 import os
@@ -210,4 +209,4 @@ if __name__ == '__main__':
     }
 
     plotter = PointPlot()
-    plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='singular', show=True)
+    plotter.plot([(x1, [1, 3, 5]), (x2, [7, 5, 3])], plot_type='singular', show=True, name='plots/point-plot')

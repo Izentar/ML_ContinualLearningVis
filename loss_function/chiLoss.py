@@ -15,30 +15,34 @@ class ChiLoss:
 
         # if the loss is nan, change to bigger value
         self.eps = eps  # to not have log(0) problem
+        self.z_div = (2 * self.sigma**2)
 
     def __call__(self, input, target):
         k = input.size(dim=1)
-        z = torch.cdist(input, input, p=2) ** 2 / (2 * self.sigma**2)
+        z = torch.pow(torch.cdist(input, input, p=2), 2.).div(self.z_div)
+        dims = (k / 2 - 1) 
+        dims += (dims == 0) + (dims >= 0) - 1 # if k=2 -> dims=1; k=4 -> dims=1
+
+        first_part = torch.mul(torch.log_(torch.add(torch.div(z, k), self.eps)), -dims)
+        second_part = z.div(2 * k)
 
         target_stacked = target.repeat((len(target), 1))
-        z_class = (target_stacked != target_stacked.T).long() * 2 - 1
+        z_class = torch.mul(torch.eq(target_stacked, target_stacked.T).float(), 2).add_(-1)
 
-        first_part = -(k / 2 - 1) * torch.log(z / k + self.eps)
-        second_part = z / (2 * k)
+        #print('input', input.sum())
+        #print('z', z.sum())
+        #print('k', k)
+        #print('torch.log(z / k)', torch.log(z / k + self.eps))
+        #print('torch.log(z / k).sum()', -dims * torch.log(z / k + self.eps))
+        #print('first_part', first_part.sum())
+        #print('second_part', second_part.sum())
+        #print('target_stacked', target_stacked.size())
+        #print('target_stacked', target_stacked)
+        #print('z_class', z_class.size())
+        #print('z_class', z_class)
+        #exit()
 
-        return ((first_part + second_part) * z_class).sum()
-
-
-def chiLoss_target_transform(target: Tensor):
-    # NOT USED
-    # here we do not need grad history, because target does not come from any NN weight
-    main_value = torch.argmax(torch.bincount(targets))
-
-    boolean_idxs = torch.logical_and(targets, main_value.repeat(torch.as_tensor(targets.size()))) # .item
-    #main_idxs = torch.squeeze(torch.transpose(torch.nonzero(boolean_idx), 0, 1))
-    #part_idxs = torch.squeeze(torch.transpose(torch.nonzero(~boolean_idx), 0, 1))
-
-    return torch.where(boolean_idxs, 1, -1)
+        return torch.matmul(first_part.add_(second_part), (z_class)).sum()
 
 
 class OLDChiLoss():

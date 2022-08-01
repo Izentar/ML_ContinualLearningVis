@@ -4,6 +4,7 @@ from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 from robustness.tools import custom_modules
+import math
 
 class SAE_CIFAR(nn.Module):
     def __init__(self, num_classes, hidd1=256, hidd2=32):
@@ -29,6 +30,23 @@ class SAE_CIFAR(nn.Module):
         self.fake_relu = custom_modules.FakeReLUM()
         self.fc = nn.Linear(in_features=hidd2, out_features=num_classes)
 
+        self._initialize_weights()
+    
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                n = m.weight.size(1)
+                m.weight.data.normal_(0, 0.01)
+                m.bias.data.zero_()
+
     # based on https://robustness.readthedocs.io/en/latest/example_usage/training_lib_part_2.html#training-with-custom-architectures
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
         xe_latent_pre_relu, xe_latent, xe_latent_second, encoder_hat, shp = self.forward_encoder(
@@ -47,7 +65,7 @@ class SAE_CIFAR(nn.Module):
         )
 
         if with_latent:
-            return ((encoder_hat, xe_latent_pre_relu), x_hat) if no_relu else (encoder_hat, xe_latent_second)
+            return ((encoder_hat, xe_latent_pre_relu), x_hat, xe_latent) if no_relu else (encoder_hat, xe_latent_second, xe_latent)
         return encoder_hat, xe_latent_pre_relu, x_hat
         
     def forward_encoder(self, x, with_latent=False, fake_relu=False, no_relu=False):

@@ -15,6 +15,7 @@ class CLModel(base.CLBase):
         dreams_with_logits=False,
         train_normal_robustly=False,
         train_dreams_robustly=False,
+        resume_path=None,
         *args, 
         **kwargs
     ):
@@ -25,7 +26,7 @@ class CLModel(base.CLBase):
         self.train_normal_robustly = train_normal_robustly
         self.train_dreams_robustly = train_dreams_robustly
         self.model = model_utils.make_and_restore_model(
-            arch=model, dataset=robust_dataset
+            arch=model, dataset=robust_dataset, resume_path=resume_path
         )[0]
         self.source_model = model
 
@@ -38,11 +39,18 @@ class CLModel(base.CLBase):
         def loss_fn(y_hat):
             return cross_entropy(y_hat, y)
 
-        y_hat, *y_auxiliary = self(
+        y_hat, *y_auxiliary, xe_latent = self(
             x, target=y, make_adv=self.train_normal_robustly, **self.attack_kwargs
         )
+        a = torch.abs(xe_latent.detach()).sum().cpu().item()
+        self.log("train_loss/xe_latent", a)
         loss = self.process_losses_normal(
-            x, y, y_hat, y_auxiliary, "train_loss", loss_fn
+            x=x, 
+            y=y, 
+            y_hat=y_hat, 
+            y_auxiliary=y_auxiliary, 
+            label="train_loss", 
+            loss_fn=loss_fn,
         )
         self.log("train_loss/total", loss)
         self.train_acc(y_hat, y)
