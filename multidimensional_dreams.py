@@ -72,7 +72,7 @@ def second_demo():
     num_tasks = 2
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 5
+    epochs_per_task = 15
     dreams_per_target = 64
 
     if(fast_dev_run):
@@ -98,7 +98,8 @@ def second_demo():
         "random_restarts": 0,
         "use_best": True,
         'with_latent': True,
-        'fake_relu': True,
+        'fake_relu': False,
+        'no_relu':False,
     }
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
@@ -118,7 +119,7 @@ def second_demo():
     check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
-        model=SAE_CIFAR(num_classes=num_classes, hidd2=2),
+        model=SAE_CIFAR(num_classes=num_classes, hidd2=10),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
@@ -181,7 +182,7 @@ def second_demo():
                 batch_size=batch_size,
                 shuffle=shuffle,
                 classes=classes,
-                main_class_split=0.85,
+                main_class_split=0.55,
                 classes_frequency=[1 / len(classes)] * len(classes)
             ),
         batch_size=32
@@ -231,7 +232,7 @@ def collect_stats(model, dataset):
     plotter = PointPlot()
     name = 'plots/multi'
 
-    plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False)
+    plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
 def check(split, num_classes, num_tasks):
