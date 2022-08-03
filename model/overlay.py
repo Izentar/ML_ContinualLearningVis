@@ -129,7 +129,7 @@ class CLModelWithReconstruction(CLModel):
         return super().process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
 
 class CLModelWithIslands(CLModel):
-    def __init__(self, *args, islands=False, alpha=0.0, norm_lambd=0.1, **kwargs):
+    def __init__(self, *args, islands=False, alpha=0.0, norm_lambd=100, **kwargs):
         super().__init__(*args, **kwargs)
         self.islands = islands
         self.island_loss = ChiLoss()
@@ -142,9 +142,11 @@ class CLModelWithIslands(CLModel):
         loss_island = self.island_loss(y_auxiliary[0], y)
 
         loss = self.alpha * loss_classification + (1 - self.alpha) * loss_island
-        loss += self.norm(self.model, self.norm_lambd)
+        norm = self.norm(self.model, self.norm_lambd)
+        loss += norm
         self.log(f"{label}/classification", loss_classification)
         self.log(f"{label}/island", loss_island)
+        self.log(f"{label}/l2-regularization", norm)
         return loss
 
     def process_losses_dreams(self, x, y, y_hat, y_auxiliary, label, loss_fn):

@@ -10,15 +10,14 @@ import math
 Tensor = torch.Tensor
 
 
-def l2_norm(model, lambd):
-    for p in model.parameters():      
-        a = p.pow(2.).sum()
-    norm = a.sum()
-
+def l2_norm(model, lambd):   
+    # call python sum. It needs to call __add__
+    norm = sum(torch.pow(p, 2.).sum() for p in model.parameters())
     return lambd * norm
 
 def l1_norm(model, lambd):
-    return lambd
+    norm = sum(torch.sum(torch.abs(p)) for p in model.parameters())
+    return norm * lambd
 
 class ChiLoss:
     def __init__(self, sigma=0.2, eps=1e-5):
