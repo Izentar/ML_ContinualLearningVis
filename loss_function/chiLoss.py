@@ -10,6 +10,10 @@ import math
 Tensor = torch.Tensor
 
 
+def l2_latent_norm(weights, lambd):
+    norm = sum(torch.pow(p, 2.).sum() for p in weights)
+    return lambd * norm
+
 def l2_norm(model, lambd):   
     # call python sum. It needs to call __add__
     norm = sum(torch.pow(p, 2.).sum() for p in model.parameters())
