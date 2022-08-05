@@ -24,26 +24,39 @@ def l1_norm(model, lambd):
     return norm * lambd
 
 class ChiLoss:
-    def __init__(self, sigma=0.2, eps=1e-5):
+    def __init__(self, sigma=0.2, rho=0.4, eps=1e-5):
         self.sigma = sigma
+        self.rho = rho
+
+        if(sigma >= rho):
+            raise Exception(f"Sigma cannot be bigger or equal than rho - sigma: {sigma}; rho: {tho}")
 
         # if the loss is nan, change to bigger value
-        self.eps = eps  # to not have log(0) problem
-        self.z_div = (2 * self.sigma**2)
+        self.eps = eps  # to not have log(0) problem        
 
     def __call__(self, input, target):
         k = input.size(dim=1)
-        dims = (k / 2 - 1) 
-        dims += (dims == 0)*0.25 + (dims >= 0) - 1 # if k=2 -> dims=0.25; k=4 -> dims=1
-        z = torch.cdist(input, input, p=2) ** 2 / (2 * self.sigma**2)
+        batch_size = input.size(dim=0)
+        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2)
+        z_negative = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)
+
+        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
+        second_part_positive = z_positive / (2 * k)
+
+        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
+        second_part_negative = z_negative / (2 * k)
 
         target_stacked = target.repeat((len(target), 1))
-        z_class = (target_stacked == target_stacked.T).long() * 2 - 1
+        positive_mask = (target_stacked == target_stacked.T).float()
+        negative_mask = (target_stacked != target_stacked.T).float()
+        z_class = positive_mask.float() * 2 - 1 
 
-        first_part = -dims * torch.log(z / k + self.eps)
-        second_part = z / (2 * k)
+        positive_loss = (first_part_positive + second_part_positive) * positive_mask
+        negative_loss = (first_part_negative + second_part_negative) * negative_mask
 
-        return ((first_part + second_part) * z_class).sum()
+        loss = ((positive_loss + negative_loss) * z_class)
+        loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
+        return loss.sum()
 
 class TESTChiLoss:
     def __init__(self, sigma=0.2, eps=1e-5):
@@ -54,6 +67,7 @@ class TESTChiLoss:
 
     def __call__(self, input: torch.Tensor, target: torch.Tensor):
         k = input.size(dim=1)
+        batch_size = input.size(dim=0)
         dims = (k / 2 - 1) 
         dims += (dims == 0) + (dims >= 0) - 1 # if k=2 -> dims=1; k=4 -> dims=1
 
@@ -63,15 +77,16 @@ class TESTChiLoss:
         target_stacked = target.repeat((len(target), 1))
         positive_mask =  (target_stacked == target_stacked.T).float()
         negative_mask =  (target_stacked != target_stacked.T).float()
-        z_class = negative_mask.float() * 2 - 1 
+        z_class = positive_mask.float() * 2 - 1 
 
         first_part = -dims * torch.log((z / k) + self.eps)
         second_part = z / (2 * k)
         #third_part = torch.log(((z + 1) / k) + self.eps) + z + 1
-        third_part = 1 / (z + self.eps)
+        #third_part = 1 / (z + self.eps)
+        third_part = second_part
         
         first_part *= positive_mask 
-        second_part *= positive_mask
+        second_part *= positive_mask 
         third_part *= negative_mask
 
         #print(torch.abs(z.detach()).sum().item())
@@ -89,7 +104,10 @@ class TESTChiLoss:
         #print('z_class', z_class)
         #exit()
 
-        return ((first_part + second_part + third_part)).sum()
+        loss = (first_part + second_part + third_part)
+        loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
+
+        return loss.sum()
 
 class OLDChiLoss():
     def __init__(self, sigma = 0.2, eps=1e-5):

@@ -69,7 +69,7 @@ class PointPlot():
     def __tryCreatePath(self, name):
         path = pathlib.Path(name).parent.resolve().mkdir(parents=True, exist_ok=True)
 
-    def plot(self, buffer, plot_type, with_batch=True, with_target=True, symetric=True, name='point-plot', show=False):
+    def plot(self, buffer, plot_type, with_batch=True, with_target=True, symetric=True, name='point-plot', show=False, markersize=1):
         '''
             buffer[0] - list of batches of points
             buffer[1] - list of points
@@ -123,7 +123,7 @@ class PointPlot():
                     stash.append((data_x_target, data_y_target, data_dims))
                     data_x_target, data_y_target, data_dims = self.create_buffers(target_set)  
 
-        def plot_loop(data_x_target, data_y_target, data_dims):
+        def plot_loop(data_x_target, data_y_target, data_dims, markersize):
             fig, ax = plt.subplots()
             for (kx, vx), (ky, vy), (kt, vt) in zip(data_x_target.items(), data_y_target.items(), data_dims.items()):
                 ax.plot(
@@ -132,16 +132,17 @@ class PointPlot():
                     'ro', 
                     marker=next(markers),
                     color=next(colors),
-                    label=f"Target: {kx}"
+                    label=f"Target: {kx}",
+                    markersize=markersize,
                 )
             return fig, ax
 
         if(plot_type == 'singular'):
             for idx, (data_x_target, data_y_target, data_dims) in enumerate(stash):
-                fig, ax = plot_loop(data_x_target, data_y_target, data_dims)
+                fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize)
                 self.flush(fig, ax, name, show, idx=idx)
         elif(plot_type == 'multi'):
-            fig, ax = plot_loop(data_x_target, data_y_target, data_dims)
+            fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize)
             self.flush(fig, ax, name, show)
 
     def saveBuffer(self, buffer, name):
