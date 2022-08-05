@@ -89,7 +89,7 @@ class CLModel(base.CLBase):
     def process_losses_dreams(self, x, y, y_hat, y_auxiliary, label, loss_fn):
         return self.process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
         y_hat = self(x)[0]
         val_loss = cross_entropy(y_hat, y)

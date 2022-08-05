@@ -50,13 +50,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
         select_dream_tasks_f,
         dream_objective_f,
         dreams_per_target,
-        empty_dream_dataset,
         tasks_processing_f=datMan.default_tasks_processing,
         images_per_dreaming_batch=8,
         max_logged_dreams=8, 
         fast_dev_run=False,
         image_size = 32,
         progress_bar = None,
+        empty_dream_dataset=None,
     ):
         """
         Args:
@@ -360,7 +360,10 @@ class CLDataModule(DreamDataModule):
         return Subset(dataset, np.where(task_indices)[0])
 
     def __setup_dream_dataset(self):
-        self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
+        if self.dreams_dataset is not None and len(self.dreams_dataset) > 0:
+            self.dream_task = self.dreams_dataset 
+        else: 
+            self.dream_task = None
 
     def setup_task_index(self, task_index: int) -> None:
         """

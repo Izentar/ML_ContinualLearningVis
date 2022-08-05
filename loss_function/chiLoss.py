@@ -49,12 +49,11 @@ class ChiLoss:
         target_stacked = target.repeat((len(target), 1))
         positive_mask = (target_stacked == target_stacked.T).float()
         negative_mask = (target_stacked != target_stacked.T).float()
-        z_class = positive_mask.float() * 2 - 1 
 
         positive_loss = (first_part_positive + second_part_positive) * positive_mask
         negative_loss = (first_part_negative + second_part_negative) * negative_mask
 
-        loss = ((positive_loss + negative_loss) * z_class)
+        loss = positive_loss + negative_loss
         loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
         return loss.sum()
 
