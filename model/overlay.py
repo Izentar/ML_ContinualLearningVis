@@ -129,10 +129,10 @@ class CLModelWithReconstruction(CLModel):
         return super().process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
 
 class CLModelWithIslands(CLModel):
-    def __init__(self, *args, islands=False, alpha=0.0, norm_lambd=0.001, **kwargs):
+    def __init__(self, *args, islands=False, alpha=0.0, norm_lambd=0.001, sigma=0.2, rho=1., **kwargs):
         super().__init__(*args, **kwargs)
         self.islands = islands
-        self.island_loss = ChiLoss()
+        self.island_loss = ChiLoss(sigma=sigma, rho=rho)
         self.norm = l2_latent_norm
         self.norm_lambd = norm_lambd
         self.alpha = alpha

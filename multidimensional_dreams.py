@@ -69,11 +69,15 @@ def second_demo():
     fast_dev_run = args.fast_dev_run
     fast_dev_run_batches = False
 
-    num_tasks = 2
+    num_tasks = 1
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 15
+    epochs_per_task = 20
     dreams_per_target = 64
+    main_split = 0.6
+    sigma = 0.3
+    rho = 1.
+    hidden = 15
 
     if(fast_dev_run):
         num_tasks = 3
@@ -119,15 +123,17 @@ def second_demo():
     check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
-        model=SAE_CIFAR(num_classes=num_classes, hidd2=10),
+        model=SAE_CIFAR(num_classes=num_classes, hidd2=hidden),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
         attack_kwargs=attack_kwargs,
         dreams_with_logits=train_with_logits,
         train_normal_robustly=train_normal_robustly,
-        train_dreams_robustly=train_dreams_robustly,
+        #train_dreams_robustly=train_dreams_robustly,
         dream_frequency=10,
+        sigma=sigma,
+        rho=rho,
     )
 
     objective_f = datMan.SAE_dream_objective_f
@@ -174,7 +180,7 @@ def second_demo():
         select_dream_tasks_f=select_dream_tasks_f,
         fast_dev_run=fast_dev_run,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
+        #empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
         progress_bar=progress_bar,
         datasampler=lambda dataset, batch_size, shuffle, classes: 
             PairingBatchSampler(
@@ -182,7 +188,7 @@ def second_demo():
                 batch_size=batch_size,
                 shuffle=shuffle,
                 classes=classes,
-                main_class_split=0.55,
+                main_class_split=main_split,
                 classes_frequency=[1 / len(classes)] * len(classes)
             ),
         batch_size=32
@@ -228,11 +234,13 @@ def collect_stats(model, dataset):
         #print(a, xe_latent, b, c, d)
         return xe_latent
         
-    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=100, to_invoke=invoker)
+    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=5000, to_invoke=invoker)
     plotter = PointPlot()
     name = 'plots/multi'
 
-    plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False)
+    #plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False, markersize=3, ftype='png')
+    std_mean_dict = Statistics.mean_std(buffer)
+    plotter.plot_std_mean(std_mean_dict, name='plots/std-mean', show=True, ftype='png')
     plotter.saveBuffer(buffer, name='saves/latent')
 
 def check(split, num_classes, num_tasks):

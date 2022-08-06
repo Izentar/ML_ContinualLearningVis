@@ -24,7 +24,7 @@ def l1_norm(model, lambd):
     return norm * lambd
 
 class ChiLoss:
-    def __init__(self, sigma=0.2, rho=0.4, eps=1e-5):
+    def __init__(self, sigma=0.2, rho=1., eps=1e-5):
         self.sigma = sigma
         self.rho = rho
 

@@ -3,6 +3,7 @@ from robustness.datasets import (
     CIFAR10 as CIFAR10_robust,
     CIFAR100 as CIFAR100_robust
 )
+import itertools
 
 fast_dev_run_config = {
     "num_tasks": 1,
@@ -37,3 +38,9 @@ datasets_map = {
     "RC100": [CIFAR100, CIFAR100_robust],
     "RC10": [CIFAR10, CIFAR10_robust]
 }
+
+
+colors_list = ('r', 'g', 'b', 'c', 'k', 'm', 'y', 'indianred', 'salmon', 'darkkhaki', 'violet')
+markers_list = ('>', '+', '.', 'o', '*')
+markers = itertools.cycle(markers_list)
+colors = itertools.cycle(colors_list)
