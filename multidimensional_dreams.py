@@ -75,7 +75,7 @@ def second_demo():
     epochs_per_task = 20
     dreams_per_target = 64
     main_split = 0.5
-    sigma = 0.3
+    sigma = 0.1
     rho = 1.
     hidden = 15
     norm_lambd = 0.
@@ -247,8 +247,10 @@ def collect_stats(model, dataset, collect_points, nrows=1, ncols=1):
     #plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False, markersize=3, ftype='png')
     #std_mean_dict = Statistics.by_class_operation(Statistics.f_mean_std, buffer, 'saves/mean_std.txt')
     std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, 'saves/distance.txt')
+    Statistics.mean_distance(std_mean_distance_dict)
     plotter.plot_std_mean(std_mean_distance_dict, name='plots/std-mean', show=False, ftype='png')
     plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name='plots/distance_class', show=False, ftype='png')
+    plotter.plot_mean_distance(std_mean_distance_dict, name='plots/mean_distance', show=False, ftype='png', markersize=4)
     plotter.saveBuffer(buffer, name='saves/latent')
 
 def check(split, num_classes, num_tasks):

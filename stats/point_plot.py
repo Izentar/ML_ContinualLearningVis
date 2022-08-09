@@ -18,7 +18,7 @@ def legend_without_duplicate_labels(ax):
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
     ax.legend(*zip(*unique))
 
-def legend_fix(label_plot: dict, ax):
+def legend_fix(label_plot: dict, ax, fig):
     label = []
     plot = []
     for cl, val in label_plot.items():
@@ -38,7 +38,7 @@ def legend_fix(label_plot: dict, ax):
         p.set_label(l)
 
     #ax.legend(handles=plot, labels=label)
-    ax.legend(bbox_to_anchor = (1.05, 0.6), loc='upper left')
+    fig.legend(plot, label, bbox_to_anchor = [1.05, 0.6], loc='upper left', borderaxespad=0)
 
 class ServePlot():
     def __init__(self, **kwargs):
@@ -225,7 +225,30 @@ class Statistics():
 
         output[cl]['distance_negative'] = distance_negative
         
+    @staticmethod
+    def mean_distance(output):
+        '''
+            Returns in output at least
+            {
+                'mean': mean,
+                'distance_mean': distance_mean,
+            }
+        '''
 
+        means = []
+        pdist = torch.nn.PairwiseDistance(p=2)
+
+        for cl, val in output.items():
+            means.append(val['mean'])
+        means = set(means)
+
+        for cl, val in output.items():
+            mean = val['mean']
+            other_means = torch.stack(list(means - set([mean])), 0)
+            distance_mean = pdist(other_means, mean)
+            output[cl]['distance_mean'] = distance_mean
+        
+        return output
 
 class PointPlot():
     def __init__(self):
@@ -297,7 +320,7 @@ class PointPlot():
                     'plot': [pos_plot, neg_plot],
                 }
             ax.set_title(f'Class {cl}')
-            legend_fix(legend_label, ax)
+            legend_fix(legend_label, ax, fig)
             plotter.schedule_flush(self, name, show, idx, ftype)
             #self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
 
@@ -341,12 +364,58 @@ class PointPlot():
                 plot_index += 1
                 #if(idx1 + 1 < len(mean)):
                 #    ax.axhline(y=plot_index - 0.5, color='black')
-        legend_fix(legend_label, ax)
+        legend_fix(legend_label, ax, fig)
         ax.set_title('std-mean')
         plt.yticks(list(range(len(labels))), labels, rotation='horizontal')
         add_range = (maxi - mini) * border_range_scale
         plt.xlim([mini - add_range, maxi + add_range])
         self.flush(fig, ax, name, show, ftype=ftype)
+
+    def plot_mean_distance(
+        self, 
+        mean_distance_dict, 
+        name='mean-distance', 
+        show=False, 
+        ftype='png',
+        markersize=2,
+    ):
+        fig, ax = plt.subplots()
+        legend_label = {}
+        my_colors = colors_list[:len(mean_distance_dict)]
+        my_colors = itertools.cycle(my_colors)
+
+        y_labels = []
+        
+        for idx, (cl, val) in enumerate(mean_distance_dict.items()):
+            main_mean_dist = val['distance_mean']
+            other_mean_dist = []
+            other_class_dist = []
+            y_labels.append(cl.item())
+
+            #for idx2, (cl2, val2) in enumerate(mean_distance_dict.items()):
+            #    mean_dist = val2['distance_mean']
+            #    if(idx != idx2):
+            #        other_mean_dist.append(mean_dist)
+            #        other_class_dist.append(cl2)
+            #other_mean_dist = torch.stack(other_mean_dist, 0)
+            #other_class_dist = torch.stack(other_class_dist, 0)
+
+            #for points in main_mean_dist:
+            color = next(my_colors)
+                #theta = [np.random.uniform(0, 2 * np.pi) for _ in range(len(other_mean_dist))]
+                #theta = np.random.uniform(0, 2 * np.pi)
+            y = [idx] * (len(main_mean_dist))
+            new_plot = ax.plot(main_mean_dist, y, 'ro', color=color, markersize=markersize)[0]
+            
+            legend_label[cl] = {
+                'label': f'Relative to class {cl}', 
+                'plot': new_plot,
+            }
+
+        legend_fix(legend_label, ax, fig)
+        ax.set_title(f'Distance of the means from each other')
+        plt.yticks(list(range(len(y_labels))), y_labels, rotation='horizontal')
+        self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
 
     def plot(
         self, 
