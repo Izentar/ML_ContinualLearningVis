@@ -40,6 +40,64 @@ def legend_fix(label_plot: dict, ax):
     #ax.legend(handles=plot, labels=label)
     ax.legend(bbox_to_anchor = (1.05, 0.6), loc='upper left')
 
+class ServePlot():
+    def __init__(self, **kwargs):
+        self.create_new_subplot = True
+        self.kwargs = kwargs
+        self.nrows = kwargs.get('nrows', 1)
+        self.ncols = kwargs.get('ncols', 1)
+        self.index_list = [(x, y) for x in range(self.nrows) for y in range(self.ncols)]
+        self.axs = None
+
+        self.current_fig = None
+        self.current_ax = None
+
+        self.del_flush = True
+        self.name = None
+
+    def get_next(self):
+        if(self.create_new_subplot or self.axs is None):
+            self.create_new_subplot = False
+            self.ax_idx = 0
+            self.fig, self.axs = plt.subplots(**self.kwargs)
+
+            self.fig.set_size_inches(6.4 * self.nrows, 4.8 * self.ncols)
+            if(self.name is not None):
+                self._flush()
+
+        ax = self.axs
+        if(isinstance(self.axs, list) or isinstance(self.axs, np.ndarray)):
+            ax = self.axs[self.index_list[self.ax_idx]]
+            self.ax_idx += 1
+            if(self.ax_idx == len(self.index_list)):
+                self.create_new_subplot = True
+        self.current_ax = ax
+        self.current_fig = self.fig
+        return self.fig, ax
+
+    def schedule_flush(self, plot_point_obj, name, show, idx, ftype):
+        self.name = name
+        self.show = show
+        self.idx = idx
+        self.ftype = ftype
+        self.plot_point_obj = plot_point_obj
+
+    def _flush(self):
+        if(self.name is None):
+            raise Exception('Cannot flush to file. No config data provided.')
+        self.plot_point_obj.flush(self.current_fig, self.current_ax, self.name, self.show, idx=self.idx, ftype=self.ftype)
+        self.name = None
+
+    def __del__(self):
+        if(self.del_flush):
+            self._flush()
+
+    def force_flush(self, plot_point_obj, name, show, idx, ftype):
+        self.del_flush = False
+        self.schedule_flush(plot_point_obj, name, show, idx, ftype)
+        self._flush()
+
+
 class Statistics():
     def __init__(self):
         pass
@@ -210,16 +268,22 @@ class PointPlot():
         show=False, 
         ftype='png',
         markersize=2,
+        nrows=1,
+        ncols=1,
     ):
         my_colors = colors_list[:2]
         legend_label = {}
 
+        create_new_subplot = True
+        plotter = ServePlot(nrows=nrows, ncols=ncols, subplot_kw={'projection': 'polar'})
+        
         for idx, (cl, val) in enumerate(std_mean_distance_dict.items()):
-            fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+            fig, ax = plotter.get_next()
+
             mean = val['mean']
             dist_positive = val['distance_positive']
             dist_negative = val['distance_negative']
-            my_colors = itertools.cycle(my_colors)
+            my_colors = itertools.cycle(my_colors)        
             
             for pos, neg in zip(dist_positive, dist_negative):
                 theta = np.random.uniform(0, 2 * np.pi)
@@ -234,7 +298,10 @@ class PointPlot():
                 }
             ax.set_title(f'Class {cl}')
             legend_fix(legend_label, ax)
-            self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
+            plotter.schedule_flush(self, name, show, idx, ftype)
+            #self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
+
+        plotter.force_flush(self, name, show, idx, ftype)
 
     def plot_std_mean(
         self, 

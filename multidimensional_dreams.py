@@ -79,11 +79,15 @@ def second_demo():
     rho = 1.
     hidden = 15
     norm_lambd = 0.
+    wandb_offline = False
+    collect_points = 5000
+    nrows = 4
+    ncols = 4
 
     if(fast_dev_run):
+        fast_dev_run_batches = 30 # change it to increase epoch count
         num_tasks = 3
         num_classes = 6
-        fast_dev_run_batches = 30 # change it to increase epoch count
         images_per_dreaming_batch = 8
         epochs_per_task = 2
         dreams_per_target = 64
@@ -169,7 +173,7 @@ def second_demo():
         tags.append("island")
     if fast_dev_run:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=False)
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
     progress_bar = RichProgressBar()
     callbacks = [progress_bar]
     
@@ -213,12 +217,12 @@ def second_demo():
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = dataset_class(root="./data", train=False, transform=transform)
-    collect_stats(model=model, dataset=dataset)
+    collect_stats(model=model, dataset=dataset, collect_points=collect_points, nrows=nrows, ncols=ncols)
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
 
-def collect_stats(model, dataset):
+def collect_stats(model, dataset, collect_points, nrows=1, ncols=1):
     stats = Statistics()
     dataloader = DataLoader(dataset, 
         batch_size=64, 
@@ -236,7 +240,7 @@ def collect_stats(model, dataset):
         #print(a, xe_latent, b, c, d)
         return xe_latent
         
-    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=5000, to_invoke=invoker)
+    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_points, to_invoke=invoker)
     plotter = PointPlot()
     name = 'plots/multi'
 
@@ -244,7 +248,7 @@ def collect_stats(model, dataset):
     #std_mean_dict = Statistics.by_class_operation(Statistics.f_mean_std, buffer, 'saves/mean_std.txt')
     std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, 'saves/distance.txt')
     plotter.plot_std_mean(std_mean_distance_dict, name='plots/std-mean', show=False, ftype='png')
-    plotter.plot_distance(std_mean_distance_dict, name='plots/distance_class', show=False, ftype='png')
+    plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name='plots/distance_class', show=False, ftype='png')
     plotter.saveBuffer(buffer, name='saves/latent')
 
 def check(split, num_classes, num_tasks):
