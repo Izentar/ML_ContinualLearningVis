@@ -21,7 +21,7 @@ def legend_without_duplicate_labels(ax):
 def legend_fix(label_plot: dict, ax, fig):
     label = []
     plot = []
-    for cl, val in label_plot.items():
+    for _, val in label_plot.items():
         l = val['label']
         p = val['plot']
         if(isinstance(l, list)):
@@ -37,8 +37,8 @@ def legend_fix(label_plot: dict, ax, fig):
     for p, l in zip(plot, label):
         p.set_label(l)
 
-    #ax.legend(handles=plot, labels=label)
-    fig.legend(plot, label, bbox_to_anchor = [1.05, 0.6], loc='upper left', borderaxespad=0)
+    ax.legend()
+    #fig.legend(plot, label, bbox_to_anchor = [1.05, 0.6], loc='upper left', borderaxespad=0)
 
 class ServePlot():
     def __init__(self, **kwargs):
@@ -144,7 +144,7 @@ class Statistics():
         '''
 
         new_buffer_batch, new_buffer_target = Statistics._cat_buffer(buffer)
-        unique, unique_count = torch.unique(new_buffer_target, return_counts=True)
+        unique, unique_count = torch.unique(new_buffer_target, return_counts=True, dim=0)
         output = {}
 
         # loop buffer
@@ -179,7 +179,7 @@ class Statistics():
         '''
 
         new_buffer_batch, new_buffer_target = Statistics._cat_buffer(buffer)
-        unique, unique_count = torch.unique(new_buffer_target, return_counts=True)
+        unique, unique_count = torch.unique(new_buffer_target, return_counts=True, dim=0)
         std_mean_dict = {}
 
         # loop buffer
@@ -217,13 +217,14 @@ class Statistics():
         distance_positive = pdist(cl_batch, mean)
         output[cl]['distance_positive'] = distance_positive
 
-        cl_batch_set = set(cl_batch)
-        buffer_batch_set = set(buffer_batch)
-        negative_batch = list(buffer_batch_set - cl_batch_set)
+        combined = torch.cat((cl_batch, buffer_batch))
+        uniqueness, combined_count = combined.unique(return_counts=True, dim=0)
+        negative_batch = uniqueness[combined_count == 1]
 
-        distance_negative = pdist(torch.stack(negative_batch), mean)
+        distance_negative = pdist(negative_batch, mean)
 
         output[cl]['distance_negative'] = distance_negative
+
         
     @staticmethod
     def mean_distance(output):
@@ -293,6 +294,7 @@ class PointPlot():
         markersize=2,
         nrows=1,
         ncols=1,
+        alpha=0.4,
     ):
         my_colors = colors_list[:2]
         legend_label = {}
@@ -307,21 +309,36 @@ class PointPlot():
             dist_positive = val['distance_positive']
             dist_negative = val['distance_negative']
             my_colors = itertools.cycle(my_colors)        
+
+            theta = [np.random.uniform(0, 2 * np.pi) for _ in range(len(dist_negative))]
+            color = next(my_colors)
+            neg_plot = ax.plot(theta, dist_negative, 'ro', color=color, markersize=markersize, alpha=alpha)[0]
+
+            # second plot to not obscure the minor positive class
+            theta = [np.random.uniform(0, 2 * np.pi) for _ in range(len(dist_positive))]
+            color = next(my_colors)
+            pos_plot = ax.plot(theta, dist_positive, 'ro', color=color, markersize=markersize, alpha=alpha)[0]
+
+            legend_label[cl] = {
+                'label': [f'Positive {cl}', f'Negative {cl}'], 
+                'plot': [pos_plot, neg_plot],
+            }
+
             
-            for pos, neg in zip(dist_positive, dist_negative):
-                theta = np.random.uniform(0, 2 * np.pi)
-                color = next(my_colors)
-                pos_plot = ax.plot(theta, pos, 'ro', color=color, markersize=markersize)[0]
-                theta = np.random.uniform(0, 2 * np.pi)
-                color = next(my_colors)
-                neg_plot = ax.plot(theta, neg, 'ro', color=color, markersize=markersize)[0]
-                legend_label[cl] = {
-                    'label': [f'Positive {cl}', f'Negative {cl}'], 
-                    'plot': [pos_plot, neg_plot],
-                }
+            #for pos, neg in zip(dist_positive, dist_negative):
+            #    theta = np.random.uniform(0, 2 * np.pi)
+            #    color = next(my_colors)
+            #    pos_plot = ax.plot(theta, pos, 'ro', color=color, markersize=markersize)[0]
+            #    theta = np.random.uniform(0, 2 * np.pi)
+            #    color = next(my_colors)
+            #    neg_plot = ax.plot(theta, neg, 'ro', color=color, markersize=markersize)[0]
+            #    legend_label[cl] = {
+            #        'label': [f'Positive {cl}', f'Negative {cl}'], 
+            #        'plot': [pos_plot, neg_plot],
+            #    }
             ax.set_title(f'Class {cl}')
-            legend_fix(legend_label, ax, fig)
             plotter.schedule_flush(self, name, show, idx, ftype)
+            legend_fix(legend_label, ax, fig)
             #self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
 
         plotter.force_flush(self, name, show, idx, ftype)

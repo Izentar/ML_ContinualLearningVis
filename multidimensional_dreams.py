@@ -249,7 +249,7 @@ def collect_stats(model, dataset, collect_points, nrows=1, ncols=1):
     std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, 'saves/distance.txt')
     Statistics.mean_distance(std_mean_distance_dict)
     plotter.plot_std_mean(std_mean_distance_dict, name='plots/std-mean', show=False, ftype='png')
-    plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name='plots/distance_class', show=False, ftype='png')
+    plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name='plots/distance_class', show=False, ftype='png', markersize=3)
     plotter.plot_mean_distance(std_mean_distance_dict, name='plots/mean_distance', show=False, ftype='png', markersize=4)
     plotter.saveBuffer(buffer, name='saves/latent')
 
