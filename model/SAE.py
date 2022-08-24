@@ -65,7 +65,10 @@ class SAE_CIFAR(nn.Module):
         )
 
         if with_latent:
-            return ((encoder_hat, xe_latent_pre_relu), x_hat) if no_relu else (encoder_hat, xe_latent_second)
+            if no_relu:
+                return (encoder_hat, xe_latent_pre_relu), x_hat
+            else:
+                return encoder_hat, xe_latent_second
         return encoder_hat, xe_latent_pre_relu, x_hat
         
     def forward_encoder(self, x, with_latent=False, fake_relu=False, no_relu=False):

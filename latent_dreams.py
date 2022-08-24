@@ -15,7 +15,7 @@ from dataset import dream_sets
 from model.SAE import SAE_standalone, SAE_CIFAR
 from model.vgg import VGG11_BN
 from dataset.CLModule import CLDataModule
-from dataset.pairing import PairingBatchSampler
+from dataset.pairing import PairingBatchSampler, PairingBatchSamplerV2
 from utils.data_manipulation import get_target_from_dataset
 import torch
 import numpy as np
@@ -74,23 +74,24 @@ def second_demo():
     num_classes = 10
     epochs_per_task = 20
     dreams_per_target = 64
-    main_split = 0.5
-    sigma = 0.1
+    main_split = 1.
+    sigma = 0.2
     rho = 1.
-    hidden = 15
+    hidden = 7
     norm_lambd = 0.
     wandb_offline = False
-    collect_points = 5000
+    collect_points = 2500
     nrows = 4
     ncols = 4
+    my_batch_size = 32
 
     if(fast_dev_run):
         fast_dev_run_batches = 30 # change it to increase epoch count
-        num_tasks = 3
-        num_classes = 6
-        images_per_dreaming_batch = 8
-        epochs_per_task = 2
-        dreams_per_target = 64
+        #num_tasks = 3
+        #num_classes = 6
+        #images_per_dreaming_batch = 8
+        #epochs_per_task = 2
+        #dreams_per_target = 64
 
     train_with_logits = True
     train_normal_robustly = False
@@ -120,8 +121,8 @@ def second_demo():
     
     dreams_transforms = data_transform()
 
-    if fast_dev_run:
-        val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
+    #if fast_dev_run:
+    #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
     dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes_dataset)
 
@@ -140,6 +141,7 @@ def second_demo():
         sigma=sigma,
         rho=rho,
         norm_lambd=norm_lambd,
+        hidden=hidden,
     )
 
     objective_f = datMan.SAE_dream_objective_f
@@ -189,15 +191,22 @@ def second_demo():
         #empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
         progress_bar=progress_bar,
         datasampler=lambda dataset, batch_size, shuffle, classes: 
-            PairingBatchSampler(
+            #PairingBatchSampler(
+            #    dataset=dataset,
+            #    batch_size=batch_size,
+            #    shuffle=shuffle,
+            #    classes=classes,
+            #    main_class_split=main_split,
+            #    classes_frequency=[1 / len(classes)] * len(classes)
+            #),
+            PairingBatchSamplerV2(
                 dataset=dataset,
                 batch_size=batch_size,
                 shuffle=shuffle,
                 classes=classes,
                 main_class_split=main_split,
-                classes_frequency=[1 / len(classes)] * len(classes)
             ),
-        batch_size=32
+        batch_size=my_batch_size
     )
 
     trainer = pl.Trainer(
@@ -247,10 +256,18 @@ def collect_stats(model, dataset, collect_points, nrows=1, ncols=1):
     #plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False, markersize=3, ftype='png')
     #std_mean_dict = Statistics.by_class_operation(Statistics.f_mean_std, buffer, 'saves/mean_std.txt')
     std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, 'saves/distance.txt')
+    std_mean_distance_dict = Statistics.by_class_operation(
+        Statistics.f_average_point_dist_from_means, 
+        buffer, 
+        'saves/average_point_dist_from_means.txt', 
+        output=std_mean_distance_dict
+    )
     Statistics.mean_distance(std_mean_distance_dict)
+    plotter.plot_3d(buffer, std_mean_distance_dict, name='plots/point-plot-3d')
     plotter.plot_std_mean(std_mean_distance_dict, name='plots/std-mean', show=False, ftype='png')
     plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name='plots/distance_class', show=False, ftype='png', markersize=3)
     plotter.plot_mean_distance(std_mean_distance_dict, name='plots/mean_distance', show=False, ftype='png', markersize=4)
+    plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
 def check(split, num_classes, num_tasks):

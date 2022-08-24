@@ -9,6 +9,7 @@ import os
 import pathlib
 import sys
 from config.default import markers, colors, colors_list
+from utils.data_manipulation import select_class_indices_tensor
 
 def tryCreatePath(name):
         path = pathlib.Path(name).parent.resolve().mkdir(parents=True, exist_ok=True)
@@ -138,14 +139,15 @@ class Statistics():
         return new_buffer_batch, new_buffer_target
 
     @staticmethod
-    def by_class_operation(f, buffer, fileName):
+    def by_class_operation(f, buffer, fileName, output:dict=None):
         '''
             buffer - tuple(batch, target)
         '''
 
         new_buffer_batch, new_buffer_target = Statistics._cat_buffer(buffer)
         unique, unique_count = torch.unique(new_buffer_target, return_counts=True, dim=0)
-        output = {}
+        if(output is None):
+            output = {}
 
         # loop buffer
         tryCreatePath(fileName)
@@ -166,7 +168,7 @@ class Statistics():
             [std, mean]
         '''
         std, mean = torch.std_mean(cl_batch, dim=0)
-        output[cl] = {
+        output[cl.item()] = {
             'std': std,
             'mean': mean,
         }
@@ -213,9 +215,9 @@ class Statistics():
         Statistics.f_mean_std(cl, cl_count, output, cl_batch, buffer_batch, buffer_target, file)
         pdist = torch.nn.PairwiseDistance(p=2)
 
-        mean = torch.unsqueeze(output[cl]['mean'], 0)
+        mean = torch.unsqueeze(output[cl.item()]['mean'], 0)
         distance_positive = pdist(cl_batch, mean)
-        output[cl]['distance_positive'] = distance_positive
+        output[cl.item()]['distance_positive'] = distance_positive
 
         combined = torch.cat((cl_batch, buffer_batch))
         uniqueness, combined_count = combined.unique(return_counts=True, dim=0)
@@ -223,9 +225,42 @@ class Statistics():
 
         distance_negative = pdist(negative_batch, mean)
 
-        output[cl]['distance_negative'] = distance_negative
+        output[cl.item()]['distance_negative'] = distance_negative
 
-        
+    @staticmethod
+    def f_average_point_dist_from_means(cl, cl_count, output, cl_batch, buffer_batch, buffer_target, file):
+        '''
+            Needs from output values of 'mean'.
+            Returns in output
+            {
+                'average_point_dist_from_means': {class_2: average_point_dist_from_means},
+            }
+        '''
+
+        means = []
+        pdist = torch.nn.PairwiseDistance(p=2)
+        cl = cl.item()
+
+        file.write(f'Class one / Class two\n')
+        file.write(f'{list(output.keys())}\n')
+
+
+        if (not 'average_point_dist_from_means' in output[cl].keys()) or \
+            (not isinstance(output[cl]['average_point_dist_from_means'], dict)):
+            output[cl]['average_point_dist_from_means'] = {}
+
+        for cl2, val in output.items():
+            mean = val['mean']
+
+            indices = select_class_indices_tensor(cl, buffer_target)
+            cl_batch_latent = buffer_batch[indices]
+            distance_batch = pdist(cl_batch_latent, mean)
+            calculated_dist_mean = torch.mean(distance_batch, dim=0)
+            file.write(f'{cl2}\t')
+            file.write(f'{calculated_dist_mean.numpy()}\n')
+
+            output[cl]['average_point_dist_from_means'][cl2] = calculated_dist_mean
+
     @staticmethod
     def mean_distance(output):
         '''
@@ -274,16 +309,20 @@ class PointPlot():
         return data_x_target, data_y_target, data_dims
 
     def flush(self, fig, ax, name, show, idx=None, ftype='svg'):
+        tryCreatePath(name)
         ax.legend()
         ax.grid(True)
-        if(show):
-            plt.show()
         if(name is not None):
             if(idx is None):
                 fig.savefig(f"{name}.{ftype}")
             else:
                 print(f"{name}_{idx}")
                 fig.savefig(f"{name}_{idx}.{ftype}")
+        if(show):
+            plt.show()
+        plt.clf()
+        plt.cla()
+        plt.close()
 
     def plot_distance(
         self, 
@@ -407,7 +446,7 @@ class PointPlot():
             main_mean_dist = val['distance_mean']
             other_mean_dist = []
             other_class_dist = []
-            y_labels.append(cl.item())
+            y_labels.append(cl)
 
             #for idx2, (cl2, val2) in enumerate(mean_distance_dict.items()):
             #    mean_dist = val2['distance_mean']
@@ -444,7 +483,7 @@ class PointPlot():
         name='point-plot', 
         show=False, 
         markersize=1, 
-        ftype='svg'
+        ftype='png',
     ):
         '''
             buffer[0] - list of batches of points
@@ -518,6 +557,77 @@ class PointPlot():
         elif(plot_type == 'multi'):
             fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize)
             self.flush(fig, ax, name, show, ftype=ftype)
+
+    def plot_3d(
+        self, 
+        buffer,
+        std_mean_dict,
+        name='point-plot-3d', 
+        show=False,
+        ftype='png',
+        alpha=0.3,
+        space=1,
+    ):
+        if len(buffer[0][0][0]) != 3:
+            print(f'\nWARNING - Plot 3D only for 3 dimensional space! Found {len(buffer[0][0])} dimensions\n. For loss_island this message may be invalid.')
+            return
+        tryCreatePath(name)
+        fig, ax = plt.figure(), plt.axes(projection='3d')
+
+        points = []
+        target = []
+        for b, t in buffer:
+            points.append(b)
+            target.append(t)
+
+        points = torch.cat(points)
+        target = torch.cat(target)
+
+        unique_target, unique_count = torch.unique(target, return_counts=True)
+
+        for cl, count in zip(unique_target, unique_count):
+            #mean = std_mean_dict[cl]['mean']
+
+            indices = select_class_indices_tensor(cl, target)
+            current_points_class = points[indices]
+            #cov = torch.cov(current_points_class)
+
+            swap_points = torch.swapaxes(current_points_class, 1, 0)
+            #print(swap_points.size())
+            ax.scatter(swap_points[0], swap_points[1], swap_points[2], color=next(colors), label=f'Class {cl}', alpha=alpha, s=space)
+
+        self.flush(fig, ax, name, show, ftype=ftype)
+
+    def plot_mean_dist_matrix(
+        self, 
+        average_point_dist_from_means_dict, 
+        name='mean-dist-matrix', 
+        show=False, 
+        ftype='png',
+        size_x=15.4,
+        size_y=10.8,
+        precision=4
+    ):
+        fig, ax = plt.subplots(figsize=(size_x,size_y))
+        formated_matrix = []
+
+        for cl, val in average_point_dist_from_means_dict.items():
+            second = val['average_point_dist_from_means']
+            inner = []
+            for cl2, mean in second.items():
+                inner.append(mean.item())
+            formated_matrix.append(inner)
+
+        formated_matrix = np.array(formated_matrix)
+        ax.matshow(formated_matrix, cmap=plt.cm.Greens, aspect='auto')
+
+        for y in range(len(formated_matrix)):
+            for x in range(len(formated_matrix[0])):
+                c = formated_matrix[y, x]
+                ax.text(y, x, str(np.format_float_positional(c, precision=precision)), va='center', ha='center')
+
+        self.flush(fig, ax, name, show, ftype=ftype)
+
 
     def saveBuffer(self, buffer, name):
         tryCreatePath(name)

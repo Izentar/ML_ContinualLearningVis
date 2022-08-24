@@ -4,6 +4,110 @@ import numpy as np
 from typing import List
 import random
 
+class PairingBatchSamplerV2(torch.utils.data.Sampler[List[int]]):
+    def __init__(self, dataset, batch_size, shuffle, classes, 
+        main_class_split:float, 
+    ):
+        self.main_class_split = main_class_split
+        self.batch_size = batch_size
+        self.classes = classes
+
+        targets = None
+        if isinstance(dataset, torch.utils.data.Subset):
+            targets = np.take(dataset.dataset.targets, dataset.indices).tolist()
+        else:
+            targets = dataset.targets
+
+        indices = self._get_indices_by_class(targets)
+        indices = self._split_batch_main_indices(indices)
+        indices_main, indices_other = self._split_batch_main_frequency_indices(indices)
+        indices_other = self._shuffle_other(indices_other)
+        batch = self._concat_batch(indices_main, indices_other, shuffle)
+        self.batch_indices = self._serve_indices(batch, shuffle)
+
+    def _get_indices_by_class(self, targets):
+        batched_class_indices = {}
+
+        for cl in self.classes:
+            cl_indices = np.isin(np.array(targets), [cl])
+            cl_indices_list = np.where(cl_indices)[0].tolist()
+
+            batched_class_indices[cl] = cl_indices_list
+        return batched_class_indices
+
+    def _split_batch_main_indices(self, batched_class_indices):
+        splitted_batch_indices = {}
+        for key, val in batched_class_indices.items():
+            numb_of_batches = int(len(val) // self.batch_size)
+            splitted_batch_indices[key] = np.array_split(val, numb_of_batches)
+        return splitted_batch_indices
+
+    def _split_batch_main_frequency_indices(self, splitted_batch_indices):
+        splitted_main = {}
+        splitted_other = {}
+        sizeof_main_cl_in_batch = int(np.floor(self.batch_size * self.main_class_split))
+        for key, val in splitted_batch_indices.items():
+            splitted_main[key] = []
+            splitted_other[key] = []
+            for batch in val:
+                splitted_main[key].append(batch[:sizeof_main_cl_in_batch])
+                # some indices may be lost here. 
+                # moreover size may be zero
+                splitted_other[key].append(batch[sizeof_main_cl_in_batch:self.batch_size])
+
+            splitted_main[key] = np.stack(splitted_main[key], axis=0)
+            splitted_other[key] = np.stack(splitted_other[key], axis=0)
+
+        return splitted_main, splitted_other
+
+    def _shuffle_other(self, splitted_other):
+        other = []
+        other_shuffled = {}
+        sizeof_other_cl_in_batch = self.batch_size - int(np.floor(self.batch_size * self.main_class_split))
+        for key, val in splitted_other.items():
+            if(len(val[0]) == 0):
+                return splitted_other
+            other.append(np.reshape(val, -1))
+        other = np.concatenate(other)
+        np.random.shuffle(other)
+
+        other = np.reshape(other, (len(splitted_other), -1, sizeof_other_cl_in_batch))
+
+        for idx, (key, val) in enumerate(splitted_other.items()):
+            other_shuffled[key] = other[idx]
+
+        return other_shuffled
+
+    def _concat_batch(self, main_indices, other_indices, shuffle_batch:bool):
+        result = {}
+        for key, val in main_indices.items():
+            result[key] = []
+            for batch_main, batch_other in zip(val, other_indices[key]):
+                conc = np.concatenate((batch_main, batch_other))
+                if(shuffle_batch):
+                    np.random.shuffle(conc)
+                result[key].append(conc)
+                
+            result[key] = np.stack(result[key])
+
+        return result
+
+    def _serve_indices(self, indices_dict: dict, shuffle:bool):
+        indices_batch_array = []
+        for val in indices_dict.values():
+            indices_batch_array.append(val)
+        indices_batch_array = np.concatenate(indices_batch_array)
+        if(shuffle):
+            np.random.shuffle(indices_batch_array)
+        return indices_batch_array
+
+    def __iter__(self):
+        return iter(self.batch_indices)
+
+    def __len__(self):
+        return len(self.batch_indices)
+        
+
 class PairingBatchSampler(torch.utils.data.Sampler[List[int]]):
     """
         For the dataset with a subset of classes.

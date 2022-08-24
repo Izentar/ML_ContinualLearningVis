@@ -5,6 +5,8 @@ from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 from robustness import model_utils
 from loss_function.chiLoss import ChiLoss, l2_latent_norm
+from utils.data_manipulation import select_class_indices_tensor
+from utils.cyclic_buffer import CyclicBufferByClass
 
 class CLModel(base.CLBase):
     def __init__(
@@ -129,28 +131,69 @@ class CLModelWithReconstruction(CLModel):
         return super().process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
 
 class CLModelWithIslands(CLModel):
-    def __init__(self, *args, islands=False, alpha=0.0, norm_lambd=0.001, sigma=0.2, rho=1., **kwargs):
+    def __init__(self, *args, hidden=3, buff_on_same_device=False, islands=False, alpha=0.0, norm_lambd=0.001, sigma=0.2, rho=1., **kwargs):
         super().__init__(*args, **kwargs)
         self.islands = islands
-        self.island_loss = ChiLoss(sigma=sigma, rho=rho)
+        #self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=kwargs.get('num_classes'), dimensions=hidden, size_per_class=40)
+        self.cyclic_latent_buffer = None
+        self.island_loss = ChiLoss(sigma=sigma, rho=rho, cyclic_buffer=self.cyclic_latent_buffer)
         self.norm = l2_latent_norm
         self.norm_lambd = norm_lambd
         self.alpha = alpha
+        self.buff_on_same_device = buff_on_same_device
 
     def process_losses_normal(self, x, y, y_hat, y_auxiliary, label, loss_fn):
-        loss_classification = loss_fn(y_hat)
+        #loss_classification = loss_fn(y_hat)
         norm = self.norm(y_auxiliary[0], self.norm_lambd)
         loss_island = self.island_loss(y_auxiliary[0], y)
 
-        loss = self.alpha * loss_classification + (1 - self.alpha) * loss_island
-        #norm = self.norm(self.model, self.norm_lambd)
-        loss += norm
-        self.log(f"{label}/classification", loss_classification)
+        loss = loss_island + norm
         self.log(f"{label}/island", loss_island)
         self.log(f"{label}/l2-regularization", norm)
+        #self.log(f"{label}/distance_weight", self.island_loss.distance_weight)
+        self.log(f"{label}/positive_loss", self.island_loss.positive_loss.detach().sum())
+        self.log(f"{label}/negative_loss", self.island_loss.negative_loss.detach().sum())
+        #self.log(f"{label}/input_sum", self.island_loss.input_sum)
         return loss
 
     def process_losses_dreams(self, x, y, y_hat, y_auxiliary, label, loss_fn):
         if self.islands:
             return self.process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
         return super().process_losses_normal(x, y, y_hat, y_auxiliary, label, loss_fn)
+
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        x, y = batch
+        y_latent = self(x)[1]
+        val_loss = self.island_loss(y_latent, y, train=False)
+        self.log("val_loss", val_loss)
+
+        valid_acc = self.valid_accs[dataloader_idx]
+        valid_acc(self.island_loss.classify(y_latent), y)
+        self.log("valid_acc", valid_acc)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_latent = self(x)[1]
+        test_loss = self.island_loss(y_latent, y, train=False)
+        self.log("test_loss", test_loss)
+
+        self.test_acc(self.island_loss.classify(y_latent), y)
+        self.log("test_acc", self.test_acc)
+
+    def _calculate_cov(self, inp, target):
+        target_unique, target_count = torch.unique(target, return_counts=True)
+        max_idx = torch.argmax(target_count)
+        main_target_class = target_unique[max_idx]
+        
+        select_class_indices_tensor(main_target, target)
+        cl_indices = torch.isin(new_buffer_target, cl)
+        cl_indices_list = torch.where(cl_indices)[0]
+
+        cov_matrix = torch.cov(inp)
+        pass
+
+    def training_step(self, batch, batch_idx):
+        if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):
+            self.cyclic_latent_buffer.to(self.device)
+        return super().training_step(batch=batch, batch_idx=batch_idx)
+        

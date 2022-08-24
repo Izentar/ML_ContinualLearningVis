@@ -221,3 +221,12 @@ def get_target_from_dataset(dataset, toTensor=False) -> list:
         return torch.tensor(dataset.targets)
     return dataset.targets
 
+def select_class_indices_tensor(cl, target):
+    cl_indices = torch.isin(target, cl)
+    cl_indices_list = torch.where(cl_indices)[0]
+    return cl_indices_list
+
+def select_class_indices_numpy(cl, target):
+    cl_indices = np.isin(np.array(target), cl)
+    cl_indices_list = np.where(cl_indices)[0]
+    return cl_indices_list
