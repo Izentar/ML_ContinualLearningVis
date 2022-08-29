@@ -45,6 +45,7 @@ class ChiLoss:
         self.forget_counter_by_class = {}
         self.forget_call_counter = 0
         self.pdist = torch.nn.PairwiseDistance(p=2)
+
         
     def _calculate_batch_mean(self, input, target):
         '''
@@ -297,6 +298,7 @@ class ChiLoss:
         positive_loss = positive_loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
         
         negative_loss = first_part_negative + second_part_negative
+        #negative_loss *= 100
 
         self.positive_loss = positive_loss
         self.negative_loss = negative_loss
@@ -456,4 +458,69 @@ class OLDChiLoss():
         # class -1 = - (class 1)
         loss = torch.sum(D)
         #print(loss)
+        return loss
+
+class ChiLossOneHot:
+    def __init__(self, one_hot_means:dict, cyclic_latent_buffer, sigma=0.2, rho=1., eps=1e-5, only_one_hot=False):
+        self.sigma = sigma
+        self.rho = rho
+        self.one_hot_means = one_hot_means
+        self.eps = eps
+        self.only_one_hot = only_one_hot
+
+        if (one_hot_means is None or len(one_hot_means) == 0):
+            raise Exception('Empty dictionary.')
+
+        self.pdist = torch.nn.PairwiseDistance(p=2)
+        self.cyclic_latent_buffer = cyclic_latent_buffer
+
+    def _create_one_hot_batch(self, target):
+        batch = []
+        for t in target:
+            batch.append(self.one_hot_means[t.item()].detach().to(t.device))
+        return torch.stack(batch, 0)
+
+    def _get_means_and_onehot(self, input, target):
+        means = []
+        one_hot = []
+        unique = torch.unique(target)
+        for u in unique:
+            means.append(torch.mean(input[target == u], dim=0))
+            one_hot.append(self.one_hot_means[u.item()].to(u.device))
+        return torch.stack(means, 0), torch.stack(one_hot, 0)
+
+
+    def __call__(self, input, target, train=True):
+        if(self.only_one_hot):
+            one_hot_batch = self._create_one_hot_batch(target)
+            loss = self.pdist(one_hot_batch, input)
+            self.cyclic_latent_buffer.push_target(input, target)
+            
+            loss = loss.sum()
+        else:
+            k = input.size(dim=1)
+            batch_size = input.size(dim=0)
+
+            target_stacked = target.repeat((len(target), 1))
+            positive_mask = (target_stacked == target_stacked.T).float()
+
+            means, one_hot = self._get_means(input, target)
+
+            z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
+
+            first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
+            second_part_positive = z_positive / (2 * k)
+
+            positive_loss = (first_part_positive + second_part_positive) * positive_mask
+            # remove diagonal - distance from, to the same class
+            positive_loss = positive_loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
+            
+            loss = positive_loss.sum()
+
+            distance = self.pdist(means, one_hot) ** 2
+            one_hot_loss = distance.sum()
+            self.distance = distance
+            self.one_hot_loss = one_hot_loss
+            loss += one_hot_loss
+        
         return loss

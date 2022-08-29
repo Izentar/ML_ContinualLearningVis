@@ -28,10 +28,10 @@ class CLBase(LightningModule):
         if "dream" not in batch:
             return loss_normal
         #TODO do we really need to compute dreams at each batch?
-        if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
-            (isinstance(self.dream_frequency, int) and batch_idx % self.dream_frequency == 0):
-            loss_dream = self.training_step_dream(batch["dream"])
-            return loss_normal + loss_dream
+        #if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
+        #    (isinstance(self.dream_frequency, int) and batch_idx % self.dream_frequency == 0):
+        #    loss_dream = self.training_step_dream(batch["dream"])
+        #    return loss_normal + loss_dream
         return loss_normal
     
     @abstractmethod

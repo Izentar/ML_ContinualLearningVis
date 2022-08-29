@@ -72,18 +72,33 @@ def second_demo():
     num_tasks = 1
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 20
+    epochs_per_task = 100
     dreams_per_target = 64
-    main_split = 1.
+    main_split = 0.1
     sigma = 0.2
     rho = 1.
     hidden = 7
     norm_lambd = 0.
-    wandb_offline = False
+    wandb_offline = True
     collect_points = 2500
     nrows = 4
     ncols = 4
     my_batch_size = 32
+
+    only_one_hot = True
+    one_hot_scale = 3
+    one_hot_means = {
+        0: torch.tensor([1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
+        1: torch.tensor([0.01, 1, 0.01, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
+        2: torch.tensor([0.01, 0.01, 1, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
+        3: torch.tensor([0.01, 0.01, 0.01, -1, 0.01, 0.01, 0.01]) * one_hot_scale,
+        4: torch.tensor([0.01, 0.01, 0.01, 0.01, 1, 0.01, 0.01]) * one_hot_scale,
+        5: torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01, -1, 0.01]) * one_hot_scale,
+        6: torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 1]) * one_hot_scale,
+        7: torch.tensor([-1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
+        8: torch.tensor([0.01, 0.01, -1, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
+        9: torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01, -1, 0.01]) * one_hot_scale,
+    }
 
     if(fast_dev_run):
         fast_dev_run_batches = 30 # change it to increase epoch count
@@ -142,6 +157,8 @@ def second_demo():
         rho=rho,
         norm_lambd=norm_lambd,
         hidden=hidden,
+        one_hot_means=one_hot_means,
+        only_one_hot=only_one_hot,
     )
 
     objective_f = datMan.SAE_dream_objective_f
@@ -240,14 +257,14 @@ def collect_stats(model, dataset, collect_points, nrows=1, ncols=1):
     )
 
     def invoker(model, input):
-        a, xe_latent, b, c, d = model.model.model.forward_encoder(
+        xe_latent_pre_relu = model.model.model.forward_encoder(
             input,
             with_latent=True,
             fake_relu=False,
             no_relu=False,
         )
         #print(a, xe_latent, b, c, d)
-        return xe_latent
+        return xe_latent_pre_relu
         
     buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_points, to_invoke=invoker)
     plotter = PointPlot()

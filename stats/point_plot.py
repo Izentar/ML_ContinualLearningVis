@@ -153,9 +153,7 @@ class Statistics():
         tryCreatePath(fileName)
         with open(fileName, 'w') as file:
             for cl, cl_count in zip(unique, unique_count):
-                cl_indices = torch.isin(new_buffer_target, cl)
-                cl_indices_list = torch.where(cl_indices)[0]
-                cl_batch = torch.index_select(new_buffer_batch, 0, cl_indices_list)
+                cl_batch = new_buffer_batch[new_buffer_target == cl, :]
 
                 file.write(f'-------------------------\nClass {cl}, count {cl_count}\n')
                 f(cl, cl_count, output, cl_batch, new_buffer_batch, new_buffer_target, file)
@@ -215,15 +213,17 @@ class Statistics():
         Statistics.f_mean_std(cl, cl_count, output, cl_batch, buffer_batch, buffer_target, file)
         pdist = torch.nn.PairwiseDistance(p=2)
 
-        mean = torch.unsqueeze(output[cl.item()]['mean'], 0)
-        distance_positive = pdist(cl_batch, mean)
+        mean = output[cl.item()]['mean']
+        mean_positive = mean.repeat(len(cl_batch), 1)
+        distance_positive = pdist(cl_batch, mean_positive)
         output[cl.item()]['distance_positive'] = distance_positive
 
         combined = torch.cat((cl_batch, buffer_batch))
         uniqueness, combined_count = combined.unique(return_counts=True, dim=0)
         negative_batch = uniqueness[combined_count == 1]
 
-        distance_negative = pdist(negative_batch, mean)
+        mean_negative = mean.repeat(len(negative_batch), 1)
+        distance_negative = pdist(negative_batch, mean_negative)
 
         output[cl.item()]['distance_negative'] = distance_negative
 
@@ -252,8 +252,10 @@ class Statistics():
         for cl2, val in output.items():
             mean = val['mean']
 
-            indices = select_class_indices_tensor(cl, buffer_target)
-            cl_batch_latent = buffer_batch[indices]
+            #indices = select_class_indices_tensor(cl, buffer_target)
+            #cl_batch_latent = buffer_batch[indices]
+            cl_batch_latent = buffer_batch[buffer_target == cl]
+            mean = mean.repeat(len(cl_batch_latent), 1)
             distance_batch = pdist(cl_batch_latent, mean)
             calculated_dist_mean = torch.mean(distance_batch, dim=0)
             file.write(f'{cl2}\t')
@@ -281,6 +283,7 @@ class Statistics():
         for cl, val in output.items():
             mean = val['mean']
             other_means = torch.stack(list(means - set([mean])), 0)
+            mean = mean.repeat(len(other_means), 1)
             distance_mean = pdist(other_means, mean)
             output[cl]['distance_mean'] = distance_mean
         
