@@ -6,14 +6,14 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import RichProgressBar
 from executor.cl_loop import BaseCLDataModule, CLLoop
 from config.default import datasets, datasets_map
-from model.overlay import CLModelWithReconstruction, CLModelWithIslands, CLModel
+from model.overlay import CLModelWithReconstruction, CLModelWithIslands, CLModel, CLModelIslandsTest
 #from loss_function import point_scope
 
 from utils import data_manipulation as datMan
 from dataset import dream_sets
 
-from model.SAE import SAE_standalone, SAE_CIFAR
-from model.vgg import VGG11_BN
+from model.SAE import SAE_standalone, SAE_CIFAR, SAE_CIFAR_TEST
+from model.vgg import vgg11_bn
 from dataset.CLModule import CLDataModule
 from dataset.pairing import PairingBatchSampler, PairingBatchSamplerV2
 from utils.data_manipulation import get_target_from_dataset
@@ -58,8 +58,50 @@ def getModelType(mtype: str):
         "auxiliary_reconstruction": CLModelWithReconstruction,
         "islands": CLModelWithIslands,
         "default": CLModel,
+        "islands_test": CLModelIslandsTest
     }
     return model_types.get(mtype, CLModel)
+
+def get_one_hots(mytype, one_hot_scale=1):
+    if(mytype == 'one_cl'):
+        return {
+            0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            1: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            2: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            3: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            4: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            5: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            6: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
+            8: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            9: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        }
+    elif(mytype == 'diagonal'):
+        return {
+            0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            1: torch.tensor([0, 1, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            2: torch.tensor([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            3: torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            4: torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]) * one_hot_scale,
+            5: torch.tensor([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]) * one_hot_scale,
+            6: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 0]) * one_hot_scale,
+            7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
+            8: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) * one_hot_scale,
+            9: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]) * one_hot_scale,
+        }
+    elif(mytype == 'accidental'):
+        return {
+            0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            1: torch.tensor([0, 1, 1, 1, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            2: torch.tensor([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+            3: torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, -1, 0]) * one_hot_scale,
+            4: torch.tensor([0, 0, 0, 1, -1, 0, 0, 0, 0, 0]) * one_hot_scale,
+            5: torch.tensor([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]) * one_hot_scale,
+            6: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 0]) * one_hot_scale,
+            7: torch.tensor([0, 0, 0, 0, 0, 0, -1, -1, -1, 0]) * one_hot_scale,
+            8: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) * one_hot_scale,
+            9: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 1]) * one_hot_scale,
+        }
     
 def second_demo():
     # normal dreaming
@@ -77,28 +119,21 @@ def second_demo():
     main_split = 0.1
     sigma = 0.2
     rho = 1.
-    hidden = 7
+    hidden = 10
     norm_lambd = 0.
-    wandb_offline = True
+    wandb_offline = False
     collect_points = 2500
     nrows = 4
     ncols = 4
     my_batch_size = 32
 
-    only_one_hot = True
-    one_hot_scale = 3
-    one_hot_means = {
-        0: torch.tensor([1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
-        1: torch.tensor([0.01, 1, 0.01, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
-        2: torch.tensor([0.01, 0.01, 1, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
-        3: torch.tensor([0.01, 0.01, 0.01, -1, 0.01, 0.01, 0.01]) * one_hot_scale,
-        4: torch.tensor([0.01, 0.01, 0.01, 0.01, 1, 0.01, 0.01]) * one_hot_scale,
-        5: torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01, -1, 0.01]) * one_hot_scale,
-        6: torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 1]) * one_hot_scale,
-        7: torch.tensor([-1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
-        8: torch.tensor([0.01, 0.01, -1, 0.01, 0.01, 0.01, 0.01]) * one_hot_scale,
-        9: torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01, -1, 0.01]) * one_hot_scale,
-    }
+    train_with_logits = True
+    train_normal_robustly = False
+    train_dreams_robustly = False
+    aux_task_type = "islands"
+
+    only_one_hot = False
+    one_hot_means = get_one_hots('diagonal')
 
     if(fast_dev_run):
         fast_dev_run_batches = 30 # change it to increase epoch count
@@ -108,12 +143,7 @@ def second_demo():
         #epochs_per_task = 2
         #dreams_per_target = 64
 
-    train_with_logits = True
-    train_normal_robustly = False
-    train_dreams_robustly = False
-    aux_task_type = "islands"
-
-    attack_kwargs = attack_kwargs = {
+    attack_kwargs = {
         "constraint": "2",
         "eps": 0.5,
         "step_size": 1.5,
@@ -122,7 +152,7 @@ def second_demo():
         "custom_loss": None,
         "random_restarts": 0,
         "use_best": True,
-        'with_latent': True,
+        'with_latent': False,
         'fake_relu': False,
         'no_relu':False,
     }
@@ -144,7 +174,8 @@ def second_demo():
     check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
-        model=SAE_CIFAR(num_classes=num_classes, hidd2=hidden),
+        model=SAE_CIFAR_TEST(num_classes=num_classes, hidd2=hidden),
+        #model=vgg11_bn(num_classes=hidden),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
@@ -162,20 +193,6 @@ def second_demo():
     )
 
     objective_f = datMan.SAE_dream_objective_f
-
-
-    #model = SAE_standalone(
-    #    num_tasks=num_tasks,
-    #    num_classes=num_classes,
-    #    loss_f = None
-    #)    
-    #objective_f = datMan.SAE_dream_objective_f
-    
-    #model = VGG11_BN(
-    #    num_tasks=num_tasks,
-    #    num_classes=num_classes
-    #)
-    #objective_f = datMan.test
 
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))
@@ -242,31 +259,30 @@ def second_demo():
         trainer.test(datamodule=cl_data_module)
 
     transform = transforms.Compose([transforms.ToTensor()])
-    dataset = dataset_class(root="./data", train=False, transform=transform)
-    collect_stats(model=model, dataset=dataset, collect_points=collect_points, nrows=nrows, ncols=ncols)
+    dataset = dataset_class(root="./data", train=True, transform=transform)
+    collect_stats(model=model, dataset=dataset, collect_points=collect_points, nrows=nrows, ncols=ncols, 
+        logger=logger, attack_kwargs=attack_kwargs)
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
 
-def collect_stats(model, dataset, collect_points, nrows=1, ncols=1):
+def collect_stats(model, dataset, collect_points, attack_kwargs, nrows=1, ncols=1, logger=None):
     stats = Statistics()
     dataloader = DataLoader(dataset, 
-        batch_size=64, 
+        batch_size=32, 
         num_workers=4, 
         pin_memory=False,
     )
 
     def invoker(model, input):
-        xe_latent_pre_relu = model.model.model.forward_encoder(
+        xe = model.forward(
             input,
-            with_latent=True,
-            fake_relu=False,
-            no_relu=False,
+            **attack_kwargs
         )
-        #print(a, xe_latent, b, c, d)
-        return xe_latent_pre_relu
+        return xe
         
-    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_points, to_invoke=invoker)
+    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_points, to_invoke=invoker,
+        logger=logger)
     plotter = PointPlot()
     name = 'plots/multi'
 

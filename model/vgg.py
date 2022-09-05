@@ -27,13 +27,15 @@ import os, sys
 '''
 
 class VGG(nn.Module):
-    def __init__(self, features, num_classes=1000):
+    def __init__(self, features, num_classes=1000, *args, **kwargs):
         super(VGG, self).__init__()
+        # *args, **kwargs to ignore arguments
         self.features = features
         self.classifier = nn.Linear(512, num_classes)
         self._initialize_weights()
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
+        # **kwargs to ignore other args
         x = self.features(x)
         x = x.view(x.size(0), -1)
         x = self.classifier(x)

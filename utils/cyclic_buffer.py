@@ -27,7 +27,7 @@ class CyclicBufferByClass():
         return self
 
     def push(self, cl_idx, val):
-        cl_idx = cl_idx.detach()
+        cl_idx = cl_idx.detach().item()
         val = val.detach()
         self.cyclic_buff[cl_idx, self._buff_idx[cl_idx][0]] = val
         self._buff_idx[cl_idx][0] += 1
@@ -42,7 +42,7 @@ class CyclicBufferByClass():
         for u in unique:
             selected = vals[target == u]
             for s in selected:
-                self.push(u, s)
+                self.push(cl_idx=u, val=s)
 
     def mean_cl(self, cl_idx):
         if(self._buff_idx[cl_idx][1]):
@@ -51,14 +51,11 @@ class CyclicBufferByClass():
 
     def _operation_template(self, f):
         #TODO different types returned
-        # if all flags are on
-        #print(torch.arange(0, self.num_classes).size(), self._buff_idx.size())
-        if torch.all(torch.index_select(self._buff_idx, 0, self.select_flag)):
-            return f(self.cyclic_buff, dim=0)
-        
-        # if not every buffer is filled 
+
+        # at the beginning mean can be missleading, not fully filled
         buf = {}
-        for cl_idx, (_, flag) in zip(range(self.num_classes), self._buff_idx):
+        for cl_idx, flag in enumerate(self._buff_idx):
+            flag = flag[1]
             if(flag):
                 mean = f(self.cyclic_buff[cl_idx], dim=0)
             else:

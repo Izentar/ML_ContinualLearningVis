@@ -9,6 +9,8 @@ import math
 class SAE_CIFAR(nn.Module):
     def __init__(self, num_classes, hidd1=256, hidd2=32):
         super().__init__()
+        self.hidd1 = hidd1
+        self.hidd2 = hidd2
         self.conv1 = nn.Conv2d(
             in_channels=3, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
         )
@@ -80,7 +82,7 @@ class SAE_CIFAR(nn.Module):
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
         xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
-        xe = self.fc1_1(xe)
+        xe = relu(self.fc1_1(xe))
         xe_latent_pre_relu = self.fc1_2(xe)
 
         #xe_latent_pre_relu = self.fc2_3(xe)
@@ -96,6 +98,21 @@ class SAE_CIFAR(nn.Module):
         xd = relu(self.conv3(xd))
         # xd = F.upsample(xd,30)
         return sigmoid(self.conv4(xd))
+
+class SAE_CIFAR_TEST(SAE_CIFAR):
+    def __init__(self, num_classes, *args, **kwargs):
+        super().__init__(num_classes=num_classes, *args, **kwargs)
+
+        self.linear_cl = nn.Linear(in_features=self.hidd2, out_features=num_classes)
+        self._initialize_weights()
+
+    def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
+        xe = super().forward(x, with_latent=with_latent, fake_relu=fake_relu, no_relu=no_relu)
+        xe = relu(self.linear_cl(xe))
+        return xe
+
+    def get_test_value(self):
+        return self.linear_cl.weight[0][0]
 
 class SAE_standalone(base.CLBase):
     def __init__(self, num_classes, loss_f=None, reconstruction_loss_f=None, *args, **kwargs):

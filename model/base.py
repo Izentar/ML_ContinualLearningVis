@@ -9,8 +9,9 @@ from typing import Union
 from abc import abstractmethod
 
 class CLBase(LightningModule):
-    def __init__(self, num_tasks, num_classes, dream_frequency:Union[int,list[int]]=1):
+    def __init__(self, num_tasks, num_classes, dream_frequency:Union[int,list[int]]=1, *args, **kwargs):
         super().__init__()
+        # ignore *args, **kwargs
 
         self.train_acc = torchmetrics.Accuracy()
         self.train_acc_dream = torchmetrics.Accuracy()
@@ -40,6 +41,10 @@ class CLBase(LightningModule):
 
     @abstractmethod
     def training_step_dream(self, batch):
+        pass
+
+    @abstractmethod
+    def call_loss(self, input, target):
         pass
 
     @abstractmethod

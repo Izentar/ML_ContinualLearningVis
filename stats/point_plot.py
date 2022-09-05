@@ -11,6 +11,8 @@ import sys
 from config.default import markers, colors, colors_list
 from utils.data_manipulation import select_class_indices_tensor
 
+import wandb
+
 def tryCreatePath(name):
         path = pathlib.Path(name).parent.resolve().mkdir(parents=True, exist_ok=True)
 
@@ -103,7 +105,7 @@ class Statistics():
     def __init__(self):
         pass
 
-    def collect(self, model, dataloader, num_of_points, to_invoke):
+    def collect(self, model, dataloader, num_of_points, to_invoke, logger=None):
         '''
             to_invoke: function to invoke that returns points to collect
         '''
@@ -112,16 +114,19 @@ class Statistics():
         epoch_size = np.maximum(num_of_points // len(dataloader) // dataloader.batch_size, 1)
         counter = 0
 
-        for epoch in range(epoch_size):
-            for idx, (input, target) in enumerate(dataloader):
-                if(counter >= num_of_points):
-                    break
-                out = to_invoke(model, input)
+        with torch.no_grad():
+            for epoch in range(epoch_size):
+                for idx, (input, target) in enumerate(dataloader):
+                    if(counter >= num_of_points):
+                        break
+                    out = to_invoke(model, input)
 
-                buffer.append((out.detach().to('cpu'), target.detach().to('cpu')))
-                counter += dataloader.batch_size
-            #print(f'Collect epoch: {epoch}')
-            #sys.stdout.flush()
+                    if logger is not None:
+                        loss = model.call_loss(out, target)
+                        logger.log_metrics({f'stats/collect_loss': loss}, counter)
+
+                    buffer.append((out.detach().to('cpu'), target.detach().to('cpu')))
+                    counter += dataloader.batch_size
 
         return buffer
 
@@ -153,7 +158,7 @@ class Statistics():
         tryCreatePath(fileName)
         with open(fileName, 'w') as file:
             for cl, cl_count in zip(unique, unique_count):
-                cl_batch = new_buffer_batch[new_buffer_target == cl, :]
+                cl_batch = new_buffer_batch[new_buffer_target == cl]
 
                 file.write(f'-------------------------\nClass {cl}, count {cl_count}\n')
                 f(cl, cl_count, output, cl_batch, new_buffer_batch, new_buffer_target, file)
@@ -230,6 +235,7 @@ class Statistics():
     @staticmethod
     def f_average_point_dist_from_means(cl, cl_count, output, cl_batch, buffer_batch, buffer_target, file):
         '''
+            Calculate distance between means and current cl_batch. Takes average of the result.
             Needs from output values of 'mean'.
             Returns in output
             {
@@ -241,50 +247,53 @@ class Statistics():
         pdist = torch.nn.PairwiseDistance(p=2)
         cl = cl.item()
 
-        file.write(f'Class one / Class two\n')
-        file.write(f'{list(output.keys())}\n')
+        file.write(f'Avg distance of points of the class {cl}\n')
 
-
-        if (not 'average_point_dist_from_means' in output[cl].keys()) or \
-            (not isinstance(output[cl]['average_point_dist_from_means'], dict)):
-            output[cl]['average_point_dist_from_means'] = {}
-
+        # for given cl iterate over output in search for means.
+        # calculate distance from cl2 mean to all current points in cl_batch and average result
         for cl2, val in output.items():
             mean = val['mean']
 
+            if (not 'average_point_dist_from_means' in output[cl2].keys()) or \
+                (not isinstance(output[cl2]['average_point_dist_from_means'], dict)):
+                output[cl2]['average_point_dist_from_means'] = {}
+
             #indices = select_class_indices_tensor(cl, buffer_target)
             #cl_batch_latent = buffer_batch[indices]
-            cl_batch_latent = buffer_batch[buffer_target == cl]
+            #cl_batch_latent = buffer_batch[buffer_target == cl]
+            cl_batch_latent = cl_batch
             mean = mean.repeat(len(cl_batch_latent), 1)
             distance_batch = pdist(cl_batch_latent, mean)
             calculated_dist_mean = torch.mean(distance_batch, dim=0)
             file.write(f'{cl2}\t')
             file.write(f'{calculated_dist_mean.numpy()}\n')
 
-            output[cl]['average_point_dist_from_means'][cl2] = calculated_dist_mean
+            output[cl2]['average_point_dist_from_means'][cl] = calculated_dist_mean
 
     @staticmethod
     def mean_distance(output):
         '''
-            Returns in output at least
+            Calculate distance between means.
+            It returns at least on the output
             {
                 'mean': mean,
                 'distance_mean': distance_mean,
             }
         '''
 
-        means = []
         pdist = torch.nn.PairwiseDistance(p=2)
 
         for cl, val in output.items():
-            means.append(val['mean'])
-        means = set(means)
-
-        for cl, val in output.items():
-            mean = val['mean']
-            other_means = torch.stack(list(means - set([mean])), 0)
-            mean = mean.repeat(len(other_means), 1)
-            distance_mean = pdist(other_means, mean)
+            means = []
+            main_mean = None
+            for cl2, val2 in output.items():
+                if(cl == cl2):
+                    main_mean = val2['mean']
+                    continue
+                means.append(val2['mean'])
+            other_means = torch.stack(means, 0)
+            main_mean = main_mean.repeat(len(other_means), 1)
+            distance_mean = pdist(other_means, main_mean)
             output[cl]['distance_mean'] = distance_mean
         
         return output
@@ -347,7 +356,6 @@ class PointPlot():
         for idx, (cl, val) in enumerate(std_mean_distance_dict.items()):
             fig, ax = plotter.get_next()
 
-            mean = val['mean']
             dist_positive = val['distance_positive']
             dist_negative = val['distance_negative']
             my_colors = itertools.cycle(my_colors)        
@@ -407,12 +415,12 @@ class PointPlot():
             mean = val['mean']
             mini = min(mean - std)
             maxi = max(mean + std)
-            labels = [f'dim-{x}' for x in range(len(mean))]
+            color = next(my_colors)
+            labels = [f'dim-{x}_color-{str(color)}' for x in range(len(mean))]
             plot_index = 0
 
-            # iterate over mean and std of dimensions
+            # iterate over dimensions of mean and std
             for idx1, (m1, s1) in enumerate(zip(mean, std)):
-                color = next(my_colors)
                 new_plot = ax.plot(m1, plot_index, 'ro', color=color)[0]
                 legend_label[cl] = {
                     'label': [f'Class {cl}'], 
@@ -624,10 +632,8 @@ class PointPlot():
         formated_matrix = np.array(formated_matrix)
         ax.matshow(formated_matrix, cmap=plt.cm.Greens, aspect='auto')
 
-        for y in range(len(formated_matrix)):
-            for x in range(len(formated_matrix[0])):
-                c = formated_matrix[y, x]
-                ax.text(y, x, str(np.format_float_positional(c, precision=precision)), va='center', ha='center')
+        for (i, j), z in np.ndenumerate(formated_matrix):
+            ax.text(j, i, np.format_float_positional(z, precision=precision), va='center', ha='center')
 
         self.flush(fig, ax, name, show, ftype=ftype)
 

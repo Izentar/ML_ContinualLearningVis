@@ -35,6 +35,9 @@ class CLModel(base.CLBase):
     def forward(self, *args, make_adv=False, with_image=False, **kwargs):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)
 
+    def call_loss(self, input, target):
+        return cross_entropy(input, target)
+
     def training_step_normal(self, batch):
         x, y = batch
 
@@ -82,7 +85,7 @@ class CLModel(base.CLBase):
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
-        y_hat = self(x)[0]
+        y_hat = self(x)
         val_loss = cross_entropy(y_hat, y)
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
@@ -91,7 +94,7 @@ class CLModel(base.CLBase):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)[0]
+        y_hat = self(x)
         test_loss = cross_entropy(y_hat, y)
         self.log("test_loss", test_loss)
         self.test_acc(y_hat, y)
@@ -112,73 +115,125 @@ class CLModelWithReconstruction(CLModel):
         self.log(f"{label}/latent", loss_latent)
         return loss
 
+    def call_loss(self, input, target):
+        return mse_loss(input, target)
+
     def process_losses_dreams(self, x, y, y_latent, label):
         if self.dreams_reconstruction_loss:
             return self.process_losses_normal(x, y, y_latent, label)
         return super().process_losses_normal(x, y, y_latent, label)
 
-class CLModelWithIslands(CLModel):
-    def __init__(self, *args, hidden=3, buff_on_same_device=False, islands=False, alpha=0.0, norm_lambd=0.001, sigma=0.2, rho=1., one_hot_means=None, only_one_hot=False, **kwargs):
+class CLModelIslandsTest(CLModel):
+    def __init__(self, *args, hidden=10, one_hot_means=None, only_one_hot=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.islands = islands
-        #self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=kwargs.get('num_classes'), dimensions=hidden, size_per_class=40)
-        self.cyclic_latent_buffer = None
-        #self.island_loss = ChiLoss(sigma=sigma, rho=rho, cyclic_buffer=self.cyclic_latent_buffer)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=hidden, size_per_class=40)
+        self.loss_f = torch.nn.MSELoss() #torch.nn.CrossEntropyLoss()
+        self.one_hot_means = one_hot_means
 
-        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=7, size_per_class=40)
-        self.island_loss = ChiLossOneHot(cyclic_latent_buffer=self.cyclic_latent_buffer, sigma=sigma, rho=rho, one_hot_means=one_hot_means, only_one_hot=only_one_hot)
+    def decode(self, target):
+        one_hot = []
+        for t in target:
+            one_hot.append(self.one_hot_means[t.item()].to(t.device))
+        return torch.stack(one_hot, 0)
+
+    def call_loss(self, input, target):
+        return self.loss_f(input, self.decode(target))
+
+    def forward(self, *args, make_adv=False, with_image=False, **kwargs):
+        return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)
+
+    def process_losses_normal(self, x, y, y_latent, label):
+        y_decoded = self.decode(y)
+        loss = self.loss_f(y_latent, y_decoded.float())
+        self.log(f"{label}/cross_entropy_loss", loss)
+
+        selected_class = 0
+        uniq = torch.unique(y)
+        cl_batch = None
+        for u in uniq:
+            if(u.item() == selected_class):
+                cl_batch = y_latent[y == u]
+                break
+        if(cl_batch is not None):
+            cl_batch = torch.mean(cl_batch, dim=0)
+            for idx, m in enumerate(cl_batch):
+                self.log(f"val_cl0_dim{idx}", m)
+
+        return loss
+
+    def process_losses_dreams(self, x, y, y_latent, label):
+        return self.process_losses_normal(x, y, y_latent, label)
+
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        x, y = batch
+        y = self.decode(y)
+        y_cl = self(x)
+        val_loss = self.loss_f(y_cl, y)
+        self.log("val_loss", val_loss)
+
+        valid_acc = self.valid_accs[dataloader_idx]
+        valid_acc(y_cl, y)
+        self.log("valid_acc", valid_acc)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y = self.decode(y)
+        y_cl = self(x)
+        test_loss = self.loss_f(y_cl, y)
+        self.log("test_loss", test_loss)
+        self.test_acc(y_cl, y)
+        self.log("test_acc", self.test_acc)
+
+class CLModelWithIslands(CLModel):
+    def __init__(self, hidden, *args, buff_on_same_device=False, islands=False, alpha=0.0, norm_lambd=0.001, sigma=0.2, rho=1., one_hot_means=None, only_one_hot=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cyclic_latent_buffer = None
+        #self.loss_f = ChiLoss(sigma=sigma, rho=rho, cyclic_buffer=self.cyclic_latent_buffer)
+
+        #self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=hidden, size_per_class=40)
+        self.loss_f = ChiLossOneHot(cyclic_latent_buffer=self.cyclic_latent_buffer, sigma=sigma, rho=rho, one_hot_means=one_hot_means, only_one_hot=only_one_hot)
         
         self.norm = l2_latent_norm
         self.norm_lambd = norm_lambd
         self.alpha = alpha
         self.buff_on_same_device = buff_on_same_device
 
+    def call_loss(self, input, target):
+        return self.loss_f(input, target)
+
     def process_losses_normal(self, x, y, y_latent, label):
-        norm = self.norm(y_latent, self.norm_lambd)
-        loss_island = self.island_loss(y_latent, y)
+        loss = self.loss_f(y_latent, y)
 
-        loss = loss_island + norm
-        self.log(f"{label}/island", loss_island)
-        #self.log(f"{label}/island", loss_island)
+        for k, v in self.loss_f.to_log.items():
+            self.log(k, v)
 
-        #self.log(f"{label}/l2-regularization", norm)
-        #self.log(f"{label}/distance_weight", self.island_loss.distance_weight)
-        #self.log(f"{label}/positive_loss", self.island_loss.positive_loss.detach().sum())
-        #self.log(f"{label}/negative_loss", self.island_loss.negative_loss.detach().sum())
-        #self.log(f"{label}/input_sum", self.island_loss.input_sum)
+        if(self.norm_lambd != 0.):
+            norm = self.norm(y_latent, self.norm_lambd)
+            loss += norm
+        self.log(f"{label}/island", loss)
+
         return loss
 
     def process_losses_dreams(self, x, y, y_latent, label):
-        if self.islands:
-            return self.process_losses_normal(x, y, y_latent, label)
-        return super().process_losses_normal(x, y, y_latent, label)
+        return self.process_losses_normal(x, y, y_latent, label)
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
         y_latent = self(x)
-        val_loss = self.island_loss(y_latent, y, train=False)
+        val_loss = self.loss_f(y_latent, y, train=False)
         self.log("val_loss", val_loss)
-        pdist = torch.nn.PairwiseDistance(p=2)
-
-        means = self.cyclic_latent_buffer.mean()
-        #for i in range(10):
-        #    self.log(f"val_means_{i}", pdist(means[i], torch.zeros((7,), device='cpu')))
-
-        for i, m in enumerate(means[0]):
-            self.log(f"val_means_cl0_dim{i}", m)
-
-        #valid_acc = self.valid_accs[dataloader_idx]
-        #valid_acc(self.island_loss.classify(y_latent), y)
-        #self.log("valid_acc", valid_acc)
+        valid_acc = self.valid_accs[dataloader_idx]
+        valid_acc(self.loss_f.classify(y_latent), y)
+        self.log("valid_acc", valid_acc)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_latent = self(x)
-        test_loss = self.island_loss(y_latent, y, train=False)
+        test_loss = self.loss_f(y_latent, y, train=False)
         self.log("test_loss", test_loss)
 
-        #self.test_acc(self.island_loss.classify(y_latent), y)
-        #self.log("test_acc", self.test_acc)
+        self.test_acc(self.loss_f.classify(y_latent), y)
+        self.log("test_acc", self.test_acc)
 
     def _calculate_cov(self, inp, target):
         target_unique, target_count = torch.unique(target, return_counts=True)
@@ -190,7 +245,6 @@ class CLModelWithIslands(CLModel):
         cl_indices_list = torch.where(cl_indices)[0]
 
         cov_matrix = torch.cov(inp)
-        pass
 
     def training_step(self, batch, batch_idx):
         if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):
