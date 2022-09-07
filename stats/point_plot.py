@@ -111,8 +111,12 @@ class Statistics():
         '''
         buffer = []
         model.eval()
-        epoch_size = np.maximum(num_of_points // len(dataloader) // dataloader.batch_size, 1)
+        batch_size = len(next(iter(dataloader))[1])
+        input_device = next(iter(dataloader))[1][0].device
+        epoch_size = np.maximum(num_of_points // len(dataloader) // batch_size, 1)
         counter = 0
+        if logger is not None:
+            model.loss_to(input_device)
 
         with torch.no_grad():
             for epoch in range(epoch_size):
@@ -126,7 +130,7 @@ class Statistics():
                         logger.log_metrics({f'stats/collect_loss': loss}, counter)
 
                     buffer.append((out.detach().to('cpu'), target.detach().to('cpu')))
-                    counter += dataloader.batch_size
+                    counter += batch_size
 
         return buffer
 

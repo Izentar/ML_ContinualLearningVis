@@ -187,11 +187,10 @@ class CLModelIslandsTest(CLModel):
 class CLModelWithIslands(CLModel):
     def __init__(self, hidden, *args, buff_on_same_device=False, islands=False, alpha=0.0, norm_lambd=0.001, sigma=0.2, rho=1., one_hot_means=None, only_one_hot=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cyclic_latent_buffer = None
-        #self.loss_f = ChiLoss(sigma=sigma, rho=rho, cyclic_buffer=self.cyclic_latent_buffer)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=hidden, size_per_class=40)
+        self.loss_f = ChiLoss(sigma=sigma, rho=rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
 
-        #self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=hidden, size_per_class=40)
-        self.loss_f = ChiLossOneHot(cyclic_latent_buffer=self.cyclic_latent_buffer, sigma=sigma, rho=rho, one_hot_means=one_hot_means, only_one_hot=only_one_hot)
+        #self.loss_f = ChiLossOneHot(cyclic_latent_buffer=self.cyclic_latent_buffer, sigma=sigma, rho=rho, one_hot_means=one_hot_means, only_one_hot=only_one_hot)
         
         self.norm = l2_latent_norm
         self.norm_lambd = norm_lambd
@@ -200,6 +199,9 @@ class CLModelWithIslands(CLModel):
 
     def call_loss(self, input, target):
         return self.loss_f(input, target)
+
+    def loss_to(self, device):
+        self.loss_f.to(device)
 
     def process_losses_normal(self, x, y, y_latent, label):
         loss = self.loss_f(y_latent, y)

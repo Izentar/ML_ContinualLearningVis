@@ -116,13 +116,13 @@ def second_demo():
     num_classes = 10
     epochs_per_task = 100
     dreams_per_target = 64
-    main_split = 0.1
-    sigma = 0.2
+    main_split = collect_main_split = 0.5
+    sigma = 0.1
     rho = 1.
     hidden = 10
     norm_lambd = 0.
     wandb_offline = False
-    collect_points = 2500
+    collect_numb_of_points = 2500
     nrows = 4
     ncols = 4
     my_batch_size = 32
@@ -260,18 +260,28 @@ def second_demo():
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = dataset_class(root="./data", train=True, transform=transform)
-    collect_stats(model=model, dataset=dataset, collect_points=collect_points, nrows=nrows, ncols=ncols, 
+    collector_batch_sampler = PairingBatchSamplerV2(
+                dataset=dataset,
+                batch_size=my_batch_size,
+                shuffle=True,
+                classes=np.unique(dataset.targets),
+                main_class_split=collect_main_split,
+            )
+    collect_stats(model=model, dataset=dataset,
+        collect_numb_of_points=collect_numb_of_points, 
+        collector_batch_sampler=collector_batch_sampler,
+        nrows=nrows, ncols=ncols, 
         logger=logger, attack_kwargs=attack_kwargs)
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
 
-def collect_stats(model, dataset, collect_points, attack_kwargs, nrows=1, ncols=1, logger=None):
+def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, nrows=1, ncols=1, logger=None):
     stats = Statistics()
     dataloader = DataLoader(dataset, 
-        batch_size=32, 
         num_workers=4, 
         pin_memory=False,
+        batch_sampler=collector_batch_sampler
     )
 
     def invoker(model, input):
@@ -281,7 +291,7 @@ def collect_stats(model, dataset, collect_points, attack_kwargs, nrows=1, ncols=
         )
         return xe
         
-    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_points, to_invoke=invoker,
+    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_numb_of_points, to_invoke=invoker,
         logger=logger)
     plotter = PointPlot()
     name = 'plots/multi'
