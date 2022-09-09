@@ -126,7 +126,7 @@ class Statistics():
                     out = to_invoke(model, input)
 
                     if logger is not None:
-                        loss = model.call_loss(out, target)
+                        loss = model.call_loss(out, target, train=False)
                         logger.log_metrics({f'stats/collect_loss': loss}, counter)
 
                     buffer.append((out.detach().to('cpu'), target.detach().to('cpu')))

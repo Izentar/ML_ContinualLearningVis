@@ -45,6 +45,8 @@ class DreamDataset:
         """Dummy method to be overloaded. Implement custom additional dream processing
         here."""
 
+    def empty(self):
+        return len(self.dreams) == 0
 
 class DreamDatasetWithLogits(DreamDataset):
     def __init__(self, *args, **kwargs) -> None:

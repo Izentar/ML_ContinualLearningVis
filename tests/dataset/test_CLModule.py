@@ -64,14 +64,14 @@ class TestCLDataModule(unittest.TestCase):
 
         self.assertIsNone(self.main.current_task_index)
         self.assertIsNone(self.main.train_task)
-        self.assertIsNone(self.main.dream_task)
+        self.assertIsNone(self.main.dream_dataset_current_task)
 
     def setup_task_index(self, idx):
         self.main.setup_task_index(idx)
 
         self.assertIsNotNone(self.main.current_task_index)
         self.assertIsNotNone(self.main.train_task)
-        self.assertIsNone(self.main.dream_task)
+        self.assertIsNone(self.main.dream_dataset_current_task)
 
         self.assertEqual(self.main.current_task_index, idx)
         self.assertEqual(len(self.main.train_task), 50000 / self.num_tasks)

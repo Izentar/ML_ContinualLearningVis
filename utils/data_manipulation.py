@@ -96,10 +96,10 @@ def with_fading_memory_select_tasks(tasks, task_index, fading_scale, random_dist
 #    def __call__(self, tasks):
 #        return self.distribution_tasks_processing_f(tasks, self.loss_obj)
 
-def default_tasks_processing(tasks, *args, **kwargs):
-    return tasks
+def default_tasks_processing(task, *args, **kwargs):
+    return task
 
-def normall_dist_tasks_processing(tasks, mean, std):
+def normall_dist_tasks_processing(task, mean, std, *args, **kwargs):
     """
         Return a set of points taken from the normal distribution.
         Mean and std already have the shape of <class <mean / std of the points in this class>> so
@@ -113,9 +113,20 @@ def normall_dist_tasks_processing(tasks, mean, std):
     if len(size) == 0 or size[0] == 1:
         std = std.repeat(mean.size()[0])
     tmp = torch.normal(mean=mean, std=std)
-    if isinstance(tasks, list):
-        return torch.index_select(tmp, dim=0, index=torch.tensor(tasks))
-    return tmp[tasks]
+    if isinstance(task, list):
+        return torch.index_select(tmp, dim=0, index=torch.tensor(task))
+    return tmp[task]
+
+def normall_dist_tasks_processing_vector(mean_vector, std_vector, *args, **kwargs):
+    assert torch.all(std_vector >= 0.0), f"Bad value mean/std \n{mean_vector} \n{std_vector}"
+    point = torch.normal(mean=mean_vector, std=std_vector)
+    return point
+
+def island_tasks_processing(task, model, *args, **kwargs):
+    classes_std_mean = model.get_buffer().std_mean()
+    std, mean = classes_std_mean[task]
+    assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{task}"
+    return normall_dist_tasks_processing_vector(mean_vector=mean, std_vector=std)
 
 #--------------------------------------------------------------
 
@@ -126,6 +137,17 @@ def multidim_objective_channel(layer, batch=None):
         return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane? Chcemy wszystkie "punkty"
     return inner
 
+@wrap_objective()
+def latent_objective_channel(target_layer, target_val, batch=None):
+    loss_f = torch.nn.MSELoss() 
+    @handle_batch(batch)
+    def inner(model):
+        latent = model(target_layer)
+        losses = []
+        for l in latent:
+            losses.append(loss_f(l, target_val))
+        return torch.stack(losses, dim=0).mean()
+    return inner
 
 def SAE_standalone_multidim_dream_objective_f(target, model, source_dataset_obj):
     return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
@@ -137,17 +159,22 @@ def SAE_multidim_dream_objective_f(target, model, source_dataset_obj):
         "model_model_conv2"
     )
 
-def SAE_dream_objective_f(target, model, source_dataset_obj):
+def SAE_dream_objective_f(target_point, model, source_dataset_obj):
     # be careful for recursion by calling methods from source_dataset_obj
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
     # channel - diversity penalty
-    return objectives.channel(model.get_objective_target(), target) - objectives.diversity(
+    return objectives.channel(model.get_objective_target(), target_point) - objectives.diversity(
+        "model_model_conv2"
+    )
+
+def SAE_island_dream_objective_f(target_point, model, source_dataset_obj):
+    return latent_objective_channel(model.get_objective_target(), target_point.to(model.device)) - objectives.diversity(
         "model_model_conv2"
     )
 
 def default_dream_objective_f(target, model, source_dataset_obj):
-    return objectives.channel(model.get_objective_target(), target)
+    return objectives.direction(model.get_objective_target(), target)
 
 def test(target, model, source_dataset_obj):
     return objectives.channel(model.get_objective_target(), target) - objectives.diversity(

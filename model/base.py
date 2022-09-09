@@ -28,11 +28,12 @@ class CLBase(LightningModule):
         loss_normal = self.training_step_normal(batch_normal)
         if "dream" not in batch:
             return loss_normal
-        #TODO do we really need to compute dreams at each batch?
-        #if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
-        #    (isinstance(self.dream_frequency, int) and batch_idx % self.dream_frequency == 0):
-        #    loss_dream = self.training_step_dream(batch["dream"])
-        #    return loss_normal + loss_dream
+        #TODO Czy naprawdę potrzebujemy uczyć się na snach w każdym batchu? W każdym z nich będą te same obrazki zawsze.
+        #TODO może powinniśmy wymieszać obrazki ze snów ze zwykłymi obrazkami?
+        if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
+            (isinstance(self.dream_frequency, int) and batch_idx % self.dream_frequency == 0):
+            loss_dream = self.training_step_dream(batch["dream"])
+            return loss_normal + loss_dream
         return loss_normal
     
     @abstractmethod

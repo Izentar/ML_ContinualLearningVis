@@ -24,12 +24,24 @@ def l1_norm(model, lambd):
     norm = sum(torch.sum(torch.abs(p)) for p in model.parameters())
     return norm * lambd
 
+class DummyLoss():
+    def __init__(self, loss):
+        self.loss = loss
+        
+    def __call__(self, input, target):
+        return self.loss(input, target)
+
+    def classify(self, input):
+        return input
+
+
 class ChiLossBase():
     def __init__(self, cyclic_latent_buffer):
         self.centers_of_clouds = cyclic_latent_buffer
 
-    def __call__(self, input, target):
-        self.centers_of_clouds.push_target(input, target)
+    def __call__(self, input, target, train=True):
+        if train:
+            self.centers_of_clouds.push_target(input, target)
 
     def _get_stack_means(self, example):
         """
@@ -56,6 +68,7 @@ class ChiLossBase():
         classes = torch.squeeze(classes)
         return classes
 
+
 class ChiLoss(ChiLossBase):
     def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1., eps=1e-5, start_mean_buff_at=500):
         super().__init__(cyclic_latent_buffer=cyclic_latent_buffer)
@@ -64,7 +77,6 @@ class ChiLoss(ChiLossBase):
         self.rho = rho
         self.loss_means_from_buff = loss_means_from_buff
         self.start_mean_buff_at = start_mean_buff_at
-        self.rand_distance_scale = 1000000
 
         self.to_log = {}
 
@@ -136,139 +148,6 @@ class ChiLoss(ChiLossBase):
                 return mean_distance.to(target.device)
         
         return self._calculate_batch_mean(input, target)
-
-    def _get_random_direction(self, batch, target):
-        new_batch = []
-        for p, t in zip(batch, target):
-            item = t.item()
-            if(item not in self.rand_direction):
-                self.rand_direction[item] = torch.rand(len(p), requires_grad=False, device=target.device)
-            new_batch.append(self.rand_direction[item])
-        return torch.stack(new_batch, 0)
-
-    def _set_strength_random_direction(self, random_direction, base, mean_matrix):
-        # negative sum -> log
-        new = []
-        for idx, (b, m) in enumerate(zip(base, mean_matrix)):
-            mean_avg_dist = torch.mean(torch.cat((m[:idx], m[idx+1:])))
-            weight = torch.log(torch.abs(m[idx] - mean_avg_dist))
-            new.append(b + random_direction[idx] * weight)
-        return torch.stack(new, 0)
-
-    def _set_strength(self, batch_means, batch_rand, input_distance, target, k):
-        new_batch_means = []
-        for mean, randm, t in zip(batch_means, batch_rand, target):
-            diagonal = torch.diag(torch.ones_like(input_distance[0]))
-            target_cl = torch.where(target == t, True, False)
-            target_cl = target.repeat((len(target_cl), 1))
-            negative_mask = torch.logical_or(target_cl, target_cl.T).float() * torch.logical_not(diagonal).float()
-
-            #target_cl = torch.where(target == t, 1., 0.)
-            #target_cl = target.repeat((len(target_cl), 1))
-            #negative_mask = (target_cl != target_cl.T).float()
-
-            self.input_sum = torch.abs(input_distance * negative_mask).sum()
-
-            distance_weight = torch.abs(input_distance * negative_mask).sum() / self.rand_distance_scale
-            distance_weight = (k / 2 - 1) * (1 / (distance_weight / k + self.eps) )
-            self.distance_weight = distance_weight
-            new_batch_means.append(mean + randm * distance_weight)
-
-        return torch.stack(new_batch_means, 0)
-
-    def _distance_diff(self, input, target):
-        k = input.size(dim=1)
-        batch_size = input.size(dim=0)
-
-        #unique, count = torch.unique(target, return_counts=True)
-        #main_cl = unique[torch.argmax(count)]
-
-        target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float()
-        negative_mask = (target_stacked != target_stacked.T).float()
-
-        # must be order (means, input) to iterate over each means.
-        means = self._calc_mean_dist(input, target)
-        input_rand = self._get_random_direction(input, target)
-        means_rand = self._get_random_direction(means, target)
-        mean_matrix = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)
-        input = self._set_strength_random_direction(input_rand, input, mean_matrix)
-        means = self._set_strength_random_direction(input_rand, means_rand, mean_matrix)
-
-        z_distance_diff = torch.cdist(means, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
-        loss_buff = []
-        for i, t in zip(z_distance_diff, target):
-            tmp_matrix_2 = []
-            for j in z_distance_diff:
-                tmp_matrix_2.append(i - j)
-            tmp_matrix_2 = torch.stack(tmp_matrix_2, 0)
-
-            #target_stacked = torch.where(target == t, target, 0.)
-            target_stacked = target.repeat((len(target), 1))
-            target_mask_positive = (target_stacked == target_stacked.T).float()
-            target_mask_positive *= torch.where(target == t, 1., 0.).repeat((len(target), 1))
-            target_mask_negative = (target_stacked != target_stacked.T).float()
-            target_mask_negative *= torch.where(target != t, 1., 0.).repeat((len(target), 1))
-            
-            
-            #outer_loop_distance_mask = torch.ones_like(tmp_matrix_2)
-            #outer_loop_distance_mask[idx_i, : ] = 0.
-
-            tmp_matrix_negative = tmp_matrix_2 * target_mask_negative #* negative_mask# * outer_loop_distance_mask
-            negative_minus = torch.where(tmp_matrix_negative < 0., tmp_matrix_negative, 0.) * -1
-            negative_plus = torch.where(tmp_matrix_negative > 0., tmp_matrix_negative, 0.) * 0.001
-            #negative_minus = -(k / 2 - 1) * torch.log(negative_minus / k + self.eps) + negative_minus / (2 * k)
-            #negative_minus *= target_mask_negative
-
-            #tmp_matrix_positive = tmp_matrix_2 * target_mask_positive
-            #positive_minus = torch.where(tmp_matrix_positive < 0., tmp_matrix_positive, 0.) * -1
-            #positive_plus = torch.where(tmp_matrix_positive > 0., tmp_matrix_positive, 0.) * 1
-
-            #concat = negative_minus + negative_plus #+ positive_minus# + positive_plus
-            #concat = negative_minus + negative_plus + positive_minus + positive_plus
-            concat = negative_minus + negative_plus 
-            concat = concat.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
-            loss_buff.append(concat.sum())
-
-        loss = torch.stack(loss_buff, 0).sum()
-
-        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
-        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
-        second_part_positive = z_positive / (2 * k)
-        
-        positive_loss = (first_part_positive + second_part_positive) * positive_mask
-        
-        loss += positive_loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1).sum()
-        return loss
-
-    def _distance_to_means(self, input, target):
-        k = input.size(dim=1)
-        batch_size = input.size(dim=0)
-
-        target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float()
-        negative_mask = (target_stacked != target_stacked.T).float()
-
-        means = self._calc_mean_dist(input, target)
-        rand_direction = self._get_random_direction(input, target)
-
-        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
-        means = self._set_strength(means, rand_direction, z_positive, target, k)
-        z_negative = torch.cdist(input, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
-
-        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
-        second_part_positive = z_positive / (2 * k)
-
-        positive_loss = (first_part_positive + second_part_positive) * positive_mask
-        negative_loss = z_negative * positive_mask
-
-        self.positive_loss = positive_loss
-        self.negative_loss = negative_loss
-        loss =  positive_loss + negative_loss * (self.rho/self.sigma)**2
-        
-        # remove diagonal - distance from, to the same class
-        loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
-        return loss.sum()
 
     # ------------------------------------------------------------------------------------
 
@@ -435,9 +314,7 @@ class ChiLoss(ChiLossBase):
         return loss.sum()
 
     def __call__(self, input, target, train=True):
-        super().__call__(input, target)
-        #return self._distance_diff(input, target)
-        #return self._distance_to_means(input, target)
+        super().__call__(input, target, train=train)
         #return self._one_class_batch(input, target, train=train)
         #return self._simple_chi_loss(input, target)
         return self._simple_mean_from_batch_chi_loss(input, target)

@@ -57,10 +57,10 @@ class CyclicBufferByClass():
         for cl_idx, flag in enumerate(self._buff_idx):
             flag = flag[1]
             if(flag):
-                mean = f(self.cyclic_buff[cl_idx], dim=0)
+                result = f(self.cyclic_buff[cl_idx], dim=0)
             else:
-                mean = f(self.cyclic_buff[cl_idx, : self._buff_idx[cl_idx][0]], dim=0)
-            buf[cl_idx] = mean
+                result = f(self.cyclic_buff[cl_idx, : self._buff_idx[cl_idx][0]], dim=0)
+            buf[cl_idx] = result
         return buf
 
     def mean(self):
@@ -85,5 +85,5 @@ class CyclicBufferByClass():
 
     def std_mean(self):
         def __std_mean(buff, dim=0):
-            return torch.mean(buff, dim=dim)
+            return torch.std_mean(buff, dim=dim)
         return self._operation_template(__std_mean)

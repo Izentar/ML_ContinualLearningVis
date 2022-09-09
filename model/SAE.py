@@ -99,6 +99,9 @@ class SAE_CIFAR(nn.Module):
         # xd = F.upsample(xd,30)
         return sigmoid(self.conv4(xd))
 
+    def get_objective_layer_name(self):
+        return "fc1_2"
+
 class SAE_CIFAR_TEST(SAE_CIFAR):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__(num_classes=num_classes, *args, **kwargs)

@@ -51,9 +51,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dream_objective_f,
         dreams_per_target,
         tasks_processing_f=datMan.default_tasks_processing,
-        images_per_dreaming_batch=8,
+        const_target_images_per_dreaming_batch=8,
         max_logged_dreams=8, 
         fast_dev_run=False,
+        fast_dev_run_dream_threshold=None,
         image_size = 32,
         progress_bar = None,
         empty_dream_dataset=None,
@@ -73,8 +74,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.select_dream_tasks_f = select_dream_tasks_f
         self.tasks_processing_f = tasks_processing_f
         self.dreams_per_target = dreams_per_target
-        self.images_per_dreaming_batch = images_per_dreaming_batch
-        self.fast_dev_run = fast_dev_run
+        self.const_target_images_per_dreaming_batch = const_target_images_per_dreaming_batch
         self.image_size = image_size
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams = max_logged_dreams
@@ -83,6 +83,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
         self.tasks_ids = None
+
+        self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold
+        self.fast_dev_run = fast_dev_run
+        
+        if(empty_dream_dataset is None):
+            raise Exception("Empty dream dataset.")
     
 
     @abstractmethod
@@ -115,7 +121,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.eval()
 
-        iterations = ceil(self.dreams_per_target / self.images_per_dreaming_batch)
+        iterations = ceil(self.dreams_per_target / self.const_target_images_per_dreaming_batch)
         new_dreams, new_targets = self.__generate_dreams(
             model=model,
             dream_targets=dream_targets, 
@@ -221,18 +227,26 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def __generate_dreams_for_target(self, model, target, iterations, update_progress, task_index):
         dreams = []
+        thresholds = (self.fast_dev_run_dream_threshold, ) if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else (512, )
         for _ in range(iterations):
 
             def batch_param_f():
                 # uses 2D Fourier coefficients
                 # sd - scale of the random numbers [0, 1)
                 return param.image(
-                    self.image_size, batch=self.images_per_dreaming_batch, sd=0.4
+                    self.image_size, batch=self.const_target_images_per_dreaming_batch, sd=0.4
                 )
 
             target_point = self.transform_targets(model=model, dream_targets=target, task_index=task_index)
             objective = self.dream_objective_f(target_point, model, self)
 
+            # python3.10/site-packages/lucent/optvis/param/spatial.py
+            # Here we use 'cuda:0' on the tensors. In multigpu env this may be troublesome.
+            # The image is saved into spectrum_real_imag_t which changes after optim.step()
+            # Optimizer will update only the input layer because of the only specified layer 'param' passed to it.
+            # By default it will do 512 iterations
+            # In objective_f we specify the layers which will be used to compute loss. In ChiLoss 
+            #   we only need the last layer loss plus minor diversity on some convolutional layers.
             numpy_render = torch.from_numpy(
                 render.render_vis(
                     model=model,
@@ -245,7 +259,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     #transforms=None, # default use standard transforms on the image that is generating.
                     #optimizer=None, # default Adam
                     #preprocess=True, # simple ImageNet normalization that will be used on the image that is generating.
-                    #thresholds=(512,) # max() - how many iterations is used to generate an input image. Also
+                    thresholds=thresholds # max() - how many iterations is used to generate an input image. Also
                                         # for the rest of the numbers, save the image during the i-th iteration
                 )[-1] # return the last, most processed image (thresholds)
             )
@@ -260,7 +274,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             Override this if you need more than what the function tasks_processing_f itself can offer.
             Returns tensor representing target. It can be one number or an array of numbers (point)
         """
-        return self.tasks_processing_f(dream_targets)
+        return self.tasks_processing_f(task=dream_targets, model=model)
 
     def clear_task_progress(self):
         # DO NOT USE, it throws error for some reason for RichProgressBar I dont know
@@ -323,7 +337,7 @@ class CLDataModule(DreamDataModule):
         self.dream_batch_size = dream_batch_size
 
         self.train_task = None
-        self.dream_task = None
+        self.dream_dataset_current_task = None
         self.current_task_index = None
         # TODO
         self.dataset_class = dataset_class
@@ -360,10 +374,10 @@ class CLDataModule(DreamDataModule):
         return Subset(dataset, np.where(task_indices)[0])
 
     def __setup_dream_dataset(self):
-        if self.dreams_dataset is not None and len(self.dreams_dataset) > 0:
-            self.dream_task = self.dreams_dataset 
+        if self.dreams_dataset is not None and not self.dreams_dataset.empty():
+            self.dream_dataset_current_task = self.dreams_dataset 
         else: 
-            self.dream_task = None
+            self.dream_dataset_current_task = None
 
     def setup_task_index(self, task_index: int) -> None:
         """
@@ -395,7 +409,7 @@ class CLDataModule(DreamDataModule):
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
-        if self.dream_task:
+        if self.dream_dataset_current_task:
             # first loop is always False. After accumulating dreams this dataloader will be used.
             shuffle = self.dream_shuffle if self.datasampler is None else False
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
@@ -410,13 +424,13 @@ class CLDataModule(DreamDataModule):
             dream_tasks_classes = list(dream_tasks_classes)
 
             dream_loader = DataLoader(
-                self.dream_task, 
+                self.dream_dataset_current_task, 
                 batch_size=self.batch_size if self.datasampler is None else 1, 
                 num_workers=self.dream_num_workers, 
                 shuffle=shuffle if self.datasampler is None else False, 
                 pin_memory=True,
                 batch_sampler=self.datasampler(
-                    dataset=self.dream_task, 
+                    dataset=self.dream_dataset_current_task, 
                     shuffle=self.dream_shuffle,
                     classes=dream_tasks_classes,
                     batch_size=self.dream_batch_size,
@@ -482,9 +496,9 @@ class CLDataModule(DreamDataModule):
         if self.steps_to_locate_mean is not None:
             if not self.calculated_mean_std:
                 self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
-            return self.tasks_processing_f(dream_targets, mean=self.mean, std=self.std)
+            return self.tasks_processing_f(task=dream_targets, model=model, mean=self.mean, std=self.std)
 
-        return self.tasks_processing_f(dream_targets)
+        return self.tasks_processing_f(task=dream_targets, model=model)
 
     def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
         """

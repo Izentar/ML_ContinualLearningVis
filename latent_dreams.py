@@ -109,20 +109,25 @@ def second_demo():
     pl.seed_everything(42)
 
     fast_dev_run = args.fast_dev_run
-    fast_dev_run_batches = False
+    fast_dev_run_batches = 30
+    fast_dev_run_epochs = 1
+    fast_dev_run_dream_threshold = 32
 
-    num_tasks = 1
+    num_tasks = 3
     num_classes_dataset = 10
-    num_classes = 10
-    epochs_per_task = 100
+    num_classes = 6
+    epochs_per_task = 10
     dreams_per_target = 64
+    const_target_images_per_dreaming_batch = 4
     main_split = collect_main_split = 0.5
     sigma = 0.1
     rho = 1.
-    hidden = 10
+    hidden = 7
     norm_lambd = 0.
-    wandb_offline = False
+    wandb_offline = True
+    enable_dreams = True
     collect_numb_of_points = 2500
+    cyclic_latent_buffer_size_per_class = 40
     nrows = 4
     ncols = 4
     my_batch_size = 32
@@ -135,11 +140,15 @@ def second_demo():
     only_one_hot = False
     one_hot_means = get_one_hots('diagonal')
 
+    tasks_processing_f = datMan.island_tasks_processing
+    select_dream_tasks_f = datMan.decremental_select_tasks
+    objective_f = datMan.SAE_island_dream_objective_f
+
     if(fast_dev_run):
-        fast_dev_run_batches = 30 # change it to increase epoch count
+        pass
         #num_tasks = 3
         #num_classes = 6
-        #images_per_dreaming_batch = 8
+        #const_target_images_per_dreaming_batch = 8
         #epochs_per_task = 2
         #dreams_per_target = 64
 
@@ -160,11 +169,8 @@ def second_demo():
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
     val_tasks_split = train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
-    select_dream_tasks_f = datMan.decremental_select_tasks
     dataset_class_robust = getDatasetList(args.dataset)[1]
     model_overlay = getModelType(aux_task_type)
-    
-    dreams_transforms = data_transform()
 
     #if fast_dev_run:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
@@ -174,7 +180,7 @@ def second_demo():
     check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
-        model=SAE_CIFAR_TEST(num_classes=num_classes, hidd2=hidden),
+        model=SAE_CIFAR(num_classes=num_classes, hidd2=hidden),
         #model=vgg11_bn(num_classes=hidden),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
@@ -190,9 +196,8 @@ def second_demo():
         hidden=hidden,
         one_hot_means=one_hot_means,
         only_one_hot=only_one_hot,
+        cyclic_latent_buffer_size_per_class=cyclic_latent_buffer_size_per_class
     )
-
-    objective_f = datMan.SAE_dream_objective_f
 
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))
@@ -214,6 +219,7 @@ def second_demo():
     callbacks = [progress_bar]
     
 
+    dreams_transforms = data_transform()
     cl_data_module = CLDataModule(
         train_tasks_split=train_tasks_split,
         dataset_class=dataset_class,
@@ -221,9 +227,12 @@ def second_demo():
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
         fast_dev_run=fast_dev_run,
+        fast_dev_run_dream_threshold=fast_dev_run_dream_threshold,
         dream_objective_f=objective_f,
-        #empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
+        empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
         progress_bar=progress_bar,
+        tasks_processing_f=tasks_processing_f,
+        const_target_images_per_dreaming_batch=const_target_images_per_dreaming_batch,
         datasampler=lambda dataset, batch_size, shuffle, classes: 
             #PairingBatchSampler(
             #    dataset=dataset,
@@ -247,19 +256,26 @@ def second_demo():
         max_epochs=-1,  # This value doesn't matter
         logger=logger,
         callbacks=callbacks,
-        fast_dev_run=fast_dev_run_batches,
+        #fast_dev_run=fast_dev_run_batches, # error when multiple tasks - in new task 0 batches are done.
+        limit_train_batches=fast_dev_run_batches if fast_dev_run else None,
         gpus="0,",
+        log_every_n_steps=1 if fast_dev_run else 50
     )
 
     internal_fit_loop = trainer.fit_loop
-    trainer.fit_loop = CLLoop([epochs_per_task] * num_tasks, progress_bar)
+    trainer.fit_loop = CLLoop(
+        [epochs_per_task] * num_tasks, progress_bar, 
+        enable_dreams=enable_dreams,
+        fast_dev_run_epochs=fast_dev_run_epochs,
+        fast_dev_run=fast_dev_run,
+    )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
     if not fast_dev_run:
         trainer.test(datamodule=cl_data_module)
 
     transform = transforms.Compose([transforms.ToTensor()])
-    dataset = dataset_class(root="./data", train=True, transform=transform)
+    dataset = dataset_class(root="./data", train=False, transform=transform)
     collector_batch_sampler = PairingBatchSamplerV2(
                 dataset=dataset,
                 batch_size=my_batch_size,
@@ -274,7 +290,7 @@ def second_demo():
         logger=logger, attack_kwargs=attack_kwargs)
 
     # show dream png
-    #cl_data_module.dreams_dataset.dreams[-1].show()
+    cl_data_module.dreams_dataset.dreams[-1].show()
 
 def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, nrows=1, ncols=1, logger=None):
     stats = Statistics()

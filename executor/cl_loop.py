@@ -50,6 +50,9 @@ class CLLoop(Loop):
         epochs_per_task: List[int],
         reset_model_after_task: bool = False,
         export_path: Optional[str] = None,
+        enable_dreams=True,
+        fast_dev_run_epochs=None,
+        fast_dev_run=False,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -63,6 +66,9 @@ class CLLoop(Loop):
         if self.export_path is not None:
             self.export_path = Path(export_path)
         self.reset_model_after_task = reset_model_after_task
+        self.enable_dreams = enable_dreams
+        self.fast_dev_run_epochs = fast_dev_run_epochs
+        self.fast_dev_run = fast_dev_run
 
     @property
     def done(self) -> bool:
@@ -90,13 +96,15 @@ class CLLoop(Loop):
 
     def on_advance_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
-        print(f"STARTING TASK {self.current_task} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
-        if (self.current_task > 0):
-            self.trainer.datamodule.setup_task_index(self.current_task)
+        if (self.current_task > 0 and self.enable_dreams):
+            print(f"DREAMING TASK: {self.current_task - 1}")
+            #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
             )
+
+        print(f"STARTING TASK {self.current_task} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
         # restore the original weights + optimizers and schedulers.
         if self.reset_model_after_task:
             self.trainer.lightning_module.load_state_dict(
@@ -105,8 +113,10 @@ class CLLoop(Loop):
             self.trainer.strategy.setup_optimizers(self.trainer)
         self.trainer.datamodule.setup_task_index(self.current_task)
         # Set the max number of epochs for this task
+
+        max_epochs = self.fast_dev_run_epochs if self.fast_dev_run and self.fast_dev_run_epochs is not None else self.epochs_per_task[self.current_task]
         self.replace(
-            fit_loop=FitLoop(max_epochs=self.epochs_per_task[self.current_task])
+            fit_loop=FitLoop(max_epochs=max_epochs)
         )
         # TODO I think there is no function named like that
         if callable(getattr(self.trainer.lightning_module, "on_task_start", None)):
@@ -132,6 +142,7 @@ class CLLoop(Loop):
 
     def on_run_end(self) -> None:
         """Used to compute the performance of the ensemble model on the test set."""
+        pass
 
     def on_save_checkpoint(self) -> Dict[str, int]:
         return {"current_task": self.current_task}
