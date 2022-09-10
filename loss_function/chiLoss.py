@@ -268,7 +268,7 @@ class ChiLoss(ChiLossBase):
         positive_mask = (target_stacked == target_stacked.T).float()
         negative_mask = (target_stacked != target_stacked.T).float()
 
-        means = self._calc_mean_dist(input, target) / np.sqrt(2)
+        means = self._calc_mean_dist(input, target) #/ 2# np.sqrt(2)
 
         z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
         z_negative = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
@@ -283,14 +283,14 @@ class ChiLoss(ChiLossBase):
         negative_loss = (first_part_negative + second_part_negative) * negative_mask     
 
         positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size).sum()
-        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size).sum()
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
 
-        negative_loss = negative_loss * (self.rho/self.sigma)**2
+        negative_loss = (negative_loss * (self.rho/self.sigma)**2).sum()
 
         self.to_log['positive_loss'] = positive_loss.detach()
         self.to_log['negative_loss'] = negative_loss.detach()
         loss = positive_loss + negative_loss
-        return loss.sum()
+        return loss
 
     def _simple_mean_buffer_chi_loss(self, input, target):
         k = input.size(dim=1)

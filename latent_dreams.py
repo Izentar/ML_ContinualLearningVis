@@ -113,20 +113,20 @@ def second_demo():
     fast_dev_run_epochs = 1
     fast_dev_run_dream_threshold = 32
 
-    num_tasks = 1
+    num_tasks = 2
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 10
+    epochs_per_task = 15
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 4
     main_split = collect_main_split = 0.5
-    sigma = 0.05
-    rho = 3.
-    hidden = 13
+    sigma = 0.1
+    rho = 1.
+    hidden = 10
     norm_lambd = 0.
     wandb_offline = False if not fast_dev_run else True
     #wandb_offline = True
-    enable_dreams = False
+    enable_dreams = True
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
     nrows = 4
