@@ -7,10 +7,10 @@ from robustness.tools import custom_modules
 import math
 
 class SAE_CIFAR(nn.Module):
-    def __init__(self, num_classes, hidd1=256, hidd2=32):
+    def __init__(self, num_classes, hidd1=256, last_hidd_layer=32):
         super().__init__()
         self.hidd1 = hidd1
-        self.hidd2 = hidd2
+        self.last_hidd_layer = last_hidd_layer
         self.conv1 = nn.Conv2d(
             in_channels=3, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
         )
@@ -19,9 +19,9 @@ class SAE_CIFAR(nn.Module):
         )
 
         self.fc1_1 = nn.Linear(in_features=50176, out_features=hidd1)
-        self.fc1_2 = nn.Linear(in_features=hidd1, out_features=hidd2)
+        self.fc1_2 = nn.Linear(in_features=hidd1, out_features=last_hidd_layer)
 
-        #self.fc3_2 = nn.Linear(in_features=hidd2, out_features=hidd1)
+        #self.fc3_2 = nn.Linear(in_features=last_hidd_layer, out_features=hidd1)
         #self.fc2_1 = nn.Linear(in_features=hidd1, out_features=50176)
         #self.conv3 = nn.ConvTranspose2d(
         #    in_channels=64, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
@@ -31,7 +31,7 @@ class SAE_CIFAR(nn.Module):
         #)
 
         #self.fake_relu = custom_modules.FakeReLUM()
-        #self.fc = nn.Linear(in_features=hidd2, out_features=num_classes)
+        #self.fc = nn.Linear(in_features=last_hidd_layer, out_features=num_classes)
 
         self._initialize_weights()
     
@@ -106,7 +106,7 @@ class SAE_CIFAR_TEST(SAE_CIFAR):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__(num_classes=num_classes, *args, **kwargs)
 
-        self.linear_cl = nn.Linear(in_features=self.hidd2, out_features=num_classes)
+        self.linear_cl = nn.Linear(in_features=self.last_hidd_layer, out_features=num_classes)
         self._initialize_weights()
 
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):

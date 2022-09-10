@@ -113,19 +113,20 @@ def second_demo():
     fast_dev_run_epochs = 1
     fast_dev_run_dream_threshold = 32
 
-    num_tasks = 3
+    num_tasks = 1
     num_classes_dataset = 10
-    num_classes = 6
+    num_classes = 10
     epochs_per_task = 10
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 4
     main_split = collect_main_split = 0.5
-    sigma = 0.1
-    rho = 1.
-    hidden = 7
+    sigma = 0.05
+    rho = 3.
+    hidden = 13
     norm_lambd = 0.
-    wandb_offline = True
-    enable_dreams = True
+    wandb_offline = False if not fast_dev_run else True
+    #wandb_offline = True
+    enable_dreams = False
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
     nrows = 4
@@ -180,7 +181,7 @@ def second_demo():
     check(train_tasks_split, num_classes, num_tasks)
 
     model = model_overlay(
-        model=SAE_CIFAR(num_classes=num_classes, hidd2=hidden),
+        model=SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden),
         #model=vgg11_bn(num_classes=hidden),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
@@ -276,11 +277,17 @@ def second_demo():
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = dataset_class(root="./data", train=False, transform=transform)
+    dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
+    targets = None
+    if isinstance(dataset, torch.utils.data.Subset):
+        targets = np.take(dataset.dataset.targets, dataset.indices).tolist()
+    else:
+        targets = dataset.targets
     collector_batch_sampler = PairingBatchSamplerV2(
                 dataset=dataset,
                 batch_size=my_batch_size,
                 shuffle=True,
-                classes=np.unique(dataset.targets),
+                classes=np.unique(targets),
                 main_class_split=collect_main_split,
             )
     collect_stats(model=model, dataset=dataset,
@@ -290,7 +297,7 @@ def second_demo():
         logger=logger, attack_kwargs=attack_kwargs)
 
     # show dream png
-    cl_data_module.dreams_dataset.dreams[-1].show()
+    #cl_data_module.dreams_dataset.dreams[-1].show()
 
 def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, nrows=1, ncols=1, logger=None):
     stats = Statistics()

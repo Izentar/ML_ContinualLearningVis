@@ -1,5 +1,6 @@
 import torch
 import math
+import numpy as np
 import wandb
 
 # input - class / pos
@@ -68,6 +69,9 @@ class ChiLossBase():
         classes = torch.squeeze(classes)
         return classes
 
+    def remove_diagonal(self, matrix, batch_size):
+        # remove diagonal - distance from, to the same class
+        return matrix.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
 
 class ChiLoss(ChiLossBase):
     def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1., eps=1e-5, start_mean_buff_at=500):
@@ -94,6 +98,8 @@ class ChiLoss(ChiLossBase):
         self.forget_counter_by_class = {}
         self.forget_call_counter = 0
         self.pdist = torch.nn.PairwiseDistance(p=2)
+
+        self.to_log['rho_sigma'] = (self.rho/self.sigma)**2
 
     def to(self, device):
         self.start_latent_means = self._change_device(device, self.start_latent_means)
@@ -217,6 +223,8 @@ class ChiLoss(ChiLossBase):
         negative_loss = first_part_negative + second_part_negative
         #negative_loss *= 1000
 
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
         self.to_log['positive_loss'] = positive_loss.detach().sum()
         self.to_log['negative_loss'] = negative_loss.detach().sum()
         loss = positive_loss.sum() + (negative_loss * (self.rho/self.sigma)**2).sum()
@@ -245,12 +253,11 @@ class ChiLoss(ChiLossBase):
         positive_loss = first_part_positive + second_part_positive
         negative_loss = first_part_negative + second_part_negative       
 
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
         self.to_log['positive_loss'] = positive_loss.detach().sum()
         self.to_log['negative_loss'] = negative_loss.detach().sum()
         loss = positive_loss + negative_loss
-        
-        # remove diagonal - distance from, to the same class
-        loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
         return loss.sum()
 
     def _simple_mean_from_batch_chi_loss(self, input, target):
@@ -261,7 +268,7 @@ class ChiLoss(ChiLossBase):
         positive_mask = (target_stacked == target_stacked.T).float()
         negative_mask = (target_stacked != target_stacked.T).float()
 
-        means = self._calc_mean_dist(input, target)
+        means = self._calc_mean_dist(input, target) / np.sqrt(2)
 
         z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
         z_negative = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
@@ -273,14 +280,16 @@ class ChiLoss(ChiLossBase):
         second_part_negative = z_negative / (2 * k)
 
         positive_loss = (first_part_positive + second_part_positive) * positive_mask
-        negative_loss = (first_part_negative + second_part_negative) * negative_mask        
+        negative_loss = (first_part_negative + second_part_negative) * negative_mask     
 
-        self.to_log['positive_loss'] = positive_loss.detach().sum()
-        self.to_log['negative_loss'] = negative_loss.detach().sum()
-        loss =  positive_loss + negative_loss * (self.rho/self.sigma)**2 
-        
-        # remove diagonal - distance from, to the same class
-        loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size).sum()
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size).sum()
+
+        negative_loss = negative_loss * (self.rho/self.sigma)**2
+
+        self.to_log['positive_loss'] = positive_loss.detach()
+        self.to_log['negative_loss'] = negative_loss.detach()
+        loss = positive_loss + negative_loss
         return loss.sum()
 
     def _simple_mean_buffer_chi_loss(self, input, target):
@@ -305,12 +314,13 @@ class ChiLoss(ChiLossBase):
         positive_loss = (first_part_positive + second_part_positive) * positive_mask
         negative_loss = (first_part_negative + second_part_negative) * negative_mask        
 
+
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
+
         self.to_log['positive_loss'] = positive_loss.detach().sum()
         self.to_log['negative_loss'] = negative_loss.detach().sum()
-        loss =  positive_loss + negative_loss * (self.rho/self.sigma)**2 
-        
-        # remove diagonal - distance from, to the same class
-        loss = loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
+        loss = positive_loss + negative_loss * (self.rho/self.sigma)**2 
         return loss.sum()
 
     def __call__(self, input, target, train=True):

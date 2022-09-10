@@ -51,7 +51,7 @@ class CLModel(base.CLBase):
             x, target=y, make_adv=self.train_normal_robustly, **self.attack_kwargs
         )
         a = torch.abs(y_latent.detach()).sum().cpu().item()
-        self.log("train_loss/xe_latent", a)
+        self.log("train_loss/latent_model_abs_sum", a)
         loss = self.process_losses_normal(
             x=x, 
             y=y, 
@@ -235,6 +235,7 @@ class CLModelWithIslands(CLModel):
 
         if(self.norm_lambd != 0.):
             norm = self.norm(y_latent, self.norm_lambd)
+            self.log(f"{label}/norm", loss)
             loss += norm
         self.log(f"{label}/island", loss)
 

@@ -143,10 +143,8 @@ def latent_objective_channel(target_layer, target_val, batch=None):
     @handle_batch(batch)
     def inner(model):
         latent = model(target_layer)
-        losses = []
-        for l in latent:
-            losses.append(loss_f(l, target_val))
-        return torch.stack(losses, dim=0).mean()
+        target = target_val.repeat(len(latent), 1)
+        return loss_f(latent, target)
     return inner
 
 def SAE_standalone_multidim_dream_objective_f(target, model, source_dataset_obj):

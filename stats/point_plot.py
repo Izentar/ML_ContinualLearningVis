@@ -395,7 +395,7 @@ class PointPlot():
             legend_fix(legend_label, ax, fig)
             #self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
 
-        plotter.force_flush(self, name, show, idx, ftype)
+        plotter.force_flush(self, name, show, idx+1, ftype)
 
     def plot_std_mean(
         self, 
@@ -440,7 +440,7 @@ class PointPlot():
         plt.yticks(list(range(len(labels))), labels, rotation='horizontal')
         add_range = (maxi - mini) * border_range_scale
         plt.xlim([mini - add_range, maxi + add_range])
-        self.flush(fig, ax, name, show, ftype=ftype)
+        self.flush(fig, ax, name, show, idx=len(std_mean_dict), ftype=ftype)
 
     def plot_mean_distance(
         self, 
@@ -486,7 +486,7 @@ class PointPlot():
         legend_fix(legend_label, ax, fig)
         ax.set_title(f'Distance of the means from each other')
         plt.yticks(list(range(len(y_labels))), y_labels, rotation='horizontal')
-        self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
+        self.flush(fig, ax, name, show, idx=idx+1, ftype=ftype)
 
     def plot(
         self, 
@@ -639,7 +639,7 @@ class PointPlot():
         for (i, j), z in np.ndenumerate(formated_matrix):
             ax.text(j, i, np.format_float_positional(z, precision=precision), va='center', ha='center')
 
-        self.flush(fig, ax, name, show, ftype=ftype)
+        self.flush(fig, ax, name, show, idx=len(average_point_dist_from_means_dict), ftype=ftype)
 
 
     def saveBuffer(self, buffer, name):
