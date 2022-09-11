@@ -10,6 +10,10 @@ from model.overlay import CLModelWithReconstruction, CLModelWithIslands, CLModel
 #from loss_function import point_scope
 
 from utils import data_manipulation as datMan
+from utils.functional import dream_objective
+from utils.functional import select_task
+from utils.functional import task_processing
+from utils.functional import task_split
 from dataset import dream_sets
 
 from model.SAE import SAE_standalone, SAE_CIFAR, SAE_CIFAR_TEST
@@ -116,7 +120,7 @@ def second_demo():
     num_tasks = 2
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 15
+    epochs_per_task = 7
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 4
     main_split = collect_main_split = 0.5
@@ -124,6 +128,8 @@ def second_demo():
     rho = 1.
     hidden = 10
     norm_lambd = 0.
+    dream_threshold = (512, )
+    dream_frequency = 10
     wandb_offline = False if not fast_dev_run else True
     #wandb_offline = True
     enable_dreams = True
@@ -141,9 +147,26 @@ def second_demo():
     only_one_hot = False
     one_hot_means = get_one_hots('diagonal')
 
-    tasks_processing_f = datMan.island_tasks_processing
-    select_dream_tasks_f = datMan.decremental_select_tasks
-    objective_f = datMan.SAE_island_dream_objective_f
+    tags = []
+    if train_with_logits:
+        tags.append("logits")
+    if train_normal_robustly or train_dreams_robustly:
+        tags.append("robust")
+    if aux_task_type == "auxiliary_reconstruction":
+        tags.append("auxiliary")
+    if aux_task_type == "island":
+        tags.append("island")
+    if fast_dev_run:
+        tags = ["fast_dev_run"]
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
+    progress_bar = RichProgressBar()
+    callbacks = [progress_bar]
+
+    #tasks_processing_f = task_processing.island_tasks_processing
+    tasks_processing_f = task_processing.island_last_point_tasks_processing
+    select_dream_tasks_f = select_task.decremental_select_tasks
+    objective_f = dream_objective.SAE_island_dream_objective_f_creator(logger=logger)
+    #objective_f = dream_objective.SAE_island_dream_objective_direction_f
 
     if(fast_dev_run):
         pass
@@ -169,7 +192,7 @@ def second_demo():
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
-    val_tasks_split = train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
+    val_tasks_split = train_tasks_split = task_split.classic_tasks_split(num_classes, num_tasks)
     dataset_class_robust = getDatasetList(args.dataset)[1]
     model_overlay = getModelType(aux_task_type)
 
@@ -190,7 +213,7 @@ def second_demo():
         dreams_with_logits=train_with_logits,
         train_normal_robustly=train_normal_robustly,
         #train_dreams_robustly=train_dreams_robustly,
-        dream_frequency=10,
+        dream_frequency=dream_frequency,
         sigma=sigma,
         rho=rho,
         norm_lambd=norm_lambd,
@@ -203,21 +226,6 @@ def second_demo():
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))
     #exit()
-
-    tags = []
-    if train_with_logits:
-        tags.append("logits")
-    if train_normal_robustly or train_dreams_robustly:
-        tags.append("robust")
-    if aux_task_type == "auxiliary_reconstruction":
-        tags.append("auxiliary")
-    if aux_task_type == "island":
-        tags.append("island")
-    if fast_dev_run:
-        tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
-    progress_bar = RichProgressBar()
-    callbacks = [progress_bar]
     
 
     dreams_transforms = data_transform()
@@ -229,6 +237,7 @@ def second_demo():
         select_dream_tasks_f=select_dream_tasks_f,
         fast_dev_run=fast_dev_run,
         fast_dev_run_dream_threshold=fast_dev_run_dream_threshold,
+        dream_threshold=dream_threshold,
         dream_objective_f=objective_f,
         empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
         progress_bar=progress_bar,

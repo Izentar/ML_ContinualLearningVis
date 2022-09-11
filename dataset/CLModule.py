@@ -3,6 +3,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Subset
 from torchvision import transforms
 from pytorch_lightning import LightningDataModule, LightningModule
 from utils import data_manipulation as datMan
+from utils.functional import task_processing
 from dataset import dream_sets
 from rich.progress import (
     BarColumn,
@@ -50,7 +51,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         select_dream_tasks_f,
         dream_objective_f,
         dreams_per_target,
-        tasks_processing_f=datMan.default_tasks_processing,
+        dream_threshold,
+        tasks_processing_f=task_processing.default_tasks_processing,
         const_target_images_per_dreaming_batch=8,
         max_logged_dreams=8, 
         fast_dev_run=False,
@@ -84,7 +86,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.calculated_mean_std = False
         self.tasks_ids = None
 
-        self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold
+        self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) else (fast_dev_run_dream_threshold, )
+        self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) else (dream_threshold, )
         self.fast_dev_run = fast_dev_run
         
         if(empty_dream_dataset is None):
@@ -227,7 +230,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def __generate_dreams_for_target(self, model, target, iterations, update_progress, task_index):
         dreams = []
-        thresholds = (self.fast_dev_run_dream_threshold, ) if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else (512, )
+        thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         for _ in range(iterations):
 
             def batch_param_f():
@@ -237,8 +240,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     self.image_size, batch=self.const_target_images_per_dreaming_batch, sd=0.4
                 )
 
-            target_point = self.transform_targets(model=model, dream_targets=target, task_index=task_index)
-            objective = self.dream_objective_f(target_point, model, self)
+            target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
+            objective = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
 
             # python3.10/site-packages/lucent/optvis/param/spatial.py
             # Here we use 'cuda:0' on the tensors. In multigpu env this may be troublesome.
@@ -268,13 +271,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
             update_progress()
         return torch.cat(dreams)
 
-    def transform_targets(self, model, dream_targets, task_index) -> torch.Tensor:
+    def transform_targets(self, model, dream_target, task_index) -> torch.Tensor:
         """
             Invoked after every new dreaming that produces an image.
             Override this if you need more than what the function tasks_processing_f itself can offer.
             Returns tensor representing target. It can be one number or an array of numbers (point)
         """
-        return self.tasks_processing_f(task=dream_targets, model=model)
+        return self.tasks_processing_f(target=dream_target, model=model)
 
     def clear_task_progress(self):
         # DO NOT USE, it throws error for some reason for RichProgressBar I dont know
@@ -492,13 +495,13 @@ class CLDataModule(DreamDataModule):
             ) if self.datasampler is not None else None
         )
 
-    def transform_targets(self, model, dream_targets, task_index):
+    def transform_targets(self, model, dream_target, task_index):
         if self.steps_to_locate_mean is not None:
             if not self.calculated_mean_std:
                 self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
-            return self.tasks_processing_f(task=dream_targets, model=model, mean=self.mean, std=self.std)
+            return self.tasks_processing_f(target=dream_target, model=model, mean=self.mean, std=self.std)
 
-        return self.tasks_processing_f(task=dream_targets, model=model)
+        return self.tasks_processing_f(target=dream_target, model=model)
 
     def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
         """

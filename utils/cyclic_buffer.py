@@ -47,7 +47,11 @@ class CyclicBufferByClass():
     def mean_cl(self, cl_idx):
         if(self._buff_idx[cl_idx][1]):
             return torch.mean(self.cyclic_buff[cl_idx], dim=(0, 1))
-        return torch.mean(self.cyclic_buff[cl_idx, : self._buff_idx[cl_idx][0]], dim=(0, 1))
+        return torch.mean(self.cyclic_buff[cl_idx, : self.__get_idx(cl_idx)], dim=(0, 1))
+
+    def __get_idx(self, cl_idx):
+        current_idx = self._buff_idx[cl_idx][0]
+        return current_idx - 1 if current_idx != 0 else self.size_per_class - 1
 
     def _operation_template(self, f):
         #TODO different types returned
@@ -59,7 +63,7 @@ class CyclicBufferByClass():
             if(flag):
                 result = f(self.cyclic_buff[cl_idx], dim=0)
             else:
-                result = f(self.cyclic_buff[cl_idx, : self._buff_idx[cl_idx][0]], dim=0)
+                result = f(self.cyclic_buff[cl_idx, : self.__get_idx(cl_idx)], dim=0)
             buf[cl_idx] = result
         return buf
 
@@ -87,3 +91,7 @@ class CyclicBufferByClass():
         def __std_mean(buff, dim=0):
             return torch.std_mean(buff, dim=dim)
         return self._operation_template(__std_mean)
+
+    def front(self, cl_idx):
+        last_idx = self.__get_idx(cl_idx)
+        return self.cyclic_buff[cl_idx, last_idx, :]
