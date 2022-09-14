@@ -64,7 +64,7 @@ class CLModel(base.CLBase):
         return loss
 
     def process_losses_normal(self, x, y, y_latent, label):
-        loss = self.loss_f.classify(y_latent)
+        loss = self.loss_f(y_latent, y)
         self.log(f"{label}/classification", loss)
         return loss
 
@@ -108,6 +108,9 @@ class CLModel(base.CLBase):
     def get_objective_target(self):
         return "model_model_" + self.model.model.get_objective_layer_name()
 
+    def loss_to(self, device):
+        return
+
 class CLModelWithReconstruction(CLModel):
     def __init__(self, *args, dreams_reconstruction_loss=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -129,10 +132,9 @@ class CLModelWithReconstruction(CLModel):
         return super().process_losses_normal(x, y, y_latent, label)
 
 class CLModelIslandsTest(CLModel):
-    def __init__(self, *args, hidden=10, one_hot_means=None, only_one_hot=False, **kwargs):
+    def __init__(self, *args, hidden=10, one_hot_means=None, only_one_hot=False, loss_f=torch.nn.MSELoss(), **kwargs):
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=hidden, size_per_class=40)
-        self.loss_f = torch.nn.MSELoss() #torch.nn.CrossEntropyLoss()
         self.one_hot_means = one_hot_means
 
     def decode(self, target):

@@ -36,3 +36,7 @@ def island_tasks_processing(target, model, *args, **kwargs):
 def island_last_point_tasks_processing(target, model, *args, **kwargs):
     last_point = model.get_buffer().front(target)
     return last_point
+
+def island_mean_tasks_processing(target, model, *args, **kwargs):
+    classes_mean = model.get_buffer().mean()
+    return classes_mean[target]

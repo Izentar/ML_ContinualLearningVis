@@ -121,6 +121,8 @@ class Statistics():
         with torch.no_grad():
             for epoch in range(epoch_size):
                 for idx, (input, target) in enumerate(dataloader):
+                    input = input.to(model.device)
+                    target = target.to(model.device)
                     if(counter >= num_of_points):
                         break
                     out = to_invoke(model, input)
@@ -332,7 +334,7 @@ class PointPlot():
             if(idx is None):
                 fig.savefig(f"{name}.{ftype}")
             else:
-                print(f"{name}_{idx}")
+                print(f"INFO: Plot {name}_{idx}")
                 fig.savefig(f"{name}_{idx}.{ftype}")
         if(show):
             plt.show()
@@ -366,12 +368,12 @@ class PointPlot():
 
             theta = [np.random.uniform(0, 2 * np.pi) for _ in range(len(dist_negative))]
             color = next(my_colors)
-            neg_plot = ax.plot(theta, dist_negative, 'ro', color=color, markersize=markersize, alpha=alpha)[0]
+            neg_plot = ax.plot(theta, dist_negative, 'o', color=color, markersize=markersize, alpha=alpha)[0]
 
             # second plot to not obscure the minor positive class
             theta = [np.random.uniform(0, 2 * np.pi) for _ in range(len(dist_positive))]
             color = next(my_colors)
-            pos_plot = ax.plot(theta, dist_positive, 'ro', color=color, markersize=markersize, alpha=alpha)[0]
+            pos_plot = ax.plot(theta, dist_positive, 'o', color=color, markersize=markersize, alpha=alpha)[0]
 
             legend_label[cl] = {
                 'label': [f'Positive {cl}', f'Negative {cl}'], 
@@ -382,10 +384,10 @@ class PointPlot():
             #for pos, neg in zip(dist_positive, dist_negative):
             #    theta = np.random.uniform(0, 2 * np.pi)
             #    color = next(my_colors)
-            #    pos_plot = ax.plot(theta, pos, 'ro', color=color, markersize=markersize)[0]
+            #    pos_plot = ax.plot(theta, pos, 'o', color=color, markersize=markersize)[0]
             #    theta = np.random.uniform(0, 2 * np.pi)
             #    color = next(my_colors)
-            #    neg_plot = ax.plot(theta, neg, 'ro', color=color, markersize=markersize)[0]
+            #    neg_plot = ax.plot(theta, neg, 'o', color=color, markersize=markersize)[0]
             #    legend_label[cl] = {
             #        'label': [f'Positive {cl}', f'Negative {cl}'], 
             #        'plot': [pos_plot, neg_plot],
@@ -425,7 +427,7 @@ class PointPlot():
 
             # iterate over dimensions of mean and std
             for idx1, (m1, s1) in enumerate(zip(mean, std)):
-                new_plot = ax.plot(m1, plot_index, 'ro', color=color)[0]
+                new_plot = ax.plot(m1, plot_index, 'o', color=color)[0]
                 legend_label[cl] = {
                     'label': [f'Class {cl}'], 
                     'plot': [new_plot],
@@ -476,7 +478,7 @@ class PointPlot():
                 #theta = [np.random.uniform(0, 2 * np.pi) for _ in range(len(other_mean_dist))]
                 #theta = np.random.uniform(0, 2 * np.pi)
             y = [idx] * (len(main_mean_dist))
-            new_plot = ax.plot(main_mean_dist, y, 'ro', color=color, markersize=markersize)[0]
+            new_plot = ax.plot(main_mean_dist, y, 'o', color=color, markersize=markersize)[0]
             
             legend_label[cl] = {
                 'label': f'Relative to class {cl}', 
@@ -557,7 +559,7 @@ class PointPlot():
                 ax.plot(
                     vx,
                     vy,
-                    'ro', 
+                    'o', 
                     marker=next(markers),
                     color=next(colors),
                     label=f"Target: {kx}",
@@ -584,7 +586,7 @@ class PointPlot():
         space=1,
     ):
         if len(buffer[0][0][0]) != 3:
-            print(f'\nWARNING - Plot 3D only for 3 dimensional space! Found {len(buffer[0][0])} dimensions\n. For loss_island this message may be invalid.')
+            print(f'\nWARNING: Plot 3D only for 3 dimensional space! Found {len(buffer[0][0])} dimensions. For loss_island this message may be invalid.')
             return
         tryCreatePath(name)
         fig, ax = plt.figure(), plt.axes(projection='3d')

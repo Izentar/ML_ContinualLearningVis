@@ -16,6 +16,11 @@ from math import ceil
 
 from utils import data_manipulation as datMan 
 
+from utils.functional import dream_objective
+from utils.functional import select_task
+from utils.functional import task_processing
+from utils.functional import task_split
+
 
 class CLDataModule(LightningDataModule):
     def __init__(
@@ -255,9 +260,9 @@ if __name__ == "__main__":
     num_classes = 10
     epochs_per_task = 3
     pl.seed_everything(42)
-    train_tasks_split = datMan.decremental_tasks_split(num_classes, num_tasks)
-    val_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
-    model = ResNet18(num_tasks=num_tasks)
+    train_tasks_split = task_split.decremental_tasks_split(num_classes, num_tasks)
+    val_tasks_split = task_split.classic_tasks_split(num_classes, num_tasks)
+    model = LeNet5(num_classes=num_classes, num_tasks=num_tasks)
     cl_data_module = CLDataModule(
         model,
         train_tasks_split,

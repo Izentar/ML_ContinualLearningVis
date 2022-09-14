@@ -9,7 +9,17 @@ from typing import Union
 from abc import abstractmethod
 
 class CLBase(LightningModule):
-    def __init__(self, num_tasks, num_classes, dream_frequency:Union[int,list[int]]=1, *args, **kwargs):
+    def __init__(
+        self, 
+        num_tasks, 
+        num_classes, 
+        dream_frequency:Union[int,list[int]]=1, 
+        data_passer: dict=None, 
+        dream_only_once=False,
+        only_dream_batch=False,
+        *args, 
+        **kwargs
+    ):
         super().__init__()
         # ignore *args, **kwargs
 
@@ -22,12 +32,17 @@ class CLBase(LightningModule):
         self.num_classes = num_classes
 
         self.dream_frequency = dream_frequency if dream_frequency >= 1 else 1
+        self.data_passer = data_passer
+        self.dream_only_once = dream_only_once
+        self.only_dream_batch = only_dream_batch
 
     def training_step(self, batch, batch_idx):
         batch_normal = batch["normal"]
         loss_normal = self.training_step_normal(batch_normal)
         if "dream" not in batch:
             return loss_normal
+        if self.only_dream_batch:
+            return self.training_step_dream(batch["dream"])
         #TODO Czy naprawdę potrzebujemy uczyć się na snach w każdym batchu? W każdym z nich będą te same obrazki zawsze.
         #TODO może powinniśmy wymieszać obrazki ze snów ze zwykłymi obrazkami?
         if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
@@ -59,5 +74,13 @@ class CLBase(LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])
 
+    def on_train_batch_start(self, batch, batch_idx):
+        string = 'current_loop'
 
+        if(self.data_passer is not None and 
+        string in self.data_passer and 
+        self.data_passer[string] >= 1 and 
+        self.dream_only_once and 
+        batch_idx >= 0):
+            return -1
 

@@ -32,6 +32,11 @@ from robustness.datasets import CIFAR100 as CIFAR100_robust
 from dataset import dream_sets
 from utils import data_manipulation as datMan
 
+from utils.functional import dream_objective
+from utils.functional import select_task
+from utils.functional import task_processing
+from utils.functional import task_split
+
 class CLDataModule(BaseCLDataModule):
     def __init__(
         self,
@@ -96,6 +101,9 @@ class CLDataModule(BaseCLDataModule):
         self.train_task = self.train_datasets[task_index]
         self.dream_task = self.dreams_dataset if len(self.dreams_dataset) > 0 else None
 
+    def get_task_classes(self, task_number):
+        return self.train_tasks_split[task_number]
+
     def train_dataloader(self):
         dream_loader = None
         if self.dream_task:
@@ -137,31 +145,14 @@ class CLDataModule(BaseCLDataModule):
         new_dreams = []
         new_targets = []
         iterations = ceil(self.dreams_per_target / self.images_per_dreaming_batch)
-        with Progress(
-            "[progress.description]{task.description}",
-            BarColumn(complete_style="magenta"),
-            MofNCompleteColumn(),
-            TimeElapsedColumn(),
-            TimeRemainingColumn(),
-        ) as progress:
-            dreaming_progress = progress.add_task(
-                "[bright_blue]Dreaming...", total=(len(diff_targets) * iterations)
+        
+        for target in sorted(diff_targets):
+
+            target_dreams = self._generate_dreams_for_target(
+                model, target, iterations,
             )
-            for target in sorted(diff_targets):
-                target_progress = progress.add_task(
-                    f"[bright_red]Class: {target}", total=iterations
-                )
-
-                def update_progress():
-                    progress.update(target_progress, advance=1)
-                    progress.update(dreaming_progress, advance=1)
-
-                target_dreams = self._generate_dreams_for_target(
-                    model, target, iterations, update_progress
-                )
-                new_targets.extend([target] * target_dreams.shape[0])
-                new_dreams.append(target_dreams)
-                progress.remove_task(target_progress)
+            new_targets.extend([target] * target_dreams.shape[0])
+            new_dreams.append(target_dreams)
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         if not self.fast_dev_run:
@@ -182,7 +173,7 @@ class CLDataModule(BaseCLDataModule):
         if model_mode:
             model = model.train()
 
-    def _generate_dreams_for_target(self, model, target, iterations, update_progress):
+    def _generate_dreams_for_target(self, model, target, iterations):
         dreams = []
         for _ in range(iterations):
 
@@ -209,7 +200,6 @@ class CLDataModule(BaseCLDataModule):
                     (0, 3, 1, 2),
                 )
             )
-            update_progress()
         return torch.cat(dreams)
 
 
@@ -347,9 +337,9 @@ if __name__ == "__main__":
     fast_dev_run = args.fast_dev_run
     cifar_100 = True  # CIFAR10 if false
     train_with_logits = True
-    num_tasks = 5
+    num_tasks = 2
     num_classes = 50
-    epochs_per_task = 15
+    epochs_per_task = 7
     dreams_per_target = 48
     fast_dev_run_batches = False
     if fast_dev_run:
@@ -379,7 +369,7 @@ if __name__ == "__main__":
     ds_class = CIFAR100 if cifar_100 else CIFAR10
     ds_class_robust = CIFAR100_robust if cifar_100 else CIFAR10_robust
     ds_robust = ds_class_robust(data_path="./data", num_classes=num_classes)
-    train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
+    train_tasks_split = task_split.classic_tasks_split(num_classes, num_tasks)
     val_tasks_split = train_tasks_split
     model = SAE(
         num_tasks=num_tasks,
@@ -395,7 +385,7 @@ if __name__ == "__main__":
         fast_dev_run=fast_dev_run,
     )
     tags = [] if not fast_dev_run else ["debug"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags)
+    logger = WandbLogger(project="adversal_dreaming", tags=tags)
     callbacks = [RichProgressBar()]
     trainer = pl.Trainer(
         max_epochs=-1,  # This value doesn't matter

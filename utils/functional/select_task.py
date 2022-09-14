@@ -12,6 +12,8 @@ def decremental_select_tasks(tasks, task_index):
     """
         Get difference between previous and current tasks.
     """
+    if(len(tasks) <= task_index):
+        return set(tasks[len(tasks) - 1])
     current_split = set(tasks[task_index])
     if(task_index == 0):
         return current_split

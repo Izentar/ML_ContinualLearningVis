@@ -3,7 +3,9 @@ from lucent.optvis.objectives import wrap_objective, handle_batch
 from lucent.optvis import objectives
 import wandb
 
-counter = 0
+counter = {}
+for i in range(10):
+    counter[i] = 0
 
 @wrap_objective()
 def multidim_objective_channel(layer, batch=None):
@@ -15,16 +17,34 @@ def multidim_objective_channel(layer, batch=None):
 @wrap_objective()
 def latent_objective_channel(target, target_layer, target_val, logger, batch=None):
     loss_f = torch.nn.MSELoss() 
-    global counter
-    counter = 0
     @handle_batch(batch)
     def inner(model):
         global counter
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         loss = loss_f(latent, latent_target)
-        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter)
-        counter += 1
+        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
+        #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter[target])
+        #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter[target])
+        counter[target] += 1
+        return loss
+    return inner
+
+@wrap_objective()
+def latent_objective_max_val_channel(target, target_layer, target_val, logger, batch=None):
+    loss_f = torch.nn.MSELoss() 
+    @handle_batch(batch)
+    def inner(model):
+        global counter
+        latent = model(target_layer)
+        latent_target = target_val.repeat(len(latent), 1)
+        latent = latent[:, 0]
+        latent_target = latent_target[:, 0]
+        loss = loss_f(latent, latent_target)
+        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
+        #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0]}, counter[target])
+        #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0]}, counter[target])
+        counter[target] += 1
         return loss
     return inner
 
@@ -43,9 +63,11 @@ def SAE_dream_objective_f(target_point, model, **kwargs):
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
     # channel - diversity penalty
-    return objectives.channel(model.get_objective_target(), target_point) - objectives.diversity(
-        "model_model_conv2"
-    )
+    return objectives.channel(model.get_objective_target(), target_point) 
+    
+    #- objectives.diversity(
+    #    "model_model_conv2"
+    #)
 
 def SAE_island_dream_objective_f_creator(logger):
     def SAE_island_dream_objective_f(target, target_point, model, **kwargs):
@@ -54,9 +76,9 @@ def SAE_island_dream_objective_f_creator(logger):
             target_val=target_point.to(model.device), 
             logger=logger, 
             target=target
-        ) - objectives.diversity(
-            "model_model_conv2"
-        )
+        ) #- objectives.diversity(
+        #    "model_model_conv2"
+        #)
     return SAE_island_dream_objective_f
 
 def SAE_island_dream_objective_direction_f(target, target_point, model, source_dataset_obj):

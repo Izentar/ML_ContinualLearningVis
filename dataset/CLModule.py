@@ -33,7 +33,7 @@ class BaseCLDataModule(LightningDataModule, ABC):
         pass
 
     @abstractmethod
-    def setup_task_index(self, task_index: int) -> None:
+    def setup_task_index(self, task_index: int, loop_index: int) -> None:
         """
             Set the datasets that will be currently processed.
         """
@@ -60,6 +60,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         image_size = 32,
         progress_bar = None,
         empty_dream_dataset=None,
+        optimizer=None,
+        logger=None,
     ):
         """
         Args:
@@ -89,6 +91,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) else (fast_dev_run_dream_threshold, )
         self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) else (dream_threshold, )
         self.fast_dev_run = fast_dev_run
+        self.optimizer = optimizer
+        self.logger = logger
+        self.wandb_dream_img_table = wandb.Table(columns=['target', 'sample', 'image'])
         
         if(empty_dream_dataset is None):
             raise Exception("Empty dream dataset.")
@@ -132,50 +137,16 @@ class DreamDataModule(BaseCLDataModule, ABC):
             task_index=task_index,
         )
 
-        self.__log_fast_dev_run(new_dreams=new_dreams, new_targets=new_targets)
+        #self.__log_fast_dev_run(new_dreams=new_dreams, new_targets=new_targets)
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
+        wandb.log({'dream_examples': self.wandb_dream_img_table})
 
         self.calculated_mean_std = False
         if model_mode:
             model.train()
 
-    def __generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
-        dreaming_progress = progress.add_task(
-            "[bright_blue]Dreaming...", total=(len(dream_targets) * iterations)
-        )
-        #print('dreaming_progress', dreaming_progress)
-        tasks_ids = []
-        tasks_ids.append(dreaming_progress)
-
-        tasks_ids = []
-        for target in sorted(dream_targets):
-            target_progress = progress.add_task(
-                f"[bright_red]Class: {target}\n", total=iterations
-            )
-            tasks_ids.append(target_progress)
-            #print('target_progress', target_progress)
-
-            def update_progress():
-                progress.update(target_progress, advance=1)
-                progress.update(dreaming_progress, advance=1)
-
-            target_dreams = self.__generate_dreams_for_target(
-                model=model, 
-                target=target, 
-                iterations=iterations, 
-                update_progress=update_progress,
-                task_index=task_index
-            )
-            new_targets.extend([target] * target_dreams.shape[0])
-            new_dreams.append(target_dreams)
-            #print('aaa', progress._tasks, '\n\n')
-            #progress.remove_task(target_progress)
-            #progress.stop_task(target_progress)
-        #progress.remove_task(dreaming_progress)
-        #print('bbb', progress._tasks, '\n\n')
-        self.tasks_ids = tasks_ids
-        
+    
     def __generate_dreams(self, model, dream_targets, iterations, task_index):
         new_dreams = []
         new_targets = []
@@ -212,6 +183,55 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
+
+    def __generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
+        dreaming_progress = progress.add_task(
+            "[bright_blue]Dreaming...", total=(len(dream_targets) * iterations)
+        )
+        #print('dreaming_progress', dreaming_progress)
+        tasks_ids = []
+        tasks_ids.append(dreaming_progress)
+
+        tasks_ids = []
+        for target in sorted(dream_targets):
+            target_progress = progress.add_task(
+                f"[bright_red]Class: {target}\n", total=iterations
+            )
+            tasks_ids.append(target_progress)
+            #print('target_progress', target_progress)
+
+            def update_progress():
+                progress.update(target_progress, advance=1)
+                progress.update(dreaming_progress, advance=1)
+
+            target_dreams = self.__generate_dreams_for_target(
+                model=model, 
+                target=target, 
+                iterations=iterations, 
+                update_progress=update_progress,
+                task_index=task_index
+            )
+            new_targets.extend([target] * target_dreams.shape[0])
+            new_dreams.append(target_dreams)
+            #print('aaa', progress._tasks, '\n\n')
+            #progress.remove_task(target_progress)
+            #progress.stop_task(target_progress)
+        #progress.remove_task(dreaming_progress)
+        #print('bbb', progress._tasks, '\n\n')
+        self.tasks_ids = tasks_ids
+    
+    def __log_target_dreams(self, new_dreams, target):
+        if not self.fast_dev_run and self.logger is not None:
+            for idx, image in enumerate(new_dreams):
+                img = wandb.Image(
+                    image,
+                    caption=f"sample: {idx} target: {target}",
+                )
+                self.wandb_dream_img_table.add_data(
+                    target, 
+                    idx, 
+                    img
+                )
 
     def __log_fast_dev_run(self, new_dreams, new_targets):
         if not self.fast_dev_run:
@@ -258,6 +278,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     fixed_image_size=self.image_size,
                     progress=False,
                     show_image=False,
+                    optimizer=self.optimizer,
                     #TODO - maybe use other params
                     #transforms=None, # default use standard transforms on the image that is generating.
                     #optimizer=None, # default Adam
@@ -266,10 +287,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
                                         # for the rest of the numbers, save the image during the i-th iteration
                 )[-1] # return the last, most processed image (thresholds)
             )
+            numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
 
-            dreams.append(torch.permute(numpy_render, (0, 3, 1, 2)))
+            dreams.append(numpy_render)
             update_progress()
-        return torch.cat(dreams)
+        target_dreams = torch.cat(dreams)
+        self.__log_target_dreams(target_dreams, target)
+        return target_dreams
 
     def transform_targets(self, model, dream_target, task_index) -> torch.Tensor:
         """
@@ -305,6 +329,7 @@ class CLDataModule(DreamDataModule):
         dream_shuffle=None,
         datasampler=None,
         root="data",
+        freeze_task_at_end=False,
         **kwargs
     ):
         """
@@ -338,10 +363,12 @@ class CLDataModule(DreamDataModule):
         self.datasampler = datasampler if datasampler is not None else None
         self.root = root
         self.dream_batch_size = dream_batch_size
+        self.freeze_task_at_end = freeze_task_at_end
 
         self.train_task = None
         self.dream_dataset_current_task = None
         self.current_task_index = None
+        self.current_loop_index = None
         # TODO
         self.dataset_class = dataset_class
 
@@ -382,7 +409,7 @@ class CLDataModule(DreamDataModule):
         else: 
             self.dream_dataset_current_task = None
 
-    def setup_task_index(self, task_index: int) -> None:
+    def setup_task_index(self, task_index: int, loop_index: int) -> None:
         """
             Choose the index of the task that will be used during training.
         """
@@ -393,6 +420,7 @@ class CLDataModule(DreamDataModule):
             raise Exception(f"Index {task_index} out of range {len(self.train_datasets)}")
         print(f"Selected task number: {task_index}")
         self.current_task_index = task_index
+        self.current_loop_index = loop_index
         self.train_task = self.train_datasets[task_index]
         self.__setup_dream_dataset()
 
@@ -418,11 +446,16 @@ class CLDataModule(DreamDataModule):
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
 
             #dream_tasks_classes = self.val_tasks_split[self.current_task_index]
-            if(self.current_task_index < 1):
+
+            flag = self.freeze_task_at_end and len(self.val_tasks_split) == self.current_task_index + 1
+            if(self.current_task_index < 1 and not (flag)):
                 raise Exception("Cannot create dream dataloader. No tasks were done before / no data avaliable.")
             dream_tasks_classes = set()
             
-            for i in range(self.current_task_index):
+            to_range = self.current_task_index
+            if(flag):
+                to_range = self.current_task_index + 1
+            for i in range(to_range):
                 dream_tasks_classes = dream_tasks_classes.union(self.val_tasks_split[i])
             dream_tasks_classes = list(dream_tasks_classes)
 

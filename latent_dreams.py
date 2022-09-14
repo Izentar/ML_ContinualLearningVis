@@ -16,6 +16,7 @@ from utils.functional import task_processing
 from utils.functional import task_split
 from dataset import dream_sets
 
+from model.ResNet import ResNet18
 from model.SAE import SAE_standalone, SAE_CIFAR, SAE_CIFAR_TEST
 from model.vgg import vgg11_bn
 from dataset.CLModule import CLDataModule
@@ -107,6 +108,11 @@ def get_one_hots(mytype, one_hot_scale=1):
             9: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 1]) * one_hot_scale,
         }
     
+def get_dream_optim():
+    def inner(params):
+        return torch.optim.Adam(params, lr=5e-2)
+    return inner
+
 def second_demo():
     # normal dreaming
     args = arg_parser()
@@ -117,11 +123,12 @@ def second_demo():
     fast_dev_run_epochs = 1
     fast_dev_run_dream_threshold = 32
 
-    num_tasks = 2
+    num_loops = num_tasks = 1
+    num_loops = 2
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 7
-    dreams_per_target = 64
+    epochs_per_task = 3
+    dreams_per_target = 16
     const_target_images_per_dreaming_batch = 4
     main_split = collect_main_split = 0.5
     sigma = 0.1
@@ -129,23 +136,31 @@ def second_demo():
     hidden = 10
     norm_lambd = 0.
     dream_threshold = (512, )
-    dream_frequency = 10
+    dream_frequency = 1
     wandb_offline = False if not fast_dev_run else True
-    #wandb_offline = True
+    wandb_offline = False
     enable_dreams = True
+    dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
+    freeze_task_at_end = True
+    only_dream_batch = True
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
     nrows = 4
     ncols = 4
     my_batch_size = 32
+    num_sanity_val_steps = 0
+    dream_optim = get_dream_optim()
 
     train_with_logits = True
     train_normal_robustly = False
     train_dreams_robustly = False
-    aux_task_type = "islands"
+    aux_task_type = "default"
 
     only_one_hot = False
     one_hot_means = get_one_hots('diagonal')
+    clModel_default_loss_f = torch.nn.CrossEntropyLoss()
+
+    data_passer = {}
 
     tags = []
     if train_with_logits:
@@ -163,10 +178,17 @@ def second_demo():
     callbacks = [progress_bar]
 
     #tasks_processing_f = task_processing.island_tasks_processing
-    tasks_processing_f = task_processing.island_last_point_tasks_processing
+    #tasks_processing_f = task_processing.island_last_point_tasks_processing
+    tasks_processing_f = task_processing.island_mean_tasks_processing
     select_dream_tasks_f = select_task.decremental_select_tasks
     objective_f = dream_objective.SAE_island_dream_objective_f_creator(logger=logger)
     #objective_f = dream_objective.SAE_island_dream_objective_direction_f
+
+    # cross_entropy_loss test
+    tasks_processing_f = task_processing.default_tasks_processing
+    select_dream_tasks_f = select_task.decremental_select_tasks
+    objective_f = dream_objective.SAE_dream_objective_f
+
 
     if(fast_dev_run):
         pass
@@ -206,6 +228,7 @@ def second_demo():
     model = model_overlay(
         model=SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden),
         #model=vgg11_bn(num_classes=hidden),
+        #model=ResNet18(num_classes=hidden),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
@@ -220,7 +243,11 @@ def second_demo():
         hidden=hidden,
         one_hot_means=one_hot_means,
         only_one_hot=only_one_hot,
-        cyclic_latent_buffer_size_per_class=cyclic_latent_buffer_size_per_class
+        cyclic_latent_buffer_size_per_class=cyclic_latent_buffer_size_per_class,
+        loss_f=clModel_default_loss_f,
+        data_passer=data_passer,
+        dream_only_once=dream_only_once,
+        only_dream_batch=only_dream_batch,
     )
 
     #from lucent.modelzoo.util import get_model_layers
@@ -243,6 +270,9 @@ def second_demo():
         progress_bar=progress_bar,
         tasks_processing_f=tasks_processing_f,
         const_target_images_per_dreaming_batch=const_target_images_per_dreaming_batch,
+        optimizer=dream_optim,
+        freeze_task_at_end=freeze_task_at_end,
+        logger=logger,
         datasampler=lambda dataset, batch_size, shuffle, classes: 
             #PairingBatchSampler(
             #    dataset=dataset,
@@ -269,7 +299,8 @@ def second_demo():
         #fast_dev_run=fast_dev_run_batches, # error when multiple tasks - in new task 0 batches are done.
         limit_train_batches=fast_dev_run_batches if fast_dev_run else None,
         gpus="0,",
-        log_every_n_steps=1 if fast_dev_run else 50
+        log_every_n_steps=1 if fast_dev_run else 50,
+        num_sanity_val_steps=num_sanity_val_steps,
     )
 
     internal_fit_loop = trainer.fit_loop
@@ -278,6 +309,8 @@ def second_demo():
         enable_dreams=enable_dreams,
         fast_dev_run_epochs=fast_dev_run_epochs,
         fast_dev_run=fast_dev_run,
+        data_passer=data_passer,
+        num_loops=num_loops,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
