@@ -51,6 +51,14 @@ class CLBase(LightningModule):
             return loss_normal + loss_dream
         return loss_normal
     
+    def get_model_out_data(self, model_out):
+        model_out_dict = None
+        latent = model_out
+        if(isinstance(model_out, tuple)):
+            latent = model_out[0]
+            model_out_dict = model_out[1]
+        return latent, model_out_dict
+
     @abstractmethod
     def training_step_normal(self, batch):
         pass

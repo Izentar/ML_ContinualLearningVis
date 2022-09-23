@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import ConcatDataset, DataLoader, Subset
 from torchvision import transforms
 from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import data_manipulation as datMan
 from utils.functional import task_processing
 from dataset import dream_sets
@@ -52,9 +53,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dream_objective_f,
         dreams_per_target,
         dream_threshold,
+        param_f,
         tasks_processing_f=task_processing.default_tasks_processing,
         const_target_images_per_dreaming_batch=8,
-        max_logged_dreams=8, 
+        max_logged_dreams_per_target=8, 
         fast_dev_run=False,
         fast_dev_run_dream_threshold=None,
         image_size = 32,
@@ -62,6 +64,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         empty_dream_dataset=None,
         optimizer=None,
         logger=None,
+        render_transforms=None,
+        dataset_class_labels=None,
     ):
         """
         Args:
@@ -81,7 +85,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.const_target_images_per_dreaming_batch = const_target_images_per_dreaming_batch
         self.image_size = image_size
         self.dream_objective_f = dream_objective_f
-        self.max_logged_dreams = max_logged_dreams
+        self.max_logged_dreams_per_target = max_logged_dreams_per_target
         self.progress_bar = progress_bar
 
         self.dreams_dataset = empty_dream_dataset
@@ -93,8 +97,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.fast_dev_run = fast_dev_run
         self.optimizer = optimizer
         self.logger = logger
-        self.wandb_dream_img_table = wandb.Table(columns=['target', 'sample', 'image'])
+        self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if dataset_class_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
+        self.render_transforms = render_transforms
+        self.param_f = param_f(image_size=image_size, target_images_per_dreaming_batch=const_target_images_per_dreaming_batch)
         
+        self.dataset_class_labels = dataset_class_labels
+
         if(empty_dream_dataset is None):
             raise Exception("Empty dream dataset.")
     
@@ -223,15 +231,26 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def __log_target_dreams(self, new_dreams, target):
         if not self.fast_dev_run and self.logger is not None:
             for idx, image in enumerate(new_dreams):
+                print(target, idx)
+                if(self.max_logged_dreams_per_target <= idx):
+                    break
                 img = wandb.Image(
                     image,
                     caption=f"sample: {idx} target: {target}",
                 )
-                self.wandb_dream_img_table.add_data(
-                    target, 
-                    idx, 
-                    img
-                )
+                if(self.dataset_class_labels is not None):
+                    self.wandb_dream_img_table.add_data(
+                        target, 
+                        self.dataset_class_labels[target],
+                        idx, 
+                        img
+                    )
+                else:
+                    self.wandb_dream_img_table.add_data(
+                        target, 
+                        idx, 
+                        img
+                    )
 
     def __log_fast_dev_run(self, new_dreams, new_targets):
         if not self.fast_dev_run:
@@ -243,7 +262,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                             new_dreams[i, :, :, :],
                             caption=f"sample: {i} target: {new_targets[i]}",
                         )
-                        for i in range(min(num_dreams, self.max_logged_dreams))
+                        for i in range(min(num_dreams, self.max_logged_dreams_per_target))
                     ]
                 }
             )
@@ -256,9 +275,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
             def batch_param_f():
                 # uses 2D Fourier coefficients
                 # sd - scale of the random numbers [0, 1)
-                return param.image(
-                    self.image_size, batch=self.const_target_images_per_dreaming_batch, sd=0.4
-                )
+                #return param.image(
+                #    self.image_size, batch=self.const_target_images_per_dreaming_batch, sd=0.4
+                #)
+                return param.cppn(self.image_size)
 
             target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
             objective = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
@@ -274,11 +294,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 render.render_vis(
                     model=model,
                     objective_f=objective,
-                    param_f=batch_param_f,
+                    param_f=self.param_f,
                     fixed_image_size=self.image_size,
                     progress=False,
                     show_image=False,
                     optimizer=self.optimizer,
+                    transforms=self.render_transforms,
                     #TODO - maybe use other params
                     #transforms=None, # default use standard transforms on the image that is generating.
                     #optimizer=None, # default Adam
@@ -286,7 +307,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     thresholds=thresholds # max() - how many iterations is used to generate an input image. Also
                                         # for the rest of the numbers, save the image during the i-th iteration
                 )[-1] # return the last, most processed image (thresholds)
-            )
+            ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
 
             dreams.append(numpy_render)
@@ -317,8 +338,9 @@ class CLDataModule(DreamDataModule):
     def __init__(
         self,
         dataset_class,
+        data_transform,
         val_tasks_split=None,
-        max_logged_dreams=8, 
+        max_logged_dreams_per_target=8, 
         batch_size=32,
         dream_batch_size=8,
         num_workers=4,
@@ -371,13 +393,13 @@ class CLDataModule(DreamDataModule):
         self.current_loop_index = None
         # TODO
         self.dataset_class = dataset_class
+        self.data_transform = data_transform
 
     def prepare_data(self):
-        transform = transforms.Compose([transforms.ToTensor()])
         train_dataset = self.dataset_class(
-            root=self.root, train=True, transform=transform, download=True
+            root=self.root, train=True, transform=self.data_transform, download=True
         )
-        test_dataset = self.dataset_class(root=self.root, train=False, transform=transform)
+        test_dataset = self.dataset_class(root=self.root, train=False, transform=self.data_transform)
 
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -487,10 +509,13 @@ class CLDataModule(DreamDataModule):
                     batch_size=self.batch_size,
                 ) if self.datasampler is not None else None
         )
+
+
         if dream_loader is not None:
-            return {"normal": normal_loader, "dream": dream_loader}
+            loaders = {"normal": normal_loader, "dream": dream_loader}
         else:
-            return {"normal": normal_loader}
+            loaders = {"normal": normal_loader}
+        return CombinedLoader(loaders, mode="max_size_cycle")
 
     def clear_dreams_dataset(self):
         self.dreams_dataset.clear()

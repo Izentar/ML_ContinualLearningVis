@@ -331,11 +331,14 @@ class PointPlot():
         ax.legend()
         ax.grid(True)
         if(name is not None):
+            n = None
             if(idx is None):
-                fig.savefig(f"{name}.{ftype}")
+                n = f"{name}.{ftype}"
             else:
                 print(f"INFO: Plot {name}_{idx}")
-                fig.savefig(f"{name}_{idx}.{ftype}")
+                n = f"{name}_{idx}.{ftype}"
+            fig.savefig(n)
+            wandb.log({f"stat_plots/{n}": wandb.Image(fig)})
         if(show):
             plt.show()
         plt.clf()
@@ -585,8 +588,9 @@ class PointPlot():
         alpha=0.3,
         space=1,
     ):
-        if len(buffer[0][0][0]) != 3:
-            print(f'\nWARNING: Plot 3D only for 3 dimensional space! Found {len(buffer[0][0])} dimensions. For loss_island this message may be invalid.')
+        last_dim = np.shape(buffer[0][0].numpy())[-1]
+        if last_dim != 3:
+            print(f'\nWARNING: Plot 3D only for 3 dimensional space! Found {last_dim} dimensions.')
             return
         tryCreatePath(name)
         fig, ax = plt.figure(), plt.axes(projection='3d')

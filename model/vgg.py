@@ -141,7 +141,7 @@ class VGGBaseModel(base.CLBase):
         loss_classification = self.loss_f(y_model_out, y)
         self.log("train_loss/classification", loss_classification)
         self.train_acc(y_model_out, y)
-        self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
+        self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss_classification
 
     def training_step_dream(self, batch):
@@ -150,7 +150,7 @@ class VGGBaseModel(base.CLBase):
         loss_classification = self.loss_f(y_model_out, y)
         self.log("train_loss_dream/classification", loss_classification)
         self.train_acc_dream(y_model_out, y)
-        self.log("train_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
+        self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
         return loss_classification
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
@@ -160,7 +160,7 @@ class VGGBaseModel(base.CLBase):
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(y_model_out, y)
-        self.log("valid_acc", valid_acc)
+        self.log("valid_step_acc", valid_acc)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -168,7 +168,7 @@ class VGGBaseModel(base.CLBase):
         test_loss = self.loss_f(y_model_out, y)
         self.log("test_loss", test_loss)
         self.test_acc(y_model_out, y)
-        self.log("test_acc", self.test_acc)
+        self.log("test_step_acc", self.test_acc)
 
     def get_objective_target(self):
         return "classifier"

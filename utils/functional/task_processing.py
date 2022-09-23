@@ -4,7 +4,7 @@ import torch
 def default_tasks_processing(target, *args, **kwargs):
     return target
 
-def normall_dist_tasks_processing(target, mean, std, *args, **kwargs):
+def normal_dist_tasks_processing(target, mean, std, *args, **kwargs):
     """
         Return a set of points taken from the normal distribution.
         Mean and std already have the shape of <class <mean / std of the points in this class>> so
@@ -16,7 +16,7 @@ def normall_dist_tasks_processing(target, mean, std, *args, **kwargs):
     """
     size = list(std.size())
     if len(size) == 0 or size[0] == 1:
-        std = std.repeat(mean.size()[0])
+        std = std.repeat(mean.size()[0]) / 2 # TODO div 2 not needed?
     tmp = torch.normal(mean=mean, std=std)
     if isinstance(target, list):
         return torch.index_select(tmp, dim=0, index=torch.tensor(target))

@@ -25,6 +25,9 @@ class PairingBatchSamplerV2(torch.utils.data.Sampler[List[int]]):
         batch = self._concat_batch(indices_main, indices_other, shuffle)
         self.batch_indices = self._serve_indices(batch, shuffle)
 
+        # number of indices
+        #print(torch.amax(torch.tensor(self.batch_indices), dim=(0, 1))) 
+
     def _get_indices_by_class(self, targets):
         batched_class_indices = {}
 

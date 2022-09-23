@@ -6,7 +6,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import RichProgressBar
 from executor.cl_loop import BaseCLDataModule, CLLoop
 from config.default import datasets, datasets_map
-from model.overlay import CLModelWithReconstruction, CLModelWithIslands, CLModel, CLModelIslandsTest
+from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
 #from loss_function import point_scope
 
 from utils import data_manipulation as datMan
@@ -15,6 +15,9 @@ from utils.functional import select_task
 from utils.functional import task_processing
 from utils.functional import task_split
 from dataset import dream_sets
+
+from lucent.optvis import param
+from lucent.optvis import transform as tr
 
 from model.ResNet import ResNet18
 from model.SAE import SAE_standalone, SAE_CIFAR, SAE_CIFAR_TEST
@@ -60,7 +63,6 @@ def getDatasetList(name:str):
 
 def getModelType(mtype: str):
     model_types = {
-        "auxiliary_reconstruction": CLModelWithReconstruction,
         "islands": CLModelWithIslands,
         "default": CLModel,
         "islands_test": CLModelIslandsTest
@@ -110,8 +112,46 @@ def get_one_hots(mytype, one_hot_scale=1):
     
 def get_dream_optim():
     def inner(params):
-        return torch.optim.Adam(params, lr=5e-2)
+        return torch.optim.Adam(params, lr=5e-3)
     return inner
+
+def param_f_create(ptype):
+
+    def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
+        def param_f():
+            # uses 2D Fourier coefficients
+            # sd - scale of the random numbers [0, 1)
+            return param.image(
+                image_size, batch=target_images_per_dreaming_batch, sd=0.4
+            )
+        return param_f
+        
+    def param_f_cppn(image_size, **kwargs):
+        def param_f():
+            return param.cppn(image_size)
+        return param_f
+
+    
+    if(ptype == 'image'):
+        return param_f_image
+    elif(ptype == 'cppn'):
+        return param_f_cppn
+    else:
+        raise Exception(f"Unknown type {ptype}")
+
+def CIFAR10_labels():
+    return {
+        0 : 'airplane',
+        1 : 'automobile',
+        2 : 'bird',
+        3 : 'cat',
+        4 : 'deer',
+        5 : 'dog',
+        6 : 'frog',
+        7 : 'horse',
+        8 : 'ship',
+        9 : 'truck',
+    }
 
 def second_demo():
     # normal dreaming
@@ -127,22 +167,23 @@ def second_demo():
     num_loops = 2
     num_classes_dataset = 10
     num_classes = 10
-    epochs_per_task = 3
-    dreams_per_target = 16
-    const_target_images_per_dreaming_batch = 4
+    epochs_per_task = 10
+    dreams_per_target = 64
+    const_target_images_per_dreaming_batch = 8
     main_split = collect_main_split = 0.5
-    sigma = 0.1
+    sigma = 0.01
     rho = 1.
     hidden = 10
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
     wandb_offline = False if not fast_dev_run else True
-    wandb_offline = False
+    #wandb_offline = False
     enable_dreams = True
     dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
     freeze_task_at_end = True
     only_dream_batch = True
+    with_reconstruction = False
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
     nrows = 4
@@ -150,15 +191,26 @@ def second_demo():
     my_batch_size = 32
     num_sanity_val_steps = 0
     dream_optim = get_dream_optim()
+    train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
+    dreams_transforms = data_transform()
 
     train_with_logits = True
-    train_normal_robustly = False
-    train_dreams_robustly = False
+    train_normal_robustly = True
+    train_dreams_robustly = True
     aux_task_type = "default"
+    dataset_class_labels = CIFAR10_labels()
 
     only_one_hot = False
     one_hot_means = get_one_hots('diagonal')
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
+    param_f = param_f_create(ptype='image')
+    render_transforms = [
+        tr.pad(4), 
+        tr.jitter(2), 
+        tr.random_scale([n/100. for n in range(80, 120)]),
+        tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
+        tr.jitter(2),
+    ]
 
     data_passer = {}
 
@@ -179,7 +231,7 @@ def second_demo():
 
     #tasks_processing_f = task_processing.island_tasks_processing
     #tasks_processing_f = task_processing.island_last_point_tasks_processing
-    tasks_processing_f = task_processing.island_mean_tasks_processing
+    tasks_processing_f = task_processing.island_tasks_processing
     select_dream_tasks_f = select_task.decremental_select_tasks
     objective_f = dream_objective.SAE_island_dream_objective_f_creator(logger=logger)
     #objective_f = dream_objective.SAE_island_dream_objective_direction_f
@@ -196,7 +248,7 @@ def second_demo():
         #num_classes = 6
         #const_target_images_per_dreaming_batch = 8
         #epochs_per_task = 2
-        #dreams_per_target = 64
+        dreams_per_target = 64
 
     attack_kwargs = {
         "constraint": "2",
@@ -223,12 +275,13 @@ def second_demo():
 
     dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes_dataset)
 
-    check(train_tasks_split, num_classes, num_tasks)
+    check(train_tasks_split, num_classes, num_tasks,
+        with_reconstruction, train_normal_robustly, train_dreams_robustly)
 
     model = model_overlay(
-        model=SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden),
+        #model=SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction),
         #model=vgg11_bn(num_classes=hidden),
-        #model=ResNet18(num_classes=hidden),
+        model=ResNet18(num_classes=hidden),
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
@@ -255,13 +308,15 @@ def second_demo():
     #exit()
     
 
-    dreams_transforms = data_transform()
     cl_data_module = CLDataModule(
+        data_transform=train_data_transform,
         train_tasks_split=train_tasks_split,
         dataset_class=dataset_class,
         dreams_per_target=dreams_per_target,
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
+        param_f=param_f,
+        render_transforms=render_transforms,
         fast_dev_run=fast_dev_run,
         fast_dev_run_dream_threshold=fast_dev_run_dream_threshold,
         dream_threshold=dream_threshold,
@@ -273,6 +328,7 @@ def second_demo():
         optimizer=dream_optim,
         freeze_task_at_end=freeze_task_at_end,
         logger=logger,
+        dataset_class_labels=dataset_class_labels,
         datasampler=lambda dataset, batch_size, shuffle, classes: 
             #PairingBatchSampler(
             #    dataset=dataset,
@@ -354,6 +410,8 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
             input,
             **attack_kwargs
         )
+        if(isinstance(xe, tuple)):
+            xe = xe[0]
         return xe
         
     buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_numb_of_points, to_invoke=invoker,
@@ -378,7 +436,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
-def check(split, num_classes, num_tasks):
+def check(split, num_classes, num_tasks, with_reconstruction, train_normal_robustly, train_dreams_robustly):
     test = set()
     for s in split:
         test = test.union(s)
@@ -386,6 +444,9 @@ def check(split, num_classes, num_tasks):
         raise Exception(f"Wrong number of classes: {num_classes} / train or validation split: {len(test)}.")
     if(len(split) != num_tasks):
         raise Exception(f"Wrong number of tasks: {num_tasks} / train or validation split size: {len(split)}.")
+    if(with_reconstruction and (train_normal_robustly or train_dreams_robustly)):
+        raise Exception(f"Framework robusness does not support model that returns multiple variables. Set correct flags. Current:\
+\nwith_reconstruction: {with_reconstruction}\ntrain_normal_robustly: {train_normal_robustly}\ntrain_dreams_robustly: {train_dreams_robustly}")
 
 if __name__ == "__main__":
     second_demo()

@@ -7,8 +7,9 @@ from robustness.tools import custom_modules
 import math
 
 class SAE_CIFAR(nn.Module):
-    def __init__(self, num_classes, hidd1=256, last_hidd_layer=32):
+    def __init__(self, num_classes, hidd1=256, last_hidd_layer=32, with_reconstruction=True):
         super().__init__()
+        self.with_reconstruction = with_reconstruction
         self.hidd1 = hidd1
         self.last_hidd_layer = last_hidd_layer
         self.conv1 = nn.Conv2d(
@@ -21,14 +22,14 @@ class SAE_CIFAR(nn.Module):
         self.fc1_1 = nn.Linear(in_features=50176, out_features=hidd1)
         self.fc1_2 = nn.Linear(in_features=hidd1, out_features=last_hidd_layer)
 
-        #self.fc3_2 = nn.Linear(in_features=last_hidd_layer, out_features=hidd1)
-        #self.fc2_1 = nn.Linear(in_features=hidd1, out_features=50176)
-        #self.conv3 = nn.ConvTranspose2d(
-        #    in_channels=64, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
-        #)
-        #self.conv4 = nn.ConvTranspose2d(
-        #    in_channels=64, out_channels=3, kernel_size=(3, 3), stride=(1, 1)
-        #)
+        self.fc_dec_1_1 = nn.Linear(in_features=last_hidd_layer, out_features=hidd1)
+        self.fc_dec_1_2 = nn.Linear(in_features=hidd1, out_features=50176)
+        self.conv_dec_1 = nn.ConvTranspose2d(
+            in_channels=64, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
+        )
+        self.conv_dec_2 = nn.ConvTranspose2d(
+            in_channels=32, out_channels=3, kernel_size=(3, 3), stride=(1, 1)
+        )
 
         #self.fake_relu = custom_modules.FakeReLUM()
         #self.fc = nn.Linear(in_features=last_hidd_layer, out_features=num_classes)
@@ -51,32 +52,24 @@ class SAE_CIFAR(nn.Module):
                 m.bias.data.zero_()
 
     # based on https://robustness.readthedocs.io/en/latest/example_usage/training_lib_part_2.html#training-with-custom-architectures
-    def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
-        xe_latent_pre_relu = self.forward_encoder(
+    def forward(self, x, **kwargs):
+        xe_latent_pre_relu, shp = self.forward_encoder(
             x, 
-            with_latent=with_latent, 
-            fake_relu=fake_relu, 
-            no_relu=no_relu
         )
 
-        #x_hat = self.forward_decoder(
-        #    xe_latent, 
-        #    shp,
-        #    with_latent=with_latent, 
-        #    fake_relu=fake_relu, 
-        #    no_relu=no_relu
-        #)
+        if(self.with_reconstruction):
+            image_reconstruction = self.forward_decoder(
+                xe_latent_pre_relu, 
+                shp,
+            )
 
-        #if with_latent:
-        #    if no_relu:
-        #        return (encoder_hat, xe_latent_pre_relu), x_hat
-        #    else:
-        #        return encoder_hat, xe_latent_second
-        #return encoder_hat, xe_latent_pre_relu, x_hat
+            return xe_latent_pre_relu, {
+                'image_reconstruction': image_reconstruction,
+            }
 
         return xe_latent_pre_relu
         
-    def forward_encoder(self, x, with_latent=False, fake_relu=False, no_relu=False):
+    def forward_encoder(self, x):
         xe = relu(self.conv1(x))
         xe = relu(self.conv2(xe))
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
@@ -89,15 +82,15 @@ class SAE_CIFAR(nn.Module):
         #xe_latent = relu(xe_latent_pre_relu)
         #xe_latent_second = self.fake_relu(xe_latent_pre_relu) if fake_relu else xe_latent
         #encoder_hat = self.fc(xe_latent_second)
-        return xe_latent_pre_relu#, xe_latent, xe_latent_second, encoder_hat, shp
+        return xe_latent_pre_relu, shp#, xe_latent, xe_latent_second, encoder_hat, shp
 
-    def forward_decoder(self, xe, shp, with_latent=False, fake_relu=False, no_relu=False):
-        xd = relu(self.fc1_2(xe))
-        xd = relu(self.fc2_1(xd))
+    def forward_decoder(self, xe, shp):
+        xd = relu(self.fc_dec_1_1(xe))
+        xd = relu(self.fc_dec_1_2(xd))
         xd = torch.reshape(xd, (shp[0], shp[1], shp[2], shp[3]))
-        xd = relu(self.conv3(xd))
+        xd = relu(self.conv_dec_1(xd))
         # xd = F.upsample(xd,30)
-        return sigmoid(self.conv4(xd))
+        return sigmoid(self.conv_dec_2(xd))
 
     def get_objective_layer_name(self):
         return "fc1_2"
@@ -151,7 +144,7 @@ class SAE_standalone(base.CLBase):
         self.log("train_loss_dream/classification", loss_classification)
         self.log("train_loss_dream/reconstrucion", loss_reconstruction)
         self.train_acc_dream(y_hat, y)
-        self.log("train_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
+        self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
@@ -161,7 +154,7 @@ class SAE_standalone(base.CLBase):
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(y_hat, y)
-        self.log("valid_acc", valid_acc)
+        self.log("valid_step_acc", valid_acc)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -169,7 +162,7 @@ class SAE_standalone(base.CLBase):
         test_loss = self.loss_f(y_hat, y)
         self.log("test_loss", test_loss)
         self.test_acc(y_hat, y)
-        self.log("test_acc", self.test_acc)
+        self.log("test_step_acc", self.test_acc)
 
     def get_objective_target(self):
         return "model_fc"

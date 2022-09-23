@@ -27,6 +27,7 @@ class DreamDataset:
             f"\nDreams: {new_dreams.size()}; {len(new_dreams)}\nTargets: {new_targets.size()}; {len(new_targets)}")
         with torch.no_grad():
             for dream, target in zip(new_dreams, new_targets):
+                dream = dream.detach()
                 self._generate_additional_data(dream, target, model)
                 self.targets.append(target)
                 if self.transform:
