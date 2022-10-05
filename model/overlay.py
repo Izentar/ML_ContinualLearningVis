@@ -139,14 +139,17 @@ class CLModel(base.CLBase):
     def get_objective_target(self):
         return "model_model_" + self.model.model.get_objective_layer_name()
 
+    def get_root_objective_target(self): 
+        return "model_model_" + self.model.model.get_root_name()
+
     def loss_to(self, device):
         return
 
 class CLModelIslandsTest(CLModel):
-    def __init__(self, *args, hidden=10, one_hot_means=None, only_one_hot=False, **kwargs):
+    def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, only_one_hot=False, size_per_class=40, **kwargs):
         kwargs.pop('loss_f', None)
         super().__init__(*args, loss_f=torch.nn.MSELoss(), **kwargs)
-        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=10, dimensions=hidden, size_per_class=40)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
         self.one_hot_means = one_hot_means
 
     def decode(self, target):

@@ -74,10 +74,16 @@ class CLBase(LightningModule):
     @abstractmethod
     def get_objective_target(self):
         """
-            Returns the list of strings with layers names of the objective target.
             It should return the target layer name currently used in model.
         """
         raise Exception("Not implemented")
+
+    @abstractmethod
+    def get_root_objective_target(self): 
+        """
+            Return root string with a hard space at the end.
+        """
+        pass
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])

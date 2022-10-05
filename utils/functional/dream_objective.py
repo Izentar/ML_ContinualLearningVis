@@ -69,6 +69,9 @@ def SAE_dream_objective_f(target_point, model, **kwargs):
     #    "model_model_conv2"
     #)
 
+def pretrined_RESNET20_C100_objective_f(target_point, model, **kwargs):
+    return objectives.channel(model.get_objective_target(), target_point) - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
+
 def SAE_island_dream_objective_f_creator(logger):
     def SAE_island_dream_objective_f(target, target_point, model, **kwargs):
         return latent_objective_channel(

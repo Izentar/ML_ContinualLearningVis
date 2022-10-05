@@ -173,6 +173,7 @@ class VGGBaseModel(base.CLBase):
     def get_objective_target(self):
         return "classifier"
 
+
 class VGGDefault(VGGBaseModel):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__(num_classes=num_classes, *args, **kwargs)
@@ -184,6 +185,9 @@ class VGGDefault(VGGBaseModel):
     def get_objective_target(self):
         ret = super().get_objective_target()
         return "vgg_" + ret
+
+    def get_root_objective_target(self): 
+        return "vgg_" + self.model.model.get_root_name()
 
 class VGG11(VGGDefault):
     def __init__(self, num_classes, *args, **kwargs):

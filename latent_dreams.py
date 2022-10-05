@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import RichProgressBar
+from utils.progress_bar import CustomRichProgressBar
 from executor.cl_loop import BaseCLDataModule, CLLoop
 from config.default import datasets, datasets_map
 from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
@@ -19,7 +19,7 @@ from dataset import dream_sets
 from lucent.optvis import param
 from lucent.optvis import transform as tr
 
-from model.ResNet import ResNet18
+from model.ResNet import ResNet18, Resnet20C100
 from model.SAE import SAE_standalone, SAE_CIFAR, SAE_CIFAR_TEST
 from model.vgg import vgg11_bn
 from dataset.CLModule import CLDataModule
@@ -153,6 +153,110 @@ def CIFAR10_labels():
         9 : 'truck',
     }
 
+def CIFAR100_labels():
+    return {
+    0: "apple",
+    1: "aquarium_fish",
+    2: "baby",
+    3: "bear",
+    4: "beaver",
+    5: "bed",
+    6: "bee",
+    7: "beetle",
+    8: "bicycle",
+    9: "bottle",
+    10: "bowl",
+    11: "boy",
+    12: "bridge",
+    13: "bus",
+    14: "butterfly",
+    15: "camel",
+    16: "can",
+    17: "castle",
+    18: "caterpillar",
+    19: "cattle",
+    20: "chair",
+    21: "chimpanzee",
+    22: "clock",
+    23: "cloud",
+    24: "cockroach",
+    25: "couch",
+    26: "crab",
+    27: "crocodile",
+    28: "cup",
+    29: "dinosaur",
+    30: "dolphin",
+    31: "elephant",
+    32: "flatfish",
+    33: "forest",
+    34: "fox",
+    35: "girl",
+    36: "hamster",
+    37: "house",
+    38: "kangaroo",
+    39: "keyboard",
+    40: "lamp",
+    41: "lawn_mower",
+    42: "leopard",
+    43: "lion",
+    44: "lizard",
+    45: "lobster",
+    46: "man",
+    47: "maple_tree",
+    48: "motorcycle",
+    49: "mountain",
+    50: "mouse",
+    51: "mushroom",
+    52: "oak_tree",
+    53: "orange",
+    54: "orchid",
+    55: "otter",
+    56: "palm_tree",
+    57: "pear",
+    58: "pickup_truck",
+    59: "pine_tree",
+    60: "plain",
+    61: "plate",
+    62: "poppy",
+    63: "porcupine",
+    64: "possum",
+    65: "rabbit",
+    66: "raccoon",
+    67: "ray",
+    68: "road",
+    69: "rocket",
+    70: "rose",
+    71: "sea",
+    72: "seal",
+    73: "shark",
+    74: "shrew",
+    75: "skunk",
+    76: "skyscraper",
+    77: "snail",
+    78: "snake",
+    79: "spider",
+    80: "squirrel",
+    81: "streetcar",
+    82: "sunflower",
+    83: "sweet_pepper",
+    84: "table",
+    85: "tank",
+    86: "telephone",
+    87: "television",
+    88: "tiger",
+    89: "tractor",
+    90: "train",
+    91: "trout",
+    92: "tulip",
+    93: "turtle",
+    94: "wardrobe",
+    95: "whale",
+    96: "willow_tree",
+    97: "wolf",
+    98: "woman",
+    99: "worm",
+}
+
 def second_demo():
     # normal dreaming
     args = arg_parser()
@@ -165,20 +269,19 @@ def second_demo():
 
     num_loops = num_tasks = 1
     num_loops = 2
-    num_classes_dataset = 10
-    num_classes = 10
-    epochs_per_task = 10
+    num_classes = 2
+    epochs_per_task = 0
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 8
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
-    hidden = 10
+    hidden = 12
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
     wandb_offline = False if not fast_dev_run else True
-    #wandb_offline = False
+    #wandb_offline = True
     enable_dreams = True
     dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
     freeze_task_at_end = True
@@ -193,12 +296,16 @@ def second_demo():
     dream_optim = get_dream_optim()
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
+    #source_model = SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
+    #source_model = vgg11_bn(num_classes=hidden)
+    #source_model = ResNet18(num_classes=hidden)
+    source_model = Resnet20C100()
 
     train_with_logits = True
     train_normal_robustly = True
     train_dreams_robustly = True
     aux_task_type = "default"
-    dataset_class_labels = CIFAR10_labels()
+    dataset_class_labels = CIFAR100_labels()
 
     only_one_hot = False
     one_hot_means = get_one_hots('diagonal')
@@ -226,7 +333,7 @@ def second_demo():
     if fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
-    progress_bar = RichProgressBar()
+    progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
 
     #tasks_processing_f = task_processing.island_tasks_processing
@@ -240,6 +347,11 @@ def second_demo():
     tasks_processing_f = task_processing.default_tasks_processing
     select_dream_tasks_f = select_task.decremental_select_tasks
     objective_f = dream_objective.SAE_dream_objective_f
+
+    # pretrined RESNET test
+    tasks_processing_f = task_processing.default_tasks_processing
+    select_dream_tasks_f = select_task.decremental_select_tasks
+    objective_f = dream_objective.pretrined_RESNET20_C100_objective_f
 
 
     if(fast_dev_run):
@@ -273,15 +385,20 @@ def second_demo():
     #if fast_dev_run:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
-    dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes_dataset)
+    dataset_robust = dataset_class_robust(data_path="./data")
 
-    check(train_tasks_split, num_classes, num_tasks,
-        with_reconstruction, train_normal_robustly, train_dreams_robustly)
+    check(split=train_tasks_split, 
+        num_classes=num_classes, 
+        hidden=hidden,
+        num_tasks=num_tasks,
+        with_reconstruction=with_reconstruction, 
+        train_normal_robustly=train_normal_robustly, 
+        train_dreams_robustly=train_dreams_robustly,
+        aux_task_type=aux_task_type,
+    )
 
     model = model_overlay(
-        #model=SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction),
-        #model=vgg11_bn(num_classes=hidden),
-        model=ResNet18(num_classes=hidden),
+        model=source_model,
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
         num_classes=num_classes,
@@ -347,6 +464,7 @@ def second_demo():
             ),
         batch_size=my_batch_size
     )
+    
 
     trainer = pl.Trainer(
         max_epochs=-1,  # This value doesn't matter
@@ -358,10 +476,14 @@ def second_demo():
         log_every_n_steps=1 if fast_dev_run else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )
+    progress_bar._init_progress(trainer)
+    
+
+    print(f"Fast dev run is {fast_dev_run}")
 
     internal_fit_loop = trainer.fit_loop
     trainer.fit_loop = CLLoop(
-        [epochs_per_task] * num_tasks, progress_bar, 
+        [epochs_per_task] * num_tasks, 
         enable_dreams=enable_dreams,
         fast_dev_run_epochs=fast_dev_run_epochs,
         fast_dev_run=fast_dev_run,
@@ -436,7 +558,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
-def check(split, num_classes, num_tasks, with_reconstruction, train_normal_robustly, train_dreams_robustly):
+def check(split, num_classes, hidden, num_tasks, with_reconstruction, train_normal_robustly, train_dreams_robustly, aux_task_type):
     test = set()
     for s in split:
         test = test.union(s)
@@ -447,6 +569,9 @@ def check(split, num_classes, num_tasks, with_reconstruction, train_normal_robus
     if(with_reconstruction and (train_normal_robustly or train_dreams_robustly)):
         raise Exception(f"Framework robusness does not support model that returns multiple variables. Set correct flags. Current:\
 \nwith_reconstruction: {with_reconstruction}\ntrain_normal_robustly: {train_normal_robustly}\ntrain_dreams_robustly: {train_dreams_robustly}")
+    if(num_classes > hidden and aux_task_type == 'default'):
+        raise Exception(f"Hidden dimension {hidden} is smaller than number of classes {num_classes} in binary classification.")
+
 
 if __name__ == "__main__":
     second_demo()

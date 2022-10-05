@@ -18,6 +18,7 @@ class PairingBatchSamplerV2(torch.utils.data.Sampler[List[int]]):
         else:
             targets = dataset.targets
 
+        self._check_cl_numb(targets=targets, classes=classes)
         indices = self._get_indices_by_class(targets)
         indices = self._split_batch_main_indices(indices)
         indices_main, indices_other = self._split_batch_main_frequency_indices(indices)
@@ -27,6 +28,10 @@ class PairingBatchSamplerV2(torch.utils.data.Sampler[List[int]]):
 
         # number of indices
         #print(torch.amax(torch.tensor(self.batch_indices), dim=(0, 1))) 
+    def _check_cl_numb(self, targets, classes):
+        cl_size = len(np.unique(targets))
+        if(cl_size < len(classes)):
+            raise Exception(f'Dataset class count {cl_size} is smaller than classes count {len(classes)}.')
 
     def _get_indices_by_class(self, targets):
         batched_class_indices = {}

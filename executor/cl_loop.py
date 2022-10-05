@@ -146,6 +146,7 @@ class CLLoop(Loop):
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule
         and its optimizers."""
+        print(f"ENDING TASK {self.current_task}")
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
         if self.export_path is not None:

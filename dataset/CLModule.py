@@ -90,7 +90,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
-        self.tasks_ids = None
 
         self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) else (fast_dev_run_dream_threshold, )
         self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) else (dream_threshold, )
@@ -168,8 +167,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 task_index=task_index,
                 new_dreams=new_dreams, 
                 new_targets=new_targets, 
-                progress=self.progress_bar.progress,
+                progress=self.progress_bar,
             )
+            self.progress_bar.clear_dreaming()
             #self.progress_bar._init_progress()
         else:
             with Progress(
@@ -193,24 +193,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         return new_dreams, new_targets
 
     def __generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
-        dreaming_progress = progress.add_task(
-            "[bright_blue]Dreaming...", total=(len(dream_targets) * iterations)
-        )
-        #print('dreaming_progress', dreaming_progress)
-        tasks_ids = []
-        tasks_ids.append(dreaming_progress)
-
-        tasks_ids = []
+        progress.setup_dreaming(dream_targets=dream_targets, iterations=iterations)
         for target in sorted(dream_targets):
-            target_progress = progress.add_task(
-                f"[bright_red]Class: {target}\n", total=iterations
-            )
-            tasks_ids.append(target_progress)
-            #print('target_progress', target_progress)
+            progress.next_dream(target=target, iterations=iterations)
 
             def update_progress():
-                progress.update(target_progress, advance=1)
-                progress.update(dreaming_progress, advance=1)
+                progress.update_dreaming()
 
             target_dreams = self.__generate_dreams_for_target(
                 model=model, 
@@ -221,24 +209,17 @@ class DreamDataModule(BaseCLDataModule, ABC):
             )
             new_targets.extend([target] * target_dreams.shape[0])
             new_dreams.append(target_dreams)
-            #print('aaa', progress._tasks, '\n\n')
-            #progress.remove_task(target_progress)
-            #progress.stop_task(target_progress)
-        #progress.remove_task(dreaming_progress)
-        #print('bbb', progress._tasks, '\n\n')
-        self.tasks_ids = tasks_ids
     
     def __log_target_dreams(self, new_dreams, target):
         if not self.fast_dev_run and self.logger is not None:
             for idx, image in enumerate(new_dreams):
-                print(target, idx)
                 if(self.max_logged_dreams_per_target <= idx):
                     break
                 img = wandb.Image(
                     image,
                     caption=f"sample: {idx} target: {target}",
                 )
-                if(self.dataset_class_labels is not None):
+                if(self.dataset_class_labels is not None and target in self.dataset_class_labels):
                     self.wandb_dream_img_table.add_data(
                         target, 
                         self.dataset_class_labels[target],
@@ -323,13 +304,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
             Returns tensor representing target. It can be one number or an array of numbers (point)
         """
         return self.tasks_processing_f(target=dream_target, model=model)
-
-    def clear_task_progress(self):
-        # DO NOT USE, it throws error for some reason for RichProgressBar I dont know
-        if(self.progress_bar is not None and self.tasks_ids is not None):
-            for t in self.tasks_ids:
-                self.progress_bar.progress.remove_task(t)
-            self.tasks_ids = None
 
     def get_task_classes(self, task_number):
         return self.train_tasks_split[task_number]

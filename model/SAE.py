@@ -95,6 +95,9 @@ class SAE_CIFAR(nn.Module):
     def get_objective_layer_name(self):
         return "fc1_2"
 
+    def get_root_name(self):
+        return ""
+
 class SAE_CIFAR_TEST(SAE_CIFAR):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__(num_classes=num_classes, *args, **kwargs)
@@ -166,6 +169,9 @@ class SAE_standalone(base.CLBase):
 
     def get_objective_target(self):
         return "model_fc"
+
+    def get_root_objective_target(self): 
+        return "model_" + self.model.model.get_root_name()
 
     def forward(self, *args):
         return self.model(*args)
