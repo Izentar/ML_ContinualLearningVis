@@ -54,11 +54,15 @@ class CLLoop(Loop):
         fast_dev_run_epochs=None,
         fast_dev_run=False,
         data_passer=None,
-        num_loops=None
+        num_loops=None,
+        run_without_training=False,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
             export_path: save model parameters to path on current task
+
+            num_loops - if None then the same as num_tasks. It is used to loop over the num_tasks.
+                If num_loops == num_tasks then nothing is changed.
         """
         super().__init__()
         self.num_tasks = len(epochs_per_task)
@@ -74,6 +78,7 @@ class CLLoop(Loop):
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
         self.data_passer = data_passer
+        self.run_without_training = run_without_training
 
     @property
     def done(self) -> bool:
@@ -111,14 +116,14 @@ class CLLoop(Loop):
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
         if (self.current_loop > 0 and self.enable_dreams):
-            print(f"DREAMING FOR TASK: {self.current_task}")
+            print(f"DREAMING FOR TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
             )
             
         self._update_data_passer()
-        print(f"STARTING TASK {self.current_task} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
+        print(f"STARTING TASK {self.current_task}, loop {self.current_loop} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
         # restore the original weights + optimizers and schedulers.
         if self.reset_model_after_task:
             self.trainer.lightning_module.load_state_dict(
@@ -139,20 +144,24 @@ class CLLoop(Loop):
     def advance(self, *args: Any, **kwargs: Any) -> None:
         """Used to the run a fitting and testing on the current hold."""
         self._reset_fitting()  # requires to reset the tracking stage.
-        self.fit_loop.run()
-        self.current_task += 1 if self.current_task < self.num_tasks - 1 else 0
-        self.current_loop += 1
+        if(not self.run_without_training):
+            self.fit_loop.run()
+        else:
+            print("SKIPPING TRAINING")
 
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule
         and its optimizers."""
-        print(f"ENDING TASK {self.current_task}")
+        print(f"ENDING TASK {self.current_task}, loop {self.current_loop}")
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
         if self.export_path is not None:
             self.trainer.save_checkpoint(
-                self.export_path / f"model.{self.current_loop - 1}.pt"
+                self.export_path / f"model.{self.current_loop}.pt"
             )
+        self.current_task += 1 if self.current_task < self.num_tasks - 1 else 0
+        self.current_loop += 1
+
         torch.cuda.empty_cache()
         gc.collect()
 

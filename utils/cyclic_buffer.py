@@ -92,6 +92,13 @@ class CyclicBufferByClass():
             return torch.std_mean(buff, dim=dim)
         return self._operation_template(__std_mean)
 
+    def cov(self):
+        def __cov(buff):
+            # https://pytorch.org/docs/stable/generated/torch.cov.html
+            buff = torch.transpose(buff, 0, 1)
+            return torch.cov(buff)
+        return self._operation_template(__cov)
+
     def front(self, cl_idx):
         last_idx = self.__get_idx(cl_idx)
         return self.cyclic_buff[cl_idx, last_idx, :]

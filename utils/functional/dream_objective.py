@@ -15,7 +15,7 @@ def multidim_objective_channel(layer, batch=None):
     return inner
 
 @wrap_objective()
-def latent_objective_channel(target, target_layer, target_val, logger, batch=None):
+def latent_objective_channel(target, target_layer, target_val, logger=None, batch=None):
     loss_f = torch.nn.MSELoss() 
     @handle_batch(batch)
     def inner(model):
@@ -23,9 +23,10 @@ def latent_objective_channel(target, target_layer, target_val, logger, batch=Non
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         loss = loss_f(latent, latent_target)
-        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
-        #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter[target])
-        #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter[target])
+        if(logger is not None):
+            logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
+            #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter[target])
+            #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter[target])
         counter[target] += 1
         return loss
     return inner

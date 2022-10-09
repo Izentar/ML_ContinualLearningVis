@@ -167,7 +167,7 @@ class CLModelIslandsTest(CLModel):
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         y_decoded = self.decode(y)
         loss = self.loss_f(latent, y_decoded.float())
-        self.log(f"{label}/MSE_loss", loss)
+        self.log(f"{log_label}/MSE_loss", loss)
 
         loss = self.process_losses_normal_reconstruction(
             x=x, 
@@ -267,9 +267,9 @@ class CLModelWithIslands(CLModel):
 
         if(self.norm_lambd != 0.):
             norm = self.norm(latent, self.norm_lambd)
-            self.log(f"{label}/norm", norm)
+            self.log(f"{log_label}/norm", norm)
             loss += norm
-        self.log(f"{label}/island", loss)
+        self.log(f"{log_label}/island", loss)
 
         loss = self.process_losses_normal_reconstruction(
             x=x, 

@@ -2,6 +2,7 @@ import torch
 import math
 import numpy as np
 import wandb
+from torch.distributions.multivariate_normal import MultivariateNormal
 
 # input - class / pos
 #        pos1, pos2, pos3
@@ -35,6 +36,8 @@ class DummyLoss():
     def classify(self, input):
         return input
 
+    def sample(self, selected_class, utype='normal'):
+        raise Exception("Not implemented")
 
 class ChiLossBase():
     def __init__(self, cyclic_latent_buffer):
@@ -67,7 +70,17 @@ class ChiLossBase():
         idxs = torch.argmin(matrix, dim=1, keepdim=True)
         classes = torch.gather(target, 1, idxs)
         classes = torch.squeeze(classes)
+        if (len(classes.shape) == 0):
+            classes = classes.unsqueeze(0)
         return classes
+
+    def sample(self, selected_class, utype='normal'):
+        if(utype != 'normal'):
+            raise Exception("Not implemented")
+        cloud_mean = self.centers_of_clouds.mean()[selected_class]
+        cloud_cov = self.centers_of_clouds.cov()[selected_class]
+        mnormal = MultivariateNormal(loc=cloud_mean, covariance_matrix=cloud_cov)
+        return mnormal.sample()
 
     def remove_diagonal(self, matrix, batch_size):
         # remove diagonal - distance from, to the same class

@@ -102,6 +102,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         
         self.dataset_class_labels = dataset_class_labels
 
+        print(f"Train task split: {self.train_tasks_split}")
+
         if(empty_dream_dataset is None):
             raise Exception("Empty dream dataset.")
     
@@ -137,14 +139,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
             model.eval()
 
         iterations = ceil(self.dreams_per_target / self.const_target_images_per_dreaming_batch)
-        new_dreams, new_targets = self.__generate_dreams(
+        new_dreams, new_targets = self._generate_dreams(
             model=model,
             dream_targets=dream_targets, 
             iterations=iterations,
             task_index=task_index,
         )
-
-        #self.__log_fast_dev_run(new_dreams=new_dreams, new_targets=new_targets)
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
         wandb.log({'dream_examples': self.wandb_dream_img_table})
@@ -154,13 +154,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
             model.train()
 
     
-    def __generate_dreams(self, model, dream_targets, iterations, task_index):
+    def _generate_dreams(self, model, dream_targets, iterations, task_index):
         new_dreams = []
         new_targets = []
 
         if (self.progress_bar is not None):
             #self.progress_bar._stop_progress()
-            self.__generate_dreams_impl(
+            self._generate_dreams_impl(
                 model=model, 
                 dream_targets=dream_targets, 
                 iterations=iterations, 
@@ -179,7 +179,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 TimeElapsedColumn(),
                 TimeRemainingColumn(),
             ) as progress:
-                self.__generate_dreams_impl(
+                self._generate_dreams_impl(
                     model=model, 
                     dream_targets=dream_targets, 
                     iterations=iterations, 
@@ -192,7 +192,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
-    def __generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
+    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
         progress.setup_dreaming(dream_targets=dream_targets, iterations=iterations)
         for target in sorted(dream_targets):
             progress.next_dream(target=target, iterations=iterations)
@@ -200,17 +200,17 @@ class DreamDataModule(BaseCLDataModule, ABC):
             def update_progress():
                 progress.update_dreaming()
 
-            target_dreams = self.__generate_dreams_for_target(
+            target_dreams = self._generate_dreams_for_target(
                 model=model, 
                 target=target, 
                 iterations=iterations, 
-                update_progress=update_progress,
+                update_progress_f=update_progress,
                 task_index=task_index
             )
             new_targets.extend([target] * target_dreams.shape[0])
             new_dreams.append(target_dreams)
     
-    def __log_target_dreams(self, new_dreams, target):
+    def _log_target_dreams(self, new_dreams, target):
         if not self.fast_dev_run and self.logger is not None:
             for idx, image in enumerate(new_dreams):
                 if(self.max_logged_dreams_per_target <= idx):
@@ -233,7 +233,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                         img
                     )
 
-    def __log_fast_dev_run(self, new_dreams, new_targets):
+    def _log_fast_dev_run(self, new_dreams, new_targets):
         if not self.fast_dev_run:
             num_dreams = new_dreams.shape[0]
             wandb.log(
@@ -248,7 +248,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def __generate_dreams_for_target(self, model, target, iterations, update_progress, task_index):
+    def _generate_dreams_for_target(self, model, target, iterations, update_progress_f, task_index):
         dreams = []
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         for _ in range(iterations):
@@ -292,9 +292,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
 
             dreams.append(numpy_render)
-            update_progress()
+            update_progress_f()
         target_dreams = torch.cat(dreams)
-        self.__log_target_dreams(target_dreams, target)
+        self._log_target_dreams(target_dreams, target)
         return target_dreams
 
     def transform_targets(self, model, dream_target, task_index) -> torch.Tensor:
@@ -369,6 +369,8 @@ class CLDataModule(DreamDataModule):
         self.dataset_class = dataset_class
         self.data_transform = data_transform
 
+        print(f"Validation task split: {self.val_tasks_split}")
+
     def prepare_data(self):
         train_dataset = self.dataset_class(
             root=self.root, train=True, transform=self.data_transform, download=True
@@ -427,6 +429,20 @@ class CLDataModule(DreamDataModule):
         super().generate_synthetic_data(model=model, task_index=task_index)
         self.__setup_dream_dataset()
 
+    def _select_dream_classes(self):
+        flag = self.freeze_task_at_end and len(self.val_tasks_split) == self.current_task_index
+        if(self.current_task_index < 1 and not (flag)):
+            raise Exception("Cannot create dream dataloader. No tasks were done before / no data avaliable.")
+        dream_tasks_classes = set()
+        
+        to_range = self.current_task_index
+        if(flag):
+            to_range = len(self.val_tasks_split)
+        for i in range(to_range):
+            dream_tasks_classes = dream_tasks_classes.union(self.val_tasks_split[i])
+        dream_tasks_classes = list(dream_tasks_classes)
+        return dream_tasks_classes
+
     def train_dataloader(self):
         """
             Returns the dictionary of :
@@ -443,26 +459,16 @@ class CLDataModule(DreamDataModule):
 
             #dream_tasks_classes = self.val_tasks_split[self.current_task_index]
 
-            flag = self.freeze_task_at_end and len(self.val_tasks_split) == self.current_task_index + 1
-            if(self.current_task_index < 1 and not (flag)):
-                raise Exception("Cannot create dream dataloader. No tasks were done before / no data avaliable.")
-            dream_tasks_classes = set()
-            
-            to_range = self.current_task_index
-            if(flag):
-                to_range = self.current_task_index + 1
-            for i in range(to_range):
-                dream_tasks_classes = dream_tasks_classes.union(self.val_tasks_split[i])
-            dream_tasks_classes = list(dream_tasks_classes)
+            dream_tasks_classes = self._select_dream_classes()
 
             dream_loader = DataLoader(
-                self.dream_dataset_current_task, 
+                self.dreams_dataset, # give full dataset, var classes is used to select classes
                 batch_size=self.batch_size if self.datasampler is None else 1, 
                 num_workers=self.dream_num_workers, 
                 shuffle=shuffle if self.datasampler is None else False, 
                 pin_memory=True,
                 batch_sampler=self.datasampler(
-                    dataset=self.dream_dataset_current_task, 
+                    dataset=self.dreams_dataset , # give full dataset, var classes is used to select classes
                     shuffle=self.dream_shuffle,
                     classes=dream_tasks_classes,
                     batch_size=self.dream_batch_size,
@@ -511,7 +517,7 @@ class CLDataModule(DreamDataModule):
 
     def test_dataloader(self):
         full_classes = list(set(x for split in self.val_tasks_split for x in split))
-        full_dataset = CLDataModule._get_subset(self.train_dataset, full_classes)  
+        full_dataset = CLDataModule._get_subset(self.test_dataset, full_classes)  
         #ConcatDataset(self.train_datasets) # creates error / no easy way to get targets from this dataset
         
         return DataLoader(
@@ -526,6 +532,13 @@ class CLDataModule(DreamDataModule):
                 batch_size=self.batch_size,
             ) if self.datasampler is not None else None
         )
+
+        #return DataLoader(
+        #    full_dataset, 
+        #    batch_size= 1, 
+        #    num_workers=self.test_val_num_workers,
+        #    pin_memory=True
+        #)
 
     def transform_targets(self, model, dream_target, task_index):
         if self.steps_to_locate_mean is not None:

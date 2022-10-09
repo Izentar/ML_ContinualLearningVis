@@ -32,6 +32,8 @@ from loss_function.chiLoss import ChiLoss
 from stats.point_plot import PointPlot, Statistics
 from torch.utils.data import DataLoader
 
+from tests.evaluation.compare_latent import compare_latent
+
 def arg_parser():
     parser = ArgumentParser()
     parser.add_argument("-f", "--fast-dev-run", action="store_true")
@@ -268,9 +270,9 @@ def second_demo():
     fast_dev_run_dream_threshold = 32
 
     num_loops = num_tasks = 1
-    num_loops = 2
+    num_loops = 1
     num_classes = 2
-    epochs_per_task = 0
+    epochs_per_task = 10
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 8
     main_split = collect_main_split = 0.5
@@ -282,11 +284,12 @@ def second_demo():
     dream_frequency = 1
     wandb_offline = False if not fast_dev_run else True
     #wandb_offline = True
-    enable_dreams = True
+    enable_dreams = False
     dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
     freeze_task_at_end = True
-    only_dream_batch = True
+    only_dream_batch = False
     with_reconstruction = False
+    run_without_training = False
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
     nrows = 4
@@ -296,15 +299,15 @@ def second_demo():
     dream_optim = get_dream_optim()
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
-    #source_model = SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
+    source_model = SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
     #source_model = vgg11_bn(num_classes=hidden)
     #source_model = ResNet18(num_classes=hidden)
-    source_model = Resnet20C100()
+    #source_model = Resnet20C100()
 
-    train_with_logits = True
+    train_with_logits = False
     train_normal_robustly = True
     train_dreams_robustly = True
-    aux_task_type = "default"
+    aux_task_type = "islands"
     dataset_class_labels = CIFAR100_labels()
 
     only_one_hot = False
@@ -344,14 +347,14 @@ def second_demo():
     #objective_f = dream_objective.SAE_island_dream_objective_direction_f
 
     # cross_entropy_loss test
-    tasks_processing_f = task_processing.default_tasks_processing
-    select_dream_tasks_f = select_task.decremental_select_tasks
-    objective_f = dream_objective.SAE_dream_objective_f
+    #tasks_processing_f = task_processing.default_tasks_processing
+    #select_dream_tasks_f = select_task.decremental_select_tasks
+    #objective_f = dream_objective.SAE_dream_objective_f
 
     # pretrined RESNET test
-    tasks_processing_f = task_processing.default_tasks_processing
-    select_dream_tasks_f = select_task.decremental_select_tasks
-    objective_f = dream_objective.pretrined_RESNET20_C100_objective_f
+    #tasks_processing_f = task_processing.default_tasks_processing
+    #select_dream_tasks_f = select_task.decremental_select_tasks
+    #objective_f = dream_objective.pretrined_RESNET20_C100_objective_f
 
 
     if(fast_dev_run):
@@ -489,11 +492,12 @@ def second_demo():
         fast_dev_run=fast_dev_run,
         data_passer=data_passer,
         num_loops=num_loops,
+        run_without_training=run_without_training,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
-    if not fast_dev_run:
-        trainer.test(datamodule=cl_data_module)
+
+    trainer.test(model, datamodule=cl_data_module)
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = dataset_class(root="./data", train=False, transform=transform)
@@ -515,6 +519,13 @@ def second_demo():
         collector_batch_sampler=collector_batch_sampler,
         nrows=nrows, ncols=ncols, 
         logger=logger, attack_kwargs=attack_kwargs)
+
+    compare_latent(
+        model=model,
+        model_latent=model.loss_f, 
+        used_class=1, 
+        logger=logger,
+    )
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()

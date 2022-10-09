@@ -66,10 +66,12 @@ class CustomRichProgressBar(RichProgressBar, BaseProgress):
     def _clear_target(self):
         if(self.target_progress is not None):
             self.progress.remove_task(self.target_progress)
+            self.target_progress = None
 
     def clear_dreaming(self):
         if(self.dreaming_progress is not None):
             self.progress.remove_task(self.dreaming_progress)
+            self.dreaming_progress = None
         self._clear_target()
 
     @property
