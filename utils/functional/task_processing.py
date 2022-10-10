@@ -33,6 +33,10 @@ def island_tasks_processing(target, model, *args, **kwargs):
     assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{target}"
     return normall_dist_tasks_processing_vector(mean_vector=mean, std_vector=std)
 
+def island_cov_task_processing(target, model, *args, **kwargs):
+    sample = model.loss_f.sample(target)
+    return sample
+
 def island_last_point_tasks_processing(target, model, *args, **kwargs):
     last_point = model.get_buffer().front(target)
     return last_point

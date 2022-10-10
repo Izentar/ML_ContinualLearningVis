@@ -40,7 +40,8 @@ def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
         )
     return param_f
 
-def compare_latent(model, model_latent, used_class, logger, objective_f=None):
+
+def compare_latent(model, model_latent, used_class, logger, dream_transform, objective_f=None):
     logged_main_point = [0]
     constructed_dreams = []
     point_from_model = [0]
@@ -73,7 +74,7 @@ def compare_latent(model, model_latent, used_class, logger, objective_f=None):
             target=target
         )
     
-    tasks_processing_f = task_processing_decorator(task_processing.island_tasks_processing)
+    tasks_processing_f = task_processing_decorator(task_processing.island_cov_task_processing)
     objective_f = custom_objective_f
 
     dream_module = CustomDreamDataModule(
@@ -85,7 +86,7 @@ def compare_latent(model, model_latent, used_class, logger, objective_f=None):
         dream_threshold=(1024*5, ),
         param_f=param_f_image,
         const_target_images_per_dreaming_batch=1,
-        empty_dream_dataset=dream_sets.DreamDataset(transform=transforms.Compose([transforms.ToTensor()])),
+        empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
     )
 
     model.to('cuda:0').eval()

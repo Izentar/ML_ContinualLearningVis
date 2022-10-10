@@ -278,7 +278,7 @@ def second_demo():
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
-    hidden = 12
+    hidden = 7
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
@@ -525,6 +525,7 @@ def second_demo():
         model_latent=model.loss_f, 
         used_class=1, 
         logger=logger,
+        dream_transform=dreams_transforms,
     )
 
     # show dream png

@@ -61,9 +61,9 @@ class CyclicBufferByClass():
         for cl_idx, flag in enumerate(self._buff_idx):
             flag = flag[1]
             if(flag):
-                result = f(self.cyclic_buff[cl_idx], dim=0)
+                result = f(self.cyclic_buff[cl_idx])
             else:
-                result = f(self.cyclic_buff[cl_idx, : self.__get_idx(cl_idx)], dim=0)
+                result = f(self.cyclic_buff[cl_idx, : self.__get_idx(cl_idx)])
             buf[cl_idx] = result
         return buf
 
