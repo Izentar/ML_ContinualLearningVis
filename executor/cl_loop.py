@@ -56,6 +56,7 @@ class CLLoop(Loop):
         data_passer=None,
         num_loops=None,
         run_without_training=False,
+        dream_only_once=False,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -77,12 +78,14 @@ class CLLoop(Loop):
         self.enable_dreams = enable_dreams
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
-        self.data_passer = data_passer
+        self.enable_data_parser = data_passer is not None
+        self.data_passer = data_passer if data_passer is not None else {}
         self.run_without_training = run_without_training
+        self.custom_advance_f = None
+        self.dream_only_once = dream_only_once
 
     @property
     def done(self) -> bool:
-        #return self.current_task >= self.num_tasks + 1
         return self.current_loop >= self.num_loops
 
     def connect(self, fit_loop: FitLoop) -> None:
@@ -97,9 +100,16 @@ class CLLoop(Loop):
         #    self.num_tasks = fast_dev_run_config["num_tasks"]
 
     def _update_data_passer(self):
-        if(self.data_passer is not None):
+        if(self.enable_data_parser):
             self.data_passer['current_task'] = self.current_task
             self.data_passer['current_loop'] = self.current_loop
+            self.data_passer['model_train_end_f'] = lambda: None
+            if (self.data_passer['current_loop'] >= 1 and self.dream_only_once):
+                self.data_passer['model_train_end_f'] = lambda: -1
+        else:
+            self.data_passer['current_task'] = -1
+            self.data_passer['current_loop'] = -1
+            self.data_passer['model_train_end_f'] = lambda: None
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the
@@ -137,6 +147,7 @@ class CLLoop(Loop):
         self.replace(
             fit_loop=FitLoop(max_epochs=max_epochs)
         )
+        self.custom_advance_f = self.fit_loop.run if not self.run_without_training else lambda: print("SKIPPING TRAINING")
         # TODO I think there is no function named like that
         if callable(getattr(self.trainer.lightning_module, "on_task_start", None)):
             self.trainer.lightning_module.on_task_start()
@@ -144,10 +155,7 @@ class CLLoop(Loop):
     def advance(self, *args: Any, **kwargs: Any) -> None:
         """Used to the run a fitting and testing on the current hold."""
         self._reset_fitting()  # requires to reset the tracking stage.
-        if(not self.run_without_training):
-            self.fit_loop.run()
-        else:
-            print("SKIPPING TRAINING")
+        self.custom_advance_f()
 
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule

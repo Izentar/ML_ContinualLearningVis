@@ -75,10 +75,9 @@ class ChiLossBase():
         return classes
 
     def sample(self, selected_class, utype='normal'):
-        if(utype != 'normal'):
-            raise Exception("Not implemented")
-        cloud_mean = self.centers_of_clouds.mean()[selected_class]
-        cloud_cov = self.centers_of_clouds.cov()[selected_class]
+        assert (utype == 'normal'), f"Not implemented {utype}"
+        cloud_mean = self.centers_of_clouds.mean_target(selected_class)
+        cloud_cov = self.centers_of_clouds.cov_target(selected_class)
         mnormal = MultivariateNormal(loc=cloud_mean, covariance_matrix=cloud_cov)
         return mnormal.sample()
 

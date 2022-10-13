@@ -4,6 +4,9 @@ import torch
 def default_tasks_processing(target, *args, **kwargs):
     return target
 
+def island_test_tasks_processing(target, model, *args, **kwargs):
+    return model.decode(torch.tensor([target], dtype=torch.int32)).float()
+
 def normal_dist_tasks_processing(target, mean, std, *args, **kwargs):
     """
         Return a set of points taken from the normal distribution.
@@ -28,12 +31,11 @@ def normall_dist_tasks_processing_vector(mean_vector, std_vector, *args, **kwarg
     return point
 
 def island_tasks_processing(target, model, *args, **kwargs):
-    classes_std_mean = model.get_buffer().std_mean()
-    std, mean = classes_std_mean[target]
+    std, mean = model.get_buffer().std_mean_target(target)
     assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{target}"
     return normall_dist_tasks_processing_vector(mean_vector=mean, std_vector=std)
 
-def island_cov_task_processing(target, model, *args, **kwargs):
+def island_cov_tasks_processing(target, model, *args, **kwargs):
     sample = model.loss_f.sample(target)
     return sample
 
@@ -42,5 +44,5 @@ def island_last_point_tasks_processing(target, model, *args, **kwargs):
     return last_point
 
 def island_mean_tasks_processing(target, model, *args, **kwargs):
-    classes_mean = model.get_buffer().mean()
+    classes_mean = model.get_buffer().mean(target)
     return classes_mean[target]

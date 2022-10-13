@@ -611,7 +611,6 @@ class PointPlot():
 
             indices = select_class_indices_tensor(cl, target)
             current_points_class = points[indices]
-            #cov = torch.cov(current_points_class)
 
             swap_points = torch.swapaxes(current_points_class, 1, 0)
             #print(swap_points.size())

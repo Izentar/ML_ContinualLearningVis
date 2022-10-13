@@ -15,7 +15,6 @@ class CLBase(LightningModule):
         num_classes, 
         dream_frequency:Union[int,list[int]]=1, 
         data_passer: dict=None, 
-        dream_only_once=False,
         only_dream_batch=False,
         *args, 
         **kwargs
@@ -33,7 +32,6 @@ class CLBase(LightningModule):
 
         self.dream_frequency = dream_frequency if dream_frequency >= 1 else 1
         self.data_passer = data_passer
-        self.dream_only_once = dream_only_once
         self.only_dream_batch = only_dream_batch
 
     def training_step(self, batch, batch_idx):
@@ -85,16 +83,20 @@ class CLBase(LightningModule):
         """
         pass
 
+    @abstractmethod
+    def get_obj_str_type(self) -> str:
+        pass
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])
 
     def on_train_batch_start(self, batch, batch_idx):
-        string = 'current_loop'
+        return self.data_passer['model_train_end_f']()
 
-        if(self.data_passer is not None and 
-        string in self.data_passer and 
-        self.data_passer[string] >= 1 and 
-        self.dream_only_once and 
-        batch_idx >= 0):
-            return -1
+        #if(self.data_passer is not None and 
+        #string in self.data_passer and 
+        #self.data_passer[string] >= 1 and 
+        #self.dream_only_once and 
+        #batch_idx >= 0):
+        #    return -1
 

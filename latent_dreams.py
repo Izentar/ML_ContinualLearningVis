@@ -32,7 +32,7 @@ from loss_function.chiLoss import ChiLoss
 from stats.point_plot import PointPlot, Statistics
 from torch.utils.data import DataLoader
 
-from tests.evaluation.compare_latent import compare_latent
+from tests.evaluation.compare_latent import CompareLatent
 
 def arg_parser():
     parser = ArgumentParser()
@@ -71,33 +71,47 @@ def getModelType(mtype: str):
     }
     return model_types.get(mtype, CLModel)
 
-def get_one_hots(mytype, one_hot_scale=1):
+def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
     if(mytype == 'one_cl'):
-        return {
-            0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            1: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            2: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            3: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            4: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            5: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            6: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
-            8: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            9: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        }
+        #d = {
+        #    0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    1: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    2: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    3: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    4: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    5: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    6: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
+        #    8: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    9: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #}
+        d = {}
+        for i in range(size):
+            d[i] = torch.zeros((size,), dtype=torch.int32)
+        for k, v in d.items():
+            v[0] = 1 * one_hot_scale
+            if(k == special_class):
+                v[size-1] = 1 * one_hot_scale
+        return d
     elif(mytype == 'diagonal'):
-        return {
-            0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            1: torch.tensor([0, 1, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            2: torch.tensor([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            3: torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            4: torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]) * one_hot_scale,
-            5: torch.tensor([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]) * one_hot_scale,
-            6: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 0]) * one_hot_scale,
-            7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
-            8: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) * one_hot_scale,
-            9: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]) * one_hot_scale,
-        }
+        #return {
+        #    0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    1: torch.tensor([0, 1, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    2: torch.tensor([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    3: torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    4: torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]) * one_hot_scale,
+        #    5: torch.tensor([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]) * one_hot_scale,
+        #    6: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 0]) * one_hot_scale,
+        #    7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
+        #    8: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) * one_hot_scale,
+        #    9: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]) * one_hot_scale,
+        #}
+        d = {}
+        for i in range(size):
+            d[i] = torch.zeros((size,), dtype=torch.int32)
+            d[i][i] = 1 * one_hot_scale
+        return d
+
     elif(mytype == 'accidental'):
         return {
             0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
@@ -271,14 +285,14 @@ def second_demo():
 
     num_loops = num_tasks = 1
     num_loops = 1
-    num_classes = 2
-    epochs_per_task = 10
+    num_classes = 10
+    epochs_per_task = 5
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 8
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
-    hidden = 7
+    hidden = 10
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
@@ -311,7 +325,7 @@ def second_demo():
     dataset_class_labels = CIFAR100_labels()
 
     only_one_hot = False
-    one_hot_means = get_one_hots('diagonal')
+    one_hot_means = get_one_hots(mytype='diagonal', size=hidden)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
     param_f = param_f_create(ptype='image')
     render_transforms = [
@@ -419,7 +433,6 @@ def second_demo():
         cyclic_latent_buffer_size_per_class=cyclic_latent_buffer_size_per_class,
         loss_f=clModel_default_loss_f,
         data_passer=data_passer,
-        dream_only_once=dream_only_once,
         only_dream_batch=only_dream_batch,
     )
 
@@ -493,6 +506,7 @@ def second_demo():
         data_passer=data_passer,
         num_loops=num_loops,
         run_without_training=run_without_training,
+        dream_only_once=dream_only_once,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
@@ -514,12 +528,13 @@ def second_demo():
                 classes=np.unique(targets),
                 main_class_split=collect_main_split,
             )
-    collect_stats(model=model, dataset=dataset,
-        collect_numb_of_points=collect_numb_of_points, 
-        collector_batch_sampler=collector_batch_sampler,
-        nrows=nrows, ncols=ncols, 
-        logger=logger, attack_kwargs=attack_kwargs)
+    #collect_stats(model=model, dataset=dataset,
+    #    collect_numb_of_points=collect_numb_of_points, 
+    #    collector_batch_sampler=collector_batch_sampler,
+    #    nrows=nrows, ncols=ncols, 
+    #    logger=logger, attack_kwargs=attack_kwargs)
 
+    compare_latent = CompareLatent()
     compare_latent(
         model=model,
         model_latent=model.loss_f, 

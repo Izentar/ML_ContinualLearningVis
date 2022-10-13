@@ -67,10 +67,26 @@ class CyclicBufferByClass():
             buf[cl_idx] = result
         return buf
 
+    def _operation_template_target(self, f, target):
+        #TODO different types returned
+
+        # at the beginning mean can be missleading, not fully filled
+        flag = self._buff_idx[target][1]
+        if(flag):
+            result = f(self.cyclic_buff[target])
+        else:
+            result = f(self.cyclic_buff[target, : self.__get_idx(target)])
+        return result
+
     def mean(self):
         def __mean(buff, dim=0):
             return torch.mean(buff, dim=dim)
         return self._operation_template(__mean)
+
+    def mean_target(self, target):
+        def __mean(buff, dim=0):
+            return torch.mean(buff, dim=dim)
+        return self._operation_template_target(__mean, target)
 
         ## if all flags are on
         ##print(torch.arange(0, self.num_classes).size(), self._buff_idx.size())
@@ -92,12 +108,24 @@ class CyclicBufferByClass():
             return torch.std_mean(buff, dim=dim)
         return self._operation_template(__std_mean)
 
+    def std_mean_target(self, target):
+        def __std_mean(buff, dim=0):
+            return torch.std_mean(buff, dim=dim)
+        return self._operation_template_target(__std_mean, target)
+
     def cov(self):
         def __cov(buff):
             # https://pytorch.org/docs/stable/generated/torch.cov.html
             buff = torch.transpose(buff, 0, 1)
             return torch.cov(buff)
         return self._operation_template(__cov)
+
+    def cov_target(self, target):
+        def __cov(buff):
+            # https://pytorch.org/docs/stable/generated/torch.cov.html
+            buff = torch.transpose(buff, 0, 1)
+            return torch.cov(buff)
+        return self._operation_template_target(__cov, target)
 
     def front(self, cl_idx):
         last_idx = self.__get_idx(cl_idx)

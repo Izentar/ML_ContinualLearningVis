@@ -145,14 +145,17 @@ class CLModel(base.CLBase):
     def loss_to(self, device):
         return
 
+    def get_obj_str_type(self) -> str:
+        return 'CLModel_' + type(self.model).__name__
+
 class CLModelIslandsTest(CLModel):
     def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, only_one_hot=False, size_per_class=40, **kwargs):
         kwargs.pop('loss_f', None)
-        super().__init__(*args, loss_f=torch.nn.MSELoss(), **kwargs)
-        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
+        super().__init__(num_classes=num_classes, *args, loss_f=torch.nn.MSELoss(), **kwargs)
+        #self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
         self.one_hot_means = one_hot_means
 
-    def decode(self, target):
+    def decode(self, target: list):
         one_hot = []
         for t in target:
             one_hot.append(self.one_hot_means[t.item()].to(t.device))
@@ -220,6 +223,13 @@ class CLModelIslandsTest(CLModel):
         self.log("test_loss", test_loss)
         self.test_acc(y_cl, y)
         self.log("test_acc", self.test_acc)
+
+    def get_buffer(self):
+        raise Exception("Buffer not implemented")
+        #return self.cyclic_latent_buffer
+
+    def get_obj_str_type(self) -> str:
+        return 'CLModelIslandsTest_' + type(self.model).__name__
 
 class CLModelWithIslands(CLModel):
     def __init__(
@@ -327,3 +337,6 @@ class CLModelWithIslands(CLModel):
         
     def get_buffer(self):
         return self.cyclic_latent_buffer
+
+    def get_obj_str_type(self) -> str:
+        return 'CLModelWithIslands_' + type(self.model).__name__

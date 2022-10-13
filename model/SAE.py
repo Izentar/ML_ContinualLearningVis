@@ -35,6 +35,10 @@ class SAE_CIFAR(nn.Module):
         #self.fc = nn.Linear(in_features=last_hidd_layer, out_features=num_classes)
 
         self._initialize_weights()
+
+        self.custom_forward_f = lambda xe_latent_pre_relu, shp: xe_latent_pre_relu
+        if (self.with_reconstruction):
+            self.custom_forward_f = self._decode_part
     
     def _initialize_weights(self):
         for m in self.modules():
@@ -51,23 +55,23 @@ class SAE_CIFAR(nn.Module):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
 
+    def _decode_part(self, xe_latent_pre_relu, shp):
+        image_reconstruction = self.forward_decoder(
+            xe_latent_pre_relu, 
+            shp,
+        )
+
+        return xe_latent_pre_relu, {
+            'image_reconstruction': image_reconstruction,
+        }
+
     # based on https://robustness.readthedocs.io/en/latest/example_usage/training_lib_part_2.html#training-with-custom-architectures
     def forward(self, x, **kwargs):
         xe_latent_pre_relu, shp = self.forward_encoder(
             x, 
         )
 
-        if(self.with_reconstruction):
-            image_reconstruction = self.forward_decoder(
-                xe_latent_pre_relu, 
-                shp,
-            )
-
-            return xe_latent_pre_relu, {
-                'image_reconstruction': image_reconstruction,
-            }
-
-        return xe_latent_pre_relu
+        return self.custom_forward_f(xe_latent_pre_relu, shp)
         
     def forward_encoder(self, x):
         xe = relu(self.conv1(x))

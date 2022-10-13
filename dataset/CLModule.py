@@ -13,7 +13,8 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
-from lucent.optvis import param, render
+#from lucent.optvis import param, render
+from dream.custom_render import param, render_vis
 import wandb
 
 import numpy as np
@@ -66,6 +67,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         logger=None,
         render_transforms=None,
         dataset_class_labels=None,
+        custom_f_steps=(0,),
+        custom_f=lambda *args: None,
     ):
         """
         Args:
@@ -101,6 +104,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.param_f = param_f(image_size=image_size, target_images_per_dreaming_batch=const_target_images_per_dreaming_batch)
         
         self.dataset_class_labels = dataset_class_labels
+        self.custom_f_steps = custom_f_steps
+        self.custom_f = custom_f
 
         print(f"Train task split: {self.train_tasks_split}")
 
@@ -272,12 +277,14 @@ class DreamDataModule(BaseCLDataModule, ABC):
             # In objective_f we specify the layers which will be used to compute loss. In ChiLoss 
             #   we only need the last layer loss plus minor diversity on some convolutional layers.
             numpy_render = torch.from_numpy(
-                render.render_vis(
+                render_vis(
                     model=model,
                     objective_f=objective,
                     param_f=self.param_f,
                     fixed_image_size=self.image_size,
                     progress=False,
+                    custom_f_steps=self.custom_f_steps,
+                    custom_f=self.custom_f,
                     show_image=False,
                     optimizer=self.optimizer,
                     transforms=self.render_transforms,
@@ -519,6 +526,8 @@ class CLDataModule(DreamDataModule):
         full_classes = list(set(x for split in self.val_tasks_split for x in split))
         full_dataset = CLDataModule._get_subset(self.test_dataset, full_classes)  
         #ConcatDataset(self.train_datasets) # creates error / no easy way to get targets from this dataset
+
+        print(f'Testing for classes: {full_classes}')
         
         return DataLoader(
             full_dataset, 
