@@ -131,14 +131,15 @@ def get_dream_optim():
         return torch.optim.Adam(params, lr=5e-3)
     return inner
 
-def param_f_create(ptype):
+def param_f_create(ptype, decorrelate=True):
 
     def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
         def param_f():
             # uses 2D Fourier coefficients
             # sd - scale of the random numbers [0, 1)
             return param.image(
-                image_size, batch=target_images_per_dreaming_batch, sd=0.4
+                image_size, batch=target_images_per_dreaming_batch, sd=0.4, 
+                fft=decorrelate, decorrelate=decorrelate
             )
         return param_f
         
@@ -285,14 +286,16 @@ def second_demo():
 
     num_loops = num_tasks = 1
     num_loops = 1
-    num_classes = 10
+    scheduler_steps = (1, 6)
+    #scheduler_steps = None
+    num_classes = 3
     epochs_per_task = 5
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 8
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
-    hidden = 10
+    hidden = 3
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
@@ -306,6 +309,10 @@ def second_demo():
     run_without_training = False
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
+    optimizer = lambda param: torch.optim.Adam(param, lr=1e-3)
+    #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
+    #scheduler = None
+    scheduler = lambda optim: torch.optim.lr_scheduler.ExponentialLR(optim, gamma=0.1)
     nrows = 4
     ncols = 4
     my_batch_size = 32
@@ -321,19 +328,28 @@ def second_demo():
     train_with_logits = False
     train_normal_robustly = True
     train_dreams_robustly = True
-    aux_task_type = "islands"
+    aux_task_type = "islands_test"
     dataset_class_labels = CIFAR100_labels()
 
     only_one_hot = False
     one_hot_means = get_one_hots(mytype='diagonal', size=hidden)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
     param_f = param_f_create(ptype='image')
+    #render_transforms = [
+    #    tr.pad(4), 
+    #    tr.jitter(2), 
+    #    tr.random_scale([n/100. for n in range(80, 120)]),
+    #    tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
+    #    tr.jitter(2),
+    #]
+    JITTER = 1.1
+    ROTATE = 5
+    SCALE = 1.1
     render_transforms = [
-        tr.pad(4), 
-        tr.jitter(2), 
-        tr.random_scale([n/100. for n in range(80, 120)]),
-        tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
-        tr.jitter(2),
+        tr.pad(2*JITTER),
+        tr.jitter(JITTER),
+        tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+        tr.random_rotate(range(-ROTATE, ROTATE+1))
     ]
 
     data_passer = {}
@@ -353,22 +369,22 @@ def second_demo():
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
 
-    #tasks_processing_f = task_processing.island_tasks_processing
-    #tasks_processing_f = task_processing.island_last_point_tasks_processing
-    tasks_processing_f = task_processing.island_tasks_processing
-    select_dream_tasks_f = select_task.decremental_select_tasks
-    objective_f = dream_objective.SAE_island_dream_objective_f_creator(logger=logger)
-    #objective_f = dream_objective.SAE_island_dream_objective_direction_f
+    #tasks_processing_f = task_processing.island_task_processing_sample_surroundings_std_mean
+    #tasks_processing_f = task_processing.island_task_processing_get_last_point
+    tasks_processing_f = task_processing.island_task_processing_decode
+    select_dream_tasks_f = select_task.select_task_decremental
+    objective_f = dream_objective.dream_objective_SAE_island_creator(logger=logger)
+    #objective_f = dream_objective.dream_objective_SAE_island_direction
 
     # cross_entropy_loss test
-    #tasks_processing_f = task_processing.default_tasks_processing
-    #select_dream_tasks_f = select_task.decremental_select_tasks
-    #objective_f = dream_objective.SAE_dream_objective_f
+    #tasks_processing_f = task_processing.task_processing_default
+    #select_dream_tasks_f = select_task.select_task_decremental
+    #objective_f = dream_objective.dream_objective_SAE_channel
 
     # pretrined RESNET test
-    #tasks_processing_f = task_processing.default_tasks_processing
-    #select_dream_tasks_f = select_task.decremental_select_tasks
-    #objective_f = dream_objective.pretrined_RESNET20_C100_objective_f
+    #tasks_processing_f = task_processing.task_processing_default
+    #select_dream_tasks_f = select_task.select_task_decremental
+    #objective_f = dream_objective.dream_objective_RESNET20_C100_pretrined
 
 
     if(fast_dev_run):
@@ -395,7 +411,7 @@ def second_demo():
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
-    val_tasks_split = train_tasks_split = task_split.classic_tasks_split(num_classes, num_tasks)
+    val_tasks_split = train_tasks_split = task_split.task_split_classic(num_classes, num_tasks)
     dataset_class_robust = getDatasetList(args.dataset)[1]
     model_overlay = getModelType(aux_task_type)
 
@@ -434,7 +450,11 @@ def second_demo():
         loss_f=clModel_default_loss_f,
         data_passer=data_passer,
         only_dream_batch=only_dream_batch,
+        optimizer_construct_f=optimizer,
+        scheduler_construct_f=scheduler,
+        scheduler_steps=scheduler_steps,
     )
+    print(f'MODEL TYPE: {model.get_obj_str_type()}')
 
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))

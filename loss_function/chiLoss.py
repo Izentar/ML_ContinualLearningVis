@@ -44,6 +44,7 @@ class ChiLossBase():
         self.centers_of_clouds = cyclic_latent_buffer
 
     def __call__(self, input, target, train=True):
+        assert not torch.any(torch.isnan(input)), f"Input is NaN\n{input}"
         if train:
             self.centers_of_clouds.push_target(input, target)
 

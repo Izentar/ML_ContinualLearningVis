@@ -70,7 +70,7 @@ class CLLoop(Loop):
         self.num_loops = self.num_tasks if num_loops is None else num_loops
         self.epochs_per_task = epochs_per_task
         self.current_task: int = 0
-        self.current_loop: int = 0
+        self.current_task_loop: int = 0
         self.export_path = export_path
         if self.export_path is not None:
             self.export_path = Path(export_path)
@@ -86,7 +86,7 @@ class CLLoop(Loop):
 
     @property
     def done(self) -> bool:
-        return self.current_loop >= self.num_loops
+        return self.current_task_loop >= self.num_loops
 
     def connect(self, fit_loop: FitLoop) -> None:
         self.fit_loop = fit_loop
@@ -94,7 +94,7 @@ class CLLoop(Loop):
     def reset(self) -> None:
         """Nothing to reset in this loop."""
         self.current_task = 0
-        self.current_loop = 0
+        self.current_task_loop = 0
         self.fit_loop.reset()
         #if self.trainer.fast_dev_run:
         #    self.num_tasks = fast_dev_run_config["num_tasks"]
@@ -102,13 +102,13 @@ class CLLoop(Loop):
     def _update_data_passer(self):
         if(self.enable_data_parser):
             self.data_passer['current_task'] = self.current_task
-            self.data_passer['current_loop'] = self.current_loop
+            self.data_passer['current_task_loop'] = self.current_task_loop
             self.data_passer['model_train_end_f'] = lambda: None
-            if (self.data_passer['current_loop'] >= 1 and self.dream_only_once):
+            if (self.data_passer['current_task_loop'] >= 1 and self.dream_only_once):
                 self.data_passer['model_train_end_f'] = lambda: -1
         else:
             self.data_passer['current_task'] = -1
-            self.data_passer['current_loop'] = -1
+            self.data_passer['current_task_loop'] = -1
             self.data_passer['model_train_end_f'] = lambda: None
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
@@ -125,22 +125,22 @@ class CLLoop(Loop):
     def on_advance_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
-        if (self.current_loop > 0 and self.enable_dreams):
-            print(f"DREAMING FOR TASK: {self.current_task}, loop {self.current_loop}")
+        if (self.current_task_loop > 0 and self.enable_dreams):
+            print(f"DREAMING FOR TASK: {self.current_task}, loop {self.current_task_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
             )
             
         self._update_data_passer()
-        print(f"STARTING TASK {self.current_task}, loop {self.current_loop} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
+        print(f"STARTING TASK {self.current_task}, loop {self.current_task_loop} -- classes {self.trainer.datamodule.get_task_classes(self.current_task)}")
         # restore the original weights + optimizers and schedulers.
         if self.reset_model_after_task:
             self.trainer.lightning_module.load_state_dict(
                 self.lightning_module_state_dict
             )
             self.trainer.strategy.setup_optimizers(self.trainer)
-        self.trainer.datamodule.setup_task_index(self.current_task, self.current_loop)
+        self.trainer.datamodule.setup_task_index(self.current_task, self.current_task_loop)
         # Set the max number of epochs for this task
 
         max_epochs = self.fast_dev_run_epochs if self.fast_dev_run and self.fast_dev_run_epochs is not None else self.epochs_per_task[self.current_task]
@@ -156,19 +156,21 @@ class CLLoop(Loop):
         """Used to the run a fitting and testing on the current hold."""
         self._reset_fitting()  # requires to reset the tracking stage.
         self.custom_advance_f()
+        
+        self.current_task += 1 if self.current_task < self.num_tasks - 1 else 0
+        self.current_task_loop += 1
+        self._update_data_passer()
 
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule
         and its optimizers."""
-        print(f"ENDING TASK {self.current_task}, loop {self.current_loop}")
+        print(f"ENDING TASK {self.current_task}, loop {self.current_task_loop}")
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
         if self.export_path is not None:
             self.trainer.save_checkpoint(
-                self.export_path / f"model.{self.current_loop}.pt"
+                self.export_path / f"model.{self.current_task_loop}.pt"
             )
-        self.current_task += 1 if self.current_task < self.num_tasks - 1 else 0
-        self.current_loop += 1
 
         torch.cuda.empty_cache()
         gc.collect()
@@ -178,11 +180,11 @@ class CLLoop(Loop):
         pass
 
     def on_save_checkpoint(self) -> Dict[str, int]:
-        return {"current_task": self.current_task, "current_loop": self.current_loop}
+        return {"current_task": self.current_task, "current_task_loop": self.current_task_loop}
 
     def on_load_checkpoint(self, state_dict: Dict) -> None:
         self.current_task = state_dict["current_task"]
-        self.current_loop = state_dict['current_loop']
+        self.current_task_loop = state_dict['current_task_loop']
 
     def _reset_fitting(self) -> None:
         # removed as for fast_dev_run it sets _last_val_dl_reload_epoch as 0 and not as -inf, causing 

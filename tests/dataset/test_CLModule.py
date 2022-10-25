@@ -34,14 +34,14 @@ class TestCLDataModule(unittest.TestCase):
         self.dream_dataset_class = dream_sets.DreamDataset(transform=self.dreams_transforms)
 
         self.main = CLDataModule(
-            train_tasks_split=datMan.classic_tasks_split(self.num_classes, self.num_tasks),
+            train_tasks_split=datMan.task_split_classic(self.num_classes, self.num_tasks),
             dataset_class=md.getDataset("c10"),
             dreams_per_target=self.dreams_per_target,
-            val_tasks_split=datMan.classic_tasks_split(self.num_classes, self.num_tasks),
-            select_dream_tasks_f=datMan.decremental_select_tasks,
+            val_tasks_split=datMan.task_split_classic(self.num_classes, self.num_tasks),
+            select_dream_tasks_f=datMan.select_task_decremental,
             empty_dream_dataset=self.dream_dataset_class,
             fast_dev_run=True,
-            dream_objective_f=datMan.SAE_dream_objective_f,
+            dream_objective_f=datMan.dream_objective_SAE_channel,
         )
 
     def test_prepare_data(self):

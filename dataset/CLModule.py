@@ -55,7 +55,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dreams_per_target,
         dream_threshold,
         param_f,
-        tasks_processing_f=task_processing.default_tasks_processing,
+        tasks_processing_f=task_processing.task_processing_default,
         const_target_images_per_dreaming_batch=8,
         max_logged_dreams_per_target=8, 
         fast_dev_run=False,

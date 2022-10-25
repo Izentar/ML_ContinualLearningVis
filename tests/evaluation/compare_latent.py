@@ -3,7 +3,7 @@ from torchvision import transforms
 from dataset import dream_sets
 from dataset.CLModule import DreamDataModule
 from utils.functional import task_processing
-from utils.functional.dream_objective import SAE_island_dream_objective_f_creator
+from utils.functional.dream_objective import dream_objective_SAE_island_creator
 from lucent.optvis import param
 import wandb
 from lucent.optvis.objectives import wrap_objective, handle_batch
@@ -38,6 +38,9 @@ class CompareLatent():
         self.point_from_model = [0]
         self.loss_f = torch.nn.MSELoss() 
 
+    def get_task_processing(self):
+        return task_processing.island_task_processing_decode
+
     def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
         def param_f():
             # uses 2D Fourier coefficients
@@ -47,8 +50,10 @@ class CompareLatent():
             )
         return param_f
 
-    def select_dream_tasks_f(tasks, task_index):
-        return set(used_class)
+    def wrapper_select_dream_tasks_f(used_class):
+        def select_dream_tasks_f(tasks, task_index):
+            return set(used_class)
+        return select_dream_tasks_f
 
     def task_processing_decorator(self, f):
         def wrapper(target, model, *args, **kwargs):
@@ -59,7 +64,7 @@ class CompareLatent():
 
     def custom_objective_f(self, target, target_point, model, **kwargs):
         @wrap_objective()
-        def latent_objective_channel(target, target_layer, target_val, batch=None):
+        def inner_obj_latent(target, target_layer, target_val, batch=None):
             loss_f = self.loss_f
             @handle_batch(batch)
             def inner(model):
@@ -69,9 +74,17 @@ class CompareLatent():
                 #print(latent[0][0], latent_target[0][0])
                 loss = loss_f(latent, latent_target)
                 return loss
-            return inner
-        print(target_point)
-        return latent_objective_channel(
+
+            def inner_choose_rand(model_layers):
+                latent = model_layers(target_layer) # return feature map
+                out_target_val = task_processing.island_task_processing_sample_normal_vectors(target_val, torch.ones_like(target_val) * 0.2)
+                self.point_from_model[0] = latent
+                latent_target = out_target_val.repeat(len(latent), 1).to(latent.device)
+                #print(latent[0][0], latent_target[0][0])
+                loss = loss_f(latent, latent_target)
+                return loss
+            return inner_choose_rand
+        return inner_obj_latent(
             target_layer=model.get_objective_target(), 
             target_val=target_point.to(model.device),  
             target=target
@@ -87,18 +100,18 @@ class CompareLatent():
 
     def scheduler_step(self):
         self.scheduler.step()
-        print('Scheduler step', self.optimizer.param_groups[0]['lr'])
+        print('Scheduler step', self.scheduler._last_lr)
 
     def __call__(self, model, model_latent, used_class, logger, dream_transform, objective_f=None):
         constructed_dreams = []
 
-        #tasks_processing_f = self.task_processing_decorator(task_processing.island_cov_tasks_processing)
-        #tasks_processing_f = self.task_processing_decorator(task_processing.island_test_tasks_processing)
-        tasks_processing_f = self.task_processing_decorator(task_processing.island_tasks_processing)
+        #tasks_processing_f = self.task_processing_decorator(task_processing.island_task_processing_sample_from_cov)
+        #tasks_processing_f = self.task_processing_decorator(task_processing.island_task_processing_decode)
+        tasks_processing_f = self.task_processing_decorator(self.get_task_processing())
 
         dream_module = CustomDreamDataModule(
             train_tasks_split=[used_class],
-            select_dream_tasks_f=CompareLatent.select_dream_tasks_f,
+            select_dream_tasks_f=CompareLatent.wrapper_select_dream_tasks_f(used_class),
             dream_objective_f=self.custom_objective_f,
             tasks_processing_f=tasks_processing_f,
             dreams_per_target=1,
@@ -123,8 +136,8 @@ class CompareLatent():
 
         point_from_model = self.point_from_model[0].detach().cpu().squeeze()
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()
-        print(point_from_model, 'model')
-        print(logged_main_point, 'main')
+        print('model', point_from_model)
+        print('main ', logged_main_point)
 
         #diff = torch.pow(self.point_from_model[0].cpu() - self.logged_main_point[0].cpu(), 2).mean()
         diff = self.loss_f(point_from_model, logged_main_point)

@@ -1,14 +1,14 @@
 import numpy as np
+import math
 
-
-def classic_select_tasks(tasks, task_index):
+def select_task_classic(tasks, task_index):
     """
         Get only current task set.
     """
     current_split = set(tasks[task_index])
     return current_split
 
-def decremental_select_tasks(tasks, task_index):
+def select_task_decremental(tasks, task_index):
     """
         Get difference between previous and current tasks.
     """
@@ -20,7 +20,7 @@ def decremental_select_tasks(tasks, task_index):
     previous_split = set(tasks[task_index - 1])
     return previous_split - current_split
 
-def with_memory_select_tasks(tasks, task_index):
+def select_task_with_memory(tasks, task_index):
     """
         Get difference between all of the previous tasks and current tasks.
     """
@@ -34,7 +34,7 @@ def with_memory_select_tasks(tasks, task_index):
     current_split = set(tasks[task_index])
     return accumulator - current_split
 
-def with_fading_memory_select_tasks(tasks, task_index, fading_scale, random_distr_f=None):
+def select_task_with_fading_memory(tasks, task_index, fading_scale, random_distr_f=None):
     """
         Get difference between all of the previous tasks and current tasks.
         fading_scale: [0.0, 1.0], uses geometric sequence to calculate probability threshold of

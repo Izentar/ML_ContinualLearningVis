@@ -8,14 +8,14 @@ for i in range(10):
     counter[i] = 0
 
 @wrap_objective()
-def multidim_objective_channel(layer, batch=None):
+def inner_obj_multidim_channel(layer, batch=None):
     @handle_batch(batch)
     def inner(model):
         return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane? Chcemy wszystkie "punkty"
     return inner
 
 @wrap_objective()
-def latent_objective_channel(target, target_layer, target_val, logger=None, batch=None):
+def inner_obj_latent(target, target_layer, target_val, logger=None, batch=None):
     loss_f = torch.nn.MSELoss() 
     @handle_batch(batch)
     def inner(model):
@@ -32,7 +32,7 @@ def latent_objective_channel(target, target_layer, target_val, logger=None, batc
     return inner
 
 @wrap_objective()
-def latent_objective_max_val_channel(target, target_layer, target_val, logger, batch=None):
+def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, logger, batch=None):
     loss_f = torch.nn.MSELoss() 
     @handle_batch(batch)
     def inner(model):
@@ -49,17 +49,17 @@ def latent_objective_max_val_channel(target, target_layer, target_val, logger, b
         return loss
     return inner
 
-def SAE_standalone_multidim_dream_objective_f(model, **kwargs):
-    return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
+def dream_objective_SAE_standalone_multidim(model, **kwargs):
+    return inner_obj_multidim_channel(model.get_objective_target()) - objectives.diversity(
         "model_conv2"
     )
 
-def SAE_multidim_dream_objective_f( model, **kwargs):
-    return multidim_objective_channel(model.get_objective_target()) - objectives.diversity(
+def dream_objective_SAE_multidim( model, **kwargs):
+    return inner_obj_multidim_channel(model.get_objective_target()) - objectives.diversity(
         "model_model_conv2"
     )
 
-def SAE_dream_objective_f(target_point, model, **kwargs):
+def dream_objective_SAE_channel(target_point, model, **kwargs):
     # be careful for recursion by calling methods from source_dataset_obj
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
@@ -70,12 +70,12 @@ def SAE_dream_objective_f(target_point, model, **kwargs):
     #    "model_model_conv2"
     #)
 
-def pretrined_RESNET20_C100_objective_f(target_point, model, **kwargs):
+def dream_objective_RESNET20_C100_pretrined(target_point, model, **kwargs):
     return objectives.channel(model.get_objective_target(), target_point) - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
 
-def SAE_island_dream_objective_f_creator(logger):
+def dream_objective_SAE_island_creator(logger):
     def SAE_island_dream_objective_f(target, target_point, model, **kwargs):
-        return latent_objective_channel(
+        return inner_obj_latent(
             target_layer=model.get_objective_target(), 
             target_val=target_point.to(model.device), 
             logger=logger, 
@@ -85,12 +85,12 @@ def SAE_island_dream_objective_f_creator(logger):
         #)
     return SAE_island_dream_objective_f
 
-def SAE_island_dream_objective_direction_f(target, target_point, model, source_dataset_obj):
+def dream_objective_SAE_island_direction(target, target_point, model, source_dataset_obj):
     return objectives.direction_neuron(model.get_objective_target(), target_point.to(model.device)) - objectives.diversity(
         "model_model_conv2"
     )
 
-def default_dream_objective_f(target, model, source_dataset_obj):
+def dream_objective_default(target, model, source_dataset_obj):
     return objectives.direction(model.get_objective_target(), target)
 
 def test(target, model, source_dataset_obj):

@@ -23,6 +23,7 @@ class CLModel(base.CLBase):
         *args, 
         **kwargs
     ):
+    
         super().__init__(*args, **kwargs)
 
         self.attack_kwargs = attack_kwargs
@@ -42,7 +43,7 @@ class CLModel(base.CLBase):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)
 
     def call_loss(self, input, target, **kwargs):
-        return cross_entropy(input, target)
+        return self.loss_f(input, target)
 
     def training_step_normal(self, batch):
         x, y = batch
@@ -146,14 +147,23 @@ class CLModel(base.CLBase):
         return
 
     def get_obj_str_type(self) -> str:
-        return 'CLModel_' + type(self.model).__name__
+        return 'CLModel_' + self.model.__qualname__
 
 class CLModelIslandsTest(CLModel):
     def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, only_one_hot=False, size_per_class=40, **kwargs):
         kwargs.pop('loss_f', None)
         super().__init__(num_classes=num_classes, *args, loss_f=torch.nn.MSELoss(), **kwargs)
-        #self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
         self.one_hot_means = one_hot_means
+
+        self.loss_f = self._loss_decorator(self.loss_f)
+        self.loss_f = DummyLoss(self.loss_f)
+
+    def _loss_decorator(self, f):
+        def wrapper(input, target):
+            self.cyclic_latent_buffer.push_target(input, target.to(torch.int))
+            return f(input, target)
+        return wrapper
 
     def decode(self, target: list):
         one_hot = []
@@ -225,11 +235,11 @@ class CLModelIslandsTest(CLModel):
         self.log("test_acc", self.test_acc)
 
     def get_buffer(self):
-        raise Exception("Buffer not implemented")
-        #return self.cyclic_latent_buffer
+        #raise Exception("Buffer not implemented")
+        return self.cyclic_latent_buffer
 
     def get_obj_str_type(self) -> str:
-        return 'CLModelIslandsTest_' + type(self.model).__name__
+        return 'CLModelIslandsTest_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__
 
 class CLModelWithIslands(CLModel):
     def __init__(
@@ -238,8 +248,7 @@ class CLModelWithIslands(CLModel):
             cyclic_latent_buffer_size_per_class, 
             num_classes, 
             *args, 
-            buff_on_same_device=False, 
-            islands=False, 
+            buff_on_same_device=False,  
             alpha=0.0, 
             norm_lambd=0.001, 
             sigma=0.2, 
@@ -339,4 +348,4 @@ class CLModelWithIslands(CLModel):
         return self.cyclic_latent_buffer
 
     def get_obj_str_type(self) -> str:
-        return 'CLModelWithIslands_' + type(self.model).__name__
+        return 'CLModelWithIslands_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__

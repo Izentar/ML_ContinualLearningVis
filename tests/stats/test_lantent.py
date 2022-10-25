@@ -40,8 +40,8 @@ class TestCLModel(unittest.TestCase):
 
         dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
         dataset_class = getDataset(args_dataset)
-        val_tasks_split = train_tasks_split = datMan.classic_tasks_split(num_classes, num_tasks)
-        select_dream_tasks_f = datMan.decremental_select_tasks
+        val_tasks_split = train_tasks_split = datMan.task_split_classic(num_classes, num_tasks)
+        select_dream_tasks_f = datMan.select_task_decremental
         dataset_class_robust = getDatasetList(args_dataset)[1]
         dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
         model_overlay = getModelType(auxiliary_reconstruction)

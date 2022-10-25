@@ -17,71 +17,71 @@ class TestDataManipulation(unittest.TestCase):
         num_classes = 10
         num_tasks = 5
         out = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
-        ret = datMan.classic_tasks_split(num_classes, num_tasks)
+        ret = datMan.task_split_classic(num_classes, num_tasks)
         self.assertEqual(ret, out)
 
     def test_classic_tasks_split_part(self):
         num_classes = 5
         num_tasks = 2
         out = [[0, 1], [2, 3], [4]]
-        ret = datMan.classic_tasks_split(num_classes, num_tasks)
+        ret = datMan.task_split_classic(num_classes, num_tasks)
         self.assertEqual(ret, out)
 
     def test_classic_tasks_split_overflow(self):
         num_classes = 5
         num_tasks = 6
         with self.assertRaises(Exception):
-            ret = datMan.classic_tasks_split(num_classes, num_tasks)
+            ret = datMan.task_split_classic(num_classes, num_tasks)
 
     def test_decremental_tasks_split_full(self):
         num_classes = 10
         num_tasks = 5
         out = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
-        ret = datMan.decremental_tasks_split(num_classes, num_tasks)
+        ret = datMan.task_split_decremental(num_classes, num_tasks)
         self.assertEqual(ret, out)
 
     def test_decremental_tasks_split_part(self):
         num_classes = 5
         num_tasks = 2
         out = [[0, 1, 2, 3, 4], [2, 3, 4]]
-        ret = datMan.decremental_tasks_split(num_classes, num_tasks)
+        ret = datMan.task_split_decremental(num_classes, num_tasks)
         self.assertEqual(ret, out)
 
     def test_decremental_tasks_split_overflow(self):
         num_classes = 5
         num_tasks = 4
         with self.assertRaises(Exception):
-            ret = datMan.decremental_tasks_split(num_classes, num_tasks)
+            ret = datMan.task_split_decremental(num_classes, num_tasks)
 
     def test_classic_select_tasks(self):
         tasks = [[0, 1, 2, 3, 4], [2, 3, 4]]
 
-        self.assertEqual(datMan.classic_select_tasks(tasks, 0), set([0, 1, 2, 3, 4]))
-        self.assertEqual(datMan.classic_select_tasks(tasks, 1), set([2, 3, 4]))
+        self.assertEqual(datMan.select_task_classic(tasks, 0), set([0, 1, 2, 3, 4]))
+        self.assertEqual(datMan.select_task_classic(tasks, 1), set([2, 3, 4]))
         with self.assertRaises(Exception):
-            datMan.classic_select_tasks(tasks, 3), set([2, 3, 4])
+            datMan.select_task_classic(tasks, 3), set([2, 3, 4])
 
     def test_decremental_select_tasks(self):
         tasks = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
 
-        self.assertEqual(datMan.decremental_select_tasks(tasks, 0), set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
-        self.assertEqual(datMan.decremental_select_tasks(tasks, 1), set([0, 1]))
-        self.assertEqual(datMan.decremental_select_tasks(tasks, 2), set([2, 3]))
-        self.assertEqual(datMan.decremental_select_tasks(tasks, 3), set([4, 5]))
-        self.assertEqual(datMan.decremental_select_tasks(tasks, 4), set([6, 7]))
+        self.assertEqual(datMan.select_task_decremental(tasks, 0), set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        self.assertEqual(datMan.select_task_decremental(tasks, 1), set([0, 1]))
+        self.assertEqual(datMan.select_task_decremental(tasks, 2), set([2, 3]))
+        self.assertEqual(datMan.select_task_decremental(tasks, 3), set([4, 5]))
+        self.assertEqual(datMan.select_task_decremental(tasks, 4), set([6, 7]))
         with self.assertRaises(Exception):
-            datMan.decremental_select_tasks(tasks, 5), set([2, 3, 4])
+            datMan.select_task_decremental(tasks, 5), set([2, 3, 4])
 
     def test_with_memory_select_tasks(self):
         tasks = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
 
-        self.assertEqual(datMan.with_memory_select_tasks(tasks, 0), set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
-        self.assertEqual(datMan.with_memory_select_tasks(tasks, 1), set([0, 1]))
-        self.assertEqual(datMan.with_memory_select_tasks(tasks, 2), set([0, 1, 2, 3]))
-        self.assertEqual(datMan.with_memory_select_tasks(tasks, 3), set([0, 1, 2, 3, 4, 5]))
-        self.assertEqual(datMan.with_memory_select_tasks(tasks, 4), set([0, 1, 2, 3, 4, 5, 6, 7]))
+        self.assertEqual(datMan.select_task_with_memory(tasks, 0), set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        self.assertEqual(datMan.select_task_with_memory(tasks, 1), set([0, 1]))
+        self.assertEqual(datMan.select_task_with_memory(tasks, 2), set([0, 1, 2, 3]))
+        self.assertEqual(datMan.select_task_with_memory(tasks, 3), set([0, 1, 2, 3, 4, 5]))
+        self.assertEqual(datMan.select_task_with_memory(tasks, 4), set([0, 1, 2, 3, 4, 5, 6, 7]))
         with self.assertRaises(Exception):
-            datMan.with_memory_select_tasks(tasks, 5), set([2, 3, 4])
+            datMan.select_task_with_memory(tasks, 5), set([2, 3, 4])
 
     def test_with_fading_memory_select_tasks(self):
         pl.seed_everything(42)
@@ -90,13 +90,13 @@ class TestDataManipulation(unittest.TestCase):
         tasks = [[0, 1], [1, 2, 3], [3, 4, 5], [4, 5, 6], [1, 2, 3, 5, 6, 7, 8, 9]]
         #tasks = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
 
-        self.assertEqual(datMan.with_fading_memory_select_tasks(tasks, 0, 1/2), set([0, 1]))
-        self.assertEqual(datMan.with_fading_memory_select_tasks(tasks, 1, 1/2), set([2, 3]))
-        self.assertEqual(datMan.with_fading_memory_select_tasks(tasks, 2, 1/2), set([3, 4, 5]))
-        self.assertEqual(datMan.with_fading_memory_select_tasks(tasks, 3, 1/2), set([6]))
-        self.assertEqual(datMan.with_fading_memory_select_tasks(tasks, 4, 1/2), set([2, 3, 5, 6, 7, 8, 9]))
+        self.assertEqual(datMan.select_task_with_fading_memory(tasks, 0, 1/2), set([0, 1]))
+        self.assertEqual(datMan.select_task_with_fading_memory(tasks, 1, 1/2), set([2, 3]))
+        self.assertEqual(datMan.select_task_with_fading_memory(tasks, 2, 1/2), set([3, 4, 5]))
+        self.assertEqual(datMan.select_task_with_fading_memory(tasks, 3, 1/2), set([6]))
+        self.assertEqual(datMan.select_task_with_fading_memory(tasks, 4, 1/2), set([2, 3, 5, 6, 7, 8, 9]))
         with self.assertRaises(Exception):
-            datMan.with_fading_memory_select_tasks(tasks, 5, 1/2)
+            datMan.select_task_with_fading_memory(tasks, 5, 1/2)
 
     def test_normall_dist_tasks_processing_1(self):
         pl.seed_everything(42)

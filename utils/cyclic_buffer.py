@@ -72,10 +72,11 @@ class CyclicBufferByClass():
 
         # at the beginning mean can be missleading, not fully filled
         flag = self._buff_idx[target][1]
+        idx = target
         if(flag):
-            result = f(self.cyclic_buff[target])
+            result = f(self.cyclic_buff[idx])
         else:
-            result = f(self.cyclic_buff[target, : self.__get_idx(target)])
+            result = f(self.cyclic_buff[idx, : self.__get_idx(idx)])
         return result
 
     def mean(self):

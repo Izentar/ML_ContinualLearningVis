@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def classic_tasks_split(num_classes, num_tasks):
+def task_split_classic(num_classes, num_tasks):
     # [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
     if(num_classes < num_tasks):
         raise Exception(f"Bad number of classes: {num_classes} and tasks: {num_tasks}")
@@ -13,7 +13,7 @@ def classic_tasks_split(num_classes, num_tasks):
     ret.append(list(range(num_tasks * one_split, num_tasks * one_split + diff)))
     return ret
 
-def decremental_tasks_split(num_classes, num_tasks, jump=2):
+def task_split_decremental(num_classes, num_tasks, jump=2):
     # [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9], [6, 7, 8, 9], [8, 9]]
     if(np.ceil(num_classes / jump) < num_tasks):
         raise Exception(f"Bad number of classes: {num_classes}, tasks: {num_tasks}, jump: {jump}")
