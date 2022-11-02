@@ -34,10 +34,7 @@ class CLModel(base.CLBase):
             arch=model, dataset=robust_dataset, resume_path=resume_path
         )[0]
 
-        if(isinstance(loss_f, ChiLossBase)):
-            self.loss_f = loss_f
-        else:
-            self.loss_f = DummyLoss(loss_f)
+        self.loss_f = loss_f if isinstance(loss_f, ChiLossBase) else DummyLoss(loss_f)
 
     def forward(self, *args, make_adv=False, with_image=False, **kwargs):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)

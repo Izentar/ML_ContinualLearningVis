@@ -62,3 +62,22 @@ def select_task_with_fading_memory(tasks, task_index, fading_scale, random_distr
             accumulator = accumulator.union(set(t))
     current_split = set(tasks[task_index])
     return current_split - accumulator
+
+class SelectTaskManager():
+    GET_SELECT_TASK_PROCESSING = {
+        'SELECT-CLASSIC': select_task_classic,
+        'SELECT-DECREMENTAL': select_task_decremental,
+        'SELECT-WITH-MEMORY': select_task_with_memory,
+        'SELECT-WITH-FADING-MEMORY': select_task_with_fading_memory,
+    }
+
+    def __init__(self, dtype: str) -> None:
+        dtype = dtype.upper()
+        self.select_task = SelectTaskManager.GET_SELECT_TASK_PROCESSING[dtype]
+        self.select_task_name = dtype
+
+    def __call__(self, *args, **kwargs):
+        return self.select_task(*args, **kwargs)
+
+    def get_name(self) -> str:
+        return self.select_task_name

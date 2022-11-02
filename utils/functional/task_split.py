@@ -18,3 +18,20 @@ def task_split_decremental(num_classes, num_tasks, jump=2):
     if(np.ceil(num_classes / jump) < num_tasks):
         raise Exception(f"Bad number of classes: {num_classes}, tasks: {num_tasks}, jump: {jump}")
     return [list(range(num_classes))[i * jump :] for i in range(num_tasks)]
+
+class TaskSplitManager():
+    GET_SELECT_TASK_PROCESSING = {
+        'SPLIT-CLASSIC': task_split_classic,
+        'SPLIT-DECREMENTAL': task_split_decremental,
+    }
+
+    def __init__(self, dtype: str) -> None:
+        dtype = dtype.upper()
+        self.select_task = TaskSplitManager.GET_SELECT_TASK_PROCESSING[dtype]
+        self.select_task_name = dtype
+
+    def __call__(self, *args, **kwargs):
+        return self.select_task(*args, **kwargs)
+
+    def get_name(self) -> str:
+        return self.select_task_name

@@ -8,7 +8,7 @@ for i in range(10):
     counter[i] = 0
 
 @wrap_objective()
-def inner_obj_multidim_channel(layer, batch=None):
+def inner_obj_latent_channel(layer, batch=None):
     @handle_batch(batch)
     def inner(model):
         return -model(layer)[:, ].mean() #TODO - czy to jest prawidłowe, gdy n_channel nie jest używane? Chcemy wszystkie "punkty"
@@ -49,17 +49,22 @@ def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, logge
         return loss
     return inner
 
-def dream_objective_SAE_standalone_multidim(model, **kwargs):
-    return inner_obj_multidim_channel(model.get_objective_target()) - objectives.diversity(
+# =====================================================
+
+def dream_objective_SAE_standalone_diversity(model, **kwargs):
+    return - objectives.diversity(
         "model_conv2"
     )
 
-def dream_objective_SAE_multidim( model, **kwargs):
-    return inner_obj_multidim_channel(model.get_objective_target()) - objectives.diversity(
+def dream_objective_SAE_diversity(model, **kwargs):
+    return - objectives.diversity(
         "model_model_conv2"
     )
 
-def dream_objective_SAE_channel(target_point, model, **kwargs):
+def dream_objective_latent_channel(model, **kwargs):
+    return inner_obj_latent_channel(model.get_objective_target())
+
+def dream_objective_channel(target_point, model, **kwargs):
     # be careful for recursion by calling methods from source_dataset_obj
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
@@ -70,11 +75,14 @@ def dream_objective_SAE_channel(target_point, model, **kwargs):
     #    "model_model_conv2"
     #)
 
-def dream_objective_RESNET20_C100_pretrined(target_point, model, **kwargs):
-    return objectives.channel(model.get_objective_target(), target_point) - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
+def dream_objective_RESNET20_C100_diversity(model, **kwargs):
+    return - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
 
-def dream_objective_SAE_island_creator(logger):
-    def SAE_island_dream_objective_f(target, target_point, model, **kwargs):
+def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
+    return objectives.channel(model.get_objective_target(), target_point)
+
+def dream_objective_latent_lossf_creator(logger, **kwargs):
+    def wrapper(target, target_point, model, **inner_kwargs):
         return inner_obj_latent(
             target_layer=model.get_objective_target(), 
             target_val=target_point.to(model.device), 
@@ -83,17 +91,49 @@ def dream_objective_SAE_island_creator(logger):
         ) #- objectives.diversity(
         #    "model_model_conv2"
         #)
-    return SAE_island_dream_objective_f
+    return wrapper
 
-def dream_objective_SAE_island_direction(target, target_point, model, source_dataset_obj):
-    return objectives.direction_neuron(model.get_objective_target(), target_point.to(model.device)) - objectives.diversity(
-        "model_model_conv2"
-    )
-
-def dream_objective_default(target, model, source_dataset_obj):
-    return objectives.direction(model.get_objective_target(), target)
+def dream_objective_latent_neuron_direction(target_point, model, **kwargs):
+    return objectives.direction_neuron(model.get_objective_target(), target_point.to(model.device))
 
 def test(target, model, source_dataset_obj):
     return objectives.channel(model.get_objective_target(), target) - objectives.diversity(
         "vgg_features_10"
     )
+
+class DreamObjectiveManager():
+    GET_OBJECTIVE = {
+        'OBJECTIVE-LATENT-CHANNEL': dream_objective_latent_channel,
+        'OBJECTIVE-CHANNEL': dream_objective_channel,
+        'OBJECTIVE-RESNET20-C100-CHANNEL': dream_objective_RESNET20_C100_channel,
+        'OBJECTIVE-LATENT-LOSSF-CREATOR': dream_objective_latent_lossf_creator,
+        'OBJECTIVE-LATENT-NEURON-DIRECTION': dream_objective_latent_neuron_direction,
+        'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
+        'OBJECTIVE-RESNET20-C100-DIVERSITY': dream_objective_RESNET20_C100_diversity,
+    }
+    def __init__(self, dtype: list[str], **kwargs) -> None:
+        if isinstance(dtype, str):
+            dtype = [dtype]
+
+        self.objectives_f = []
+        self.function_names = []
+
+        for i in dtype:
+            i = i.upper()
+            obj = DreamObjectiveManager.GET_OBJECTIVE[i]
+            if('creator' in obj.__name__):
+                obj = obj(**kwargs)
+            self.objectives_f.append(obj)
+            self.function_names.append(i)
+
+        self.first_objectives_f = self.objectives_f[0]
+        self.objectives_f = self.objectives_f[1:]
+
+    def __call__(self, *args, **kwargs):
+        loss = self.first_objectives_f(*args, **kwargs)
+        for fun in self.objectives_f:
+            loss += fun(*args, **kwargs)
+        return loss
+
+    def get_names(self) -> list[str]:
+        return self.function_names

@@ -41,6 +41,9 @@ class VGG(nn.Module):
         x = self.classifier(x)
         return x
 
+    def get_objective_layer_name(self):
+        return 'classifier'
+
     def _initialize_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

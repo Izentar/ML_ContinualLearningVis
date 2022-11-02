@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
+from utils.fun_config_set import FunConfigSet, FunConfigSetPredefined
 from utils.progress_bar import CustomRichProgressBar
 from executor.cl_loop import BaseCLDataModule, CLLoop
 from config.default import datasets, datasets_map
@@ -12,7 +13,7 @@ from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
 from utils import data_manipulation as datMan
 from utils.functional import dream_objective
 from utils.functional import select_task
-from utils.functional import task_processing
+from utils.functional import target_processing
 from utils.functional import task_split
 from dataset import dream_sets
 
@@ -33,6 +34,7 @@ from stats.point_plot import PointPlot, Statistics
 from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
+from tests.evaluation.disorder_dream import DisorderDream
 
 def arg_parser():
     parser = ArgumentParser()
@@ -65,9 +67,9 @@ def getDatasetList(name:str):
 
 def getModelType(mtype: str):
     model_types = {
-        "islands": CLModelWithIslands,
-        "default": CLModel,
-        "islands_test": CLModelIslandsTest
+        "clmodelisland": CLModelWithIslands,
+        "clmodel": CLModel,
+        "clmodelislandtest": CLModelIslandsTest
     }
     return model_types.get(mtype, CLModel)
 
@@ -320,7 +322,7 @@ def second_demo():
     dream_optim = get_dream_optim()
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
-    source_model = SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
+    #source_model = SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
     #source_model = vgg11_bn(num_classes=hidden)
     #source_model = ResNet18(num_classes=hidden)
     #source_model = Resnet20C100()
@@ -328,7 +330,7 @@ def second_demo():
     train_with_logits = False
     train_normal_robustly = True
     train_dreams_robustly = True
-    aux_task_type = "islands_test"
+    aux_task_type = "clmodelislandtest"
     dataset_class_labels = CIFAR100_labels()
 
     only_one_hot = False
@@ -354,37 +356,47 @@ def second_demo():
 
     data_passer = {}
 
-    tags = []
-    if train_with_logits:
-        tags.append("logits")
-    if train_normal_robustly or train_dreams_robustly:
-        tags.append("robust")
-    if aux_task_type == "auxiliary_reconstruction":
-        tags.append("auxiliary")
-    if aux_task_type == "island":
-        tags.append("island")
     if fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
 
-    #tasks_processing_f = task_processing.island_task_processing_sample_surroundings_std_mean
-    #tasks_processing_f = task_processing.island_task_processing_get_last_point
-    tasks_processing_f = task_processing.island_task_processing_decode
-    select_dream_tasks_f = select_task.select_task_decremental
-    objective_f = dream_objective.dream_objective_SAE_island_creator(logger=logger)
-    #objective_f = dream_objective.dream_objective_SAE_island_direction
+    #set_manager = FunConfigSet(
+    #    select_task_type='select-decremental',
+    #    target_processing_type='target-latent-decode',
+    #    task_split_type='split-decremental',
+    #    dream_obj_type='objective-latent-lossf-creator',
+    #    logger=logger,
+    #    mtype='sae',
+    #    otype='cl-model-island-test',
+    #)
+
+    set_manager = FunConfigSetPredefined('decode', logger)
+
+    source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
+    target_processing_f = set_manager.target_processing
+    select_dream_tasks_f = set_manager.select_task
+    objective_f = set_manager.dream_objective
+    val_tasks_split = train_tasks_split = set_manager.task_split(num_classes, num_tasks)
+
+
+    #target_processing_f = target_processing.target_processing_latent_sample_normal_buffer
+    #target_processing_f = target_processing.target_processing_latent_buffer_last_point
+    #   target_processing_f = target_processing.target_processing_latent_decode
+    #   select_dream_tasks_f = select_task.select_task_decremental
+    #   objective_f = dream_objective.dream_objective_latent_lossf_creator(logger=logger)
+    #objective_f = dream_objective.dream_objective_latent_neuron_direction
 
     # cross_entropy_loss test
-    #tasks_processing_f = task_processing.task_processing_default
+    #target_processing_f = target_processing.target_processing_default
     #select_dream_tasks_f = select_task.select_task_decremental
-    #objective_f = dream_objective.dream_objective_SAE_channel
+    #objective_f = dream_objective.dream_objective_channel
 
     # pretrined RESNET test
-    #tasks_processing_f = task_processing.task_processing_default
+    #target_processing_f = target_processing.target_processing_default
     #select_dream_tasks_f = select_task.select_task_decremental
-    #objective_f = dream_objective.dream_objective_RESNET20_C100_pretrined
+    #objective_f = dream_objective.dream_objective_RESNET20_C100_channel
 
 
     if(fast_dev_run):
@@ -411,9 +423,8 @@ def second_demo():
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
-    val_tasks_split = train_tasks_split = task_split.task_split_classic(num_classes, num_tasks)
     dataset_class_robust = getDatasetList(args.dataset)[1]
-    model_overlay = getModelType(aux_task_type)
+    #model_overlay = getModelType(aux_task_type)
 
     #if fast_dev_run:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
@@ -430,7 +441,7 @@ def second_demo():
         aux_task_type=aux_task_type,
     )
 
-    model = model_overlay(
+    model = set_manager.model_overlay(
         model=source_model,
         robust_dataset=dataset_robust,
         num_tasks=num_tasks,
@@ -476,7 +487,7 @@ def second_demo():
         dream_objective_f=objective_f,
         empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
         progress_bar=progress_bar,
-        tasks_processing_f=tasks_processing_f,
+        target_processing_f=target_processing_f,
         const_target_images_per_dreaming_batch=const_target_images_per_dreaming_batch,
         optimizer=dream_optim,
         freeze_task_at_end=freeze_task_at_end,
@@ -554,13 +565,25 @@ def second_demo():
     #    nrows=nrows, ncols=ncols, 
     #    logger=logger, attack_kwargs=attack_kwargs)
 
-    compare_latent = CompareLatent()
-    compare_latent(
+    #compare_latent = CompareLatent()
+    #compare_latent(
+    #    model=model,
+    #    loss_f=model.loss_f, 
+    #    used_class=1, 
+    #    logger=logger,
+    #    dream_transform=dreams_transforms,
+    #)
+
+    disorder_dream = DisorderDream()
+    dataset = dataset_class(root="./data", train=False, transform=transform)
+    disorder_dream(
         model=model,
-        model_latent=model.loss_f, 
+        loss_f=model.loss_f, 
         used_class=1, 
         logger=logger,
+        dataset=dataset,
         dream_transform=dreams_transforms,
+        batch_size=my_batch_size,
     )
 
     # show dream png

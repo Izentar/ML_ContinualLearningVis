@@ -41,7 +41,7 @@ class TestCLDataModule(unittest.TestCase):
             select_dream_tasks_f=datMan.select_task_decremental,
             empty_dream_dataset=self.dream_dataset_class,
             fast_dev_run=True,
-            dream_objective_f=datMan.dream_objective_SAE_channel,
+            dream_objective_f=datMan.dream_objective_channel,
         )
 
     def test_prepare_data(self):

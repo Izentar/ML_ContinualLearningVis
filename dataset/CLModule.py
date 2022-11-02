@@ -4,7 +4,7 @@ from torchvision import transforms
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import data_manipulation as datMan
-from utils.functional import task_processing
+from utils.functional import target_processing
 from dataset import dream_sets
 from rich.progress import (
     BarColumn,
@@ -55,7 +55,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dreams_per_target,
         dream_threshold,
         param_f,
-        tasks_processing_f=task_processing.task_processing_default,
+        target_processing_f,
         const_target_images_per_dreaming_batch=8,
         max_logged_dreams_per_target=8, 
         fast_dev_run=False,
@@ -76,14 +76,14 @@ class DreamDataModule(BaseCLDataModule, ABC):
             select_dream_tasks_f: function f(tasks:list, task_index:int) that will be used to select 
                 the tasks to use during dreaming. If function uses more parameters, use lambda expression as adapter. 
             dream_objective_f: function f(target: list, model: model.base.CLBase, <source CLDataModule object, self>)
-            tasks_processing_f: function that will take the list of targets and process them to the desired form.
+            target_processing_f: function that will take the list of targets and process them to the desired form.
                 For example it will take a task and transform it to the point from normal distribution.
                 The default function do nothing to targets. 
         """
         super().__init__()
         self.train_tasks_split = train_tasks_split
         self.select_dream_tasks_f = select_dream_tasks_f
-        self.tasks_processing_f = tasks_processing_f
+        self.target_processing_f = target_processing_f
         self.dreams_per_target = dreams_per_target
         self.const_target_images_per_dreaming_batch = const_target_images_per_dreaming_batch
         self.image_size = image_size
@@ -307,10 +307,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def transform_targets(self, model, dream_target, task_index) -> torch.Tensor:
         """
             Invoked after every new dreaming that produces an image.
-            Override this if you need more than what the function tasks_processing_f itself can offer.
+            Override this if you need more than what the function target_processing_f itself can offer.
             Returns tensor representing target. It can be one number or an array of numbers (point)
         """
-        return self.tasks_processing_f(target=dream_target, model=model)
+        return self.target_processing_f(target=dream_target, model=model)
 
     def get_task_classes(self, task_number):
         return self.train_tasks_split[task_number]
@@ -553,9 +553,9 @@ class CLDataModule(DreamDataModule):
         if self.steps_to_locate_mean is not None:
             if not self.calculated_mean_std:
                 self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
-            return self.tasks_processing_f(target=dream_target, model=model, mean=self.mean, std=self.std)
+            return self.target_processing_f(target=dream_target, model=model, mean=self.mean, std=self.std)
 
-        return self.tasks_processing_f(target=dream_target, model=model)
+        return self.target_processing_f(target=dream_target, model=model)
 
     def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
         """
