@@ -15,14 +15,14 @@ def inner_obj_latent_channel(layer, batch=None):
     return inner
 
 @wrap_objective()
-def inner_obj_latent(target, target_layer, target_val, logger=None, batch=None):
-    loss_f = torch.nn.MSELoss() 
+def inner_obj_latent(target, target_layer, target_val, logger=None, batch=None, loss_f=None):
+    inner_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
     @handle_batch(batch)
     def inner(model):
         global counter
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
-        loss = loss_f(latent, latent_target)
+        loss = inner_loss_f(latent, latent_target)
         if(logger is not None):
             logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
             #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter[target])
@@ -81,13 +81,14 @@ def dream_objective_RESNET20_C100_diversity(model, **kwargs):
 def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
     return objectives.channel(model.get_objective_target(), target_point)
 
-def dream_objective_latent_lossf_creator(logger, **kwargs):
+def dream_objective_latent_lossf_creator(logger=None, loss_f=None, **kwargs):
     def wrapper(target, target_point, model, **inner_kwargs):
         return inner_obj_latent(
             target_layer=model.get_objective_target(), 
             target_val=target_point.to(model.device), 
             logger=logger, 
-            target=target
+            target=target,
+            loss_f=loss_f,
         ) #- objectives.diversity(
         #    "model_model_conv2"
         #)
@@ -109,6 +110,7 @@ class DreamObjectiveManager():
         'OBJECTIVE-LATENT-LOSSF-CREATOR': dream_objective_latent_lossf_creator,
         'OBJECTIVE-LATENT-NEURON-DIRECTION': dream_objective_latent_neuron_direction,
         'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
+        'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity,
         'OBJECTIVE-RESNET20-C100-DIVERSITY': dream_objective_RESNET20_C100_diversity,
     }
     def __init__(self, dtype: list[str], **kwargs) -> None:

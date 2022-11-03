@@ -356,6 +356,7 @@ def second_demo():
 
     data_passer = {}
 
+    tags = []
     if fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
@@ -559,31 +560,32 @@ def second_demo():
                 classes=np.unique(targets),
                 main_class_split=collect_main_split,
             )
-    #collect_stats(model=model, dataset=dataset,
-    #    collect_numb_of_points=collect_numb_of_points, 
-    #    collector_batch_sampler=collector_batch_sampler,
-    #    nrows=nrows, ncols=ncols, 
-    #    logger=logger, attack_kwargs=attack_kwargs)
+    collect_stats(model=model, dataset=dataset,
+        collect_numb_of_points=collect_numb_of_points, 
+        collector_batch_sampler=collector_batch_sampler,
+        nrows=nrows, ncols=ncols, 
+        logger=logger, attack_kwargs=attack_kwargs)
 
-    #compare_latent = CompareLatent()
-    #compare_latent(
-    #    model=model,
-    #    loss_f=model.loss_f, 
-    #    used_class=1, 
-    #    logger=logger,
-    #    dream_transform=dreams_transforms,
-    #)
+    compare_latent = CompareLatent()
+    compare_latent(
+        model=model,
+        loss_f=model.loss_f, 
+        used_class=0, 
+        logger=logger,
+        dream_transform=dreams_transforms,
+        target_processing_f=set_manager.target_processing,
+    )
 
     disorder_dream = DisorderDream()
     dataset = dataset_class(root="./data", train=False, transform=transform)
     disorder_dream(
         model=model,
-        loss_f=model.loss_f, 
-        used_class=1, 
+        dream_loss_f=model.loss_f, 
+        used_class=0, 
         logger=logger,
         dataset=dataset,
         dream_transform=dreams_transforms,
-        batch_size=my_batch_size,
+        objective_f=set_manager.dream_objective
     )
 
     # show dream png

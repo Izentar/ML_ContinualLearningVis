@@ -50,9 +50,9 @@ class FunConfigSetBase():
 class FunConfigSet(FunConfigSetBase):
     def __init__(self, 
         dream_obj_type: Union[list[str], str], 
-        select_task_type: Union[list[str], str],
-        target_processing_type: Union[list[str], str],
-        task_split_type: Union[list[str], str],
+        select_task_type: str,
+        target_processing_type: str,
+        task_split_type: str,
         mtype: str, 
         otype: str, 
         logger=None
@@ -66,7 +66,8 @@ class FunConfigSet(FunConfigSetBase):
             otype=otype, 
             logger=logger
         )
-        self.dream_obj = None
+        self.dream_obj_first = None
+        self.dream_obj_rest = []
         self.select_t = None
         self.target_proc = None
         self.task_spl = None
@@ -89,79 +90,82 @@ class FunConfigSet(FunConfigSetBase):
         else:
             raise Exception(f"Unknown model overlay type: {mtype}")
 
-        dream_obj_type = dream_obj_type if isinstance(dream_obj_type, list) else [dream_obj_type]
-        select_task_type = select_task_type if isinstance(select_task_type, list) else [select_task_type]
-        target_processing_type = target_processing_type if isinstance(target_processing_type, list) else [target_processing_type]
-        task_split_type = task_split_type if isinstance(task_split_type, list) else [task_split_type]
+        self._init_validate_types(select_task_type)
+        self._init_validate_types(target_processing_type)
+        self._init_validate_types(task_split_type)
 
-        def set_obj(self, fun):
-            self.dream_obj = fun
-        self._init_fun_template(
+        #dream_obj_type = dream_obj_type if isinstance(dream_obj_type, list) else [dream_obj_type]
+        #select_task_type = select_task_type if isinstance(select_task_type, list) else [select_task_type]
+        #target_processing_type = target_processing_type if isinstance(target_processing_type, list) else [target_processing_type]
+        #task_split_type = task_split_type if isinstance(task_split_type, list) else [task_split_type]
+
+        self._init_register_template(
             dream_obj_type, 
             dream_objective.DreamObjectiveManager.GET_OBJECTIVE, 
             "Unknown dream objective type",
-            set_obj
         )
-
-        def set_target_process(self, fun):
-            self.target_proc = fun
-        self._init_fun_template(
+        self._init_register_template(
             target_processing_type, 
             target_processing.TargetProcessingManager.GET_TARGET_PROCESSING, 
             "Unknown target processing type",
-            set_target_process
         )
-
-        def set_split_task(self, fun):
-            self.task_spl = fun
-        self._init_fun_template(
+        self._init_register_template(
             task_split_type, 
-            task_split.TaskSplitManager.GET_SELECT_TASK_PROCESSING, 
+            task_split.TaskSplitManager.GET_TASK_SPLIT_PROCESSING, 
             "Unknown task split type",
-            set_split_task
         )
-
-        def set_select_task(self, fun):
-            self.select_t = fun
-        self._init_fun_template(
+        self._init_register_template(
             select_task_type, 
             select_task.SelectTaskManager.GET_SELECT_TASK_PROCESSING,
             "Unknown select task type",
-            set_select_task
         )
-
+        
         self._check_specific_combination()
+
+        self.dream_obj_manager = dream_objective.DreamObjectiveManager(dream_obj_type)
+        self.select_task_manager = select_task.SelectTaskManager(select_task_type)
+        self.target_processing_manager = target_processing.TargetProcessingManager(target_processing_type)
+        self.task_split_manager = task_split.TaskSplitManager(task_split_type)
+
+    def _init_register_template(self, ftype, fdict, error_mss: str):
+        if(not isinstance(ftype, list)):
+            ftype = [ftype]
+        for fun in ftype:
+            fun = fun.upper()
+            if(fun not in fdict):
+                raise Exception(f"{error_mss}: {fun}")
+            self._buffer_specific_combination(fun)
         
     def _buffer_specific_combination(self, fun_name):
         if(fun_name in FunConfigSet.SPECIFIC_COMBINATIONS):
             self.rule_buffer.append(fun_name)
+
+    def _init_validate_types(self, obj):
+        if(isinstance(obj, tuple)):
+            raise Exception(f'Wrong type tuple')
+        elif(isinstance(obj, list)):
+            raise Exception(f'Wrong type list')
+        elif(isinstance(obj, dict)):
+            raise Exception(f'Wrong type dictionary')
 
     def _check_specific_combination(self):
         for fun_name in self.rule_buffer:
             if(fun_name in FunConfigSet.SPECIFIC_COMBINATIONS):
                 rule_name = FunConfigSet.SPECIFIC_COMBINATIONS[fun_name]
                 if(rule_name not in self.rule_buffer):
-                    raise Exception(f"Broken rule: {fun_name}::{rule_name}\n{self.rule_buffer}")
+                    raise Exception(f"Broken rule: {fun_name}::{rule_name}\nBuffer: {self.rule_buffer}")
 
-    def _init_fun_template(self, ftype, fdict, error_mss: str, set_val_f):
-        for fun in ftype:
-            fun = fun.upper()
-            if(fun not in fdict):
-                raise Exception(f"{error_mss}: {fun}")
-            self._buffer_specific_combination(fun)
-            set_val_f(self, fdict[fun])
-          
     def dream_objective(self, *args, **kwargs):
-        return self.dream_obj(*args, **kwargs)
+        return self.dream_obj_manager(*args, **kwargs)
 
     def select_task(self, *args, **kwargs):
-        return self.select_t(*args, **kwargs)
+        return self.select_task_manager(*args, **kwargs)
 
     def target_processing(self, *args, **kwargs):
-        return self.target_proc(*args, **kwargs)
+        return self.target_processing_manager(*args, **kwargs)
 
     def task_split(self, *args, **kwargs):
-        return self.task_spl(*args, **kwargs)
+        return self.task_split_manager(*args, **kwargs)
 
     def model(self, **mkwargs):
         return self.model_constructor(**mkwargs)

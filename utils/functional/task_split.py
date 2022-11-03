@@ -20,14 +20,14 @@ def task_split_decremental(num_classes, num_tasks, jump=2):
     return [list(range(num_classes))[i * jump :] for i in range(num_tasks)]
 
 class TaskSplitManager():
-    GET_SELECT_TASK_PROCESSING = {
+    GET_TASK_SPLIT_PROCESSING = {
         'SPLIT-CLASSIC': task_split_classic,
         'SPLIT-DECREMENTAL': task_split_decremental,
     }
 
     def __init__(self, dtype: str) -> None:
         dtype = dtype.upper()
-        self.select_task = TaskSplitManager.GET_SELECT_TASK_PROCESSING[dtype]
+        self.select_task = TaskSplitManager.GET_TASK_SPLIT_PROCESSING[dtype]
         self.select_task_name = dtype
 
     def __call__(self, *args, **kwargs):

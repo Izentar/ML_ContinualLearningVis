@@ -12,14 +12,18 @@ from tests.evaluation.utils import CustomDreamDataModule
 
 
 class CompareLatent():
+    """
+        Compare latent points.
+        Sample point in latent space, then do dreaming on this point.
+        After that compare the point from generated image to the previous point.
+        This is done by creating custom objective function that compares main point to the previous point 
+        using provided loss function (default MSELoss).
+    """
     def __init__(self):
         self.scheduler = None
         self.logged_main_point = [0]
         self.point_from_model = [0]
         self.custom_loss_f = torch.nn.MSELoss() 
-
-    def get_task_processing(self):
-        return target_processing.target_processing_latent_decode
 
     def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
         def param_f():
@@ -35,7 +39,7 @@ class CompareLatent():
             return set(used_class)
         return select_dream_tasks_f
 
-    def task_processing_decorator(self, f):
+    def target_processing_decorator(self, f):
         def wrapper(target, model, *args, **kwargs):
             point = f(target, model, *args, **kwargs)
             self.logged_main_point[0] = point
@@ -82,21 +86,19 @@ class CompareLatent():
         self.scheduler.step()
         print('Scheduler step', self.scheduler._last_lr)
 
-    def __call__(self, model, used_class, logger, dream_transform, objective_f=None, loss_f=None):
+    def __call__(self, model, used_class, logger, dream_transform, target_processing_f, loss_f=None):
         constructed_dreams = []
 
-        #target_processing_f = self.task_processing_decorator(target_processing.target_processing_latent_sample_multivariate)
-        #target_processing_f = self.task_processing_decorator(target_processing.target_processing_latent_decode)
-        target_processing_f = self.task_processing_decorator(self.get_task_processing())
+        custom_target_processing_f = self.target_processing_decorator(target_processing_f)
 
         self.custom_loss_f = self.custom_loss_f if loss_f is None else loss_f
-        objective_fun = objective_f if objective_f is not None else self.custom_objective_f
+        objective_fun = self.custom_objective_f
 
         dream_module = CustomDreamDataModule(
             train_tasks_split=[used_class],
             select_dream_tasks_f=CompareLatent.wrapper_select_dream_tasks_f(used_class),
             dream_objective_f=objective_fun,
-            target_processing_f=target_processing_f,
+            target_processing_f=custom_target_processing_f,
             dreams_per_target=1,
             dream_threshold=(1024*6,),
             custom_f_steps=(1024*3,1024*5),
