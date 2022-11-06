@@ -1,12 +1,8 @@
 import torch
-from torchvision import transforms
 from dataset import dream_sets
-from dataset.CLModule import DreamDataModule
 from utils.functional import target_processing
 from utils.functional.dream_objective import dream_objective_latent_lossf_creator
-from lucent.optvis import param
 import wandb
-from lucent.optvis.objectives import wrap_objective, handle_batch
 from torch.optim.lr_scheduler import StepLR
 from tests.evaluation.utils import CustomDreamDataModule
 from utils.data_manipulation import select_class_indices_tensor
@@ -62,7 +58,7 @@ class DisorderDream():
 
     def get_dream_optim(self):
         def inner(params):
-            self.optimizer = torch.optim.Adam(params, lr=5e-5)
+            self.optimizer = torch.optim.Adam(params, lr=5e-3)
             #self.optimizer = torch.optim.SGD(params, lr=0.1, momentum=0.9)
             self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
             return self.optimizer
@@ -74,14 +70,49 @@ class DisorderDream():
         wandb.log({f'{label}/index_of_selected_img': index})
         return dataset[index]
 
-    def __call__(self, model, used_class, dataset, logger, dream_transform, objective_f=None, dream_loss_f=None):
-        constructed_dreams = []
+    def _disorder_image(self, logger, label, image, device, disorder_input_image):
+        logger.log_metrics({
+            f'{label}/original_image': wandb.Image(image)
+        })
+
+        if(disorder_input_image):
+            random = torch.rand(image.shape).to(device)
+            image *= random
+        return image
+
+    def _compare_orig_constructed(self, original_im, constructed_im, label, logger):
+        heatmap = torch.abs(original_im - constructed_im).squeeze()
+        logger.log_metrics({
+            f'{label}/heatmap_abs_compare': wandb.Image(torch.sum(heatmap, dim=0), mode='L')
+        })
+        logger.log_metrics({
+            f'{label}/heatmap_squared_compare': wandb.Image(torch.sum(heatmap **2, dim=0), mode='L')
+        })
+
+    def __call__(
+            self, 
+            model, 
+            used_class, 
+            dataset, 
+            logger, 
+            dream_transform, 
+            objective_f=None, 
+            dream_loss_f=None, 
+            disorder_input_image=True,
+            enable_scheduler=True, # in experiments it does not changes output significantly but the loss converge to zero
+            scheduler_steps=(1024*3, 1024*4, 1024*5),
+            dream_threshold=(1024*6,),
+        ):
         label = 'disorder_dream'
         point = None
         device = 'cuda:0'
 
         custom_loss_f = torch.nn.MSELoss() if dream_loss_f is None else dream_loss_f
-        custom_objective_f = objective_f if objective_f is not None else dream_objective_latent_lossf_creator(logger, custom_loss_f)
+        custom_objective_f = objective_f if objective_f is not None else dream_objective_latent_lossf_creator(
+            logger=logger, 
+            loss_f=custom_loss_f, 
+            label=label,
+        )
 
         # select image
         image, _ = self._select_rand_image(dataset, used_class, label=label)
@@ -96,16 +127,25 @@ class DisorderDream():
 
         point.to(device)
 
+        original_image = image.clone()
+
+        image = self._disorder_image(
+            logger=logger,
+            label=label,
+            image=image,
+            device=device,
+            disorder_input_image=disorder_input_image,
+        )
+
         dream_module = CustomDreamDataModule(
-            train_tasks_split=[used_class],
+            train_tasks_split=[[used_class]],
             select_dream_tasks_f=DisorderDream.wrapper_select_dream_tasks_f(used_class),
             dream_objective_f=custom_objective_f,
             target_processing_f=self.target_processing_decorator(DisorderDream.target_processing_custom_creator(point)),
             dreams_per_target=1,
-            dream_threshold=(1024*6,),
-            custom_f_steps=(1024*3,1024*5),
-            #custom_f=self.scheduler_step,
-            custom_f=lambda: None,
+            dream_threshold=dream_threshold,
+            custom_f_steps=scheduler_steps,
+            custom_f=self.scheduler_step if enable_scheduler else lambda: None,
             param_f=DisorderDream.starting_image_creator(detached_image=image),
             const_target_images_per_dreaming_batch=1,
             optimizer=self.get_dream_optim(),
@@ -120,10 +160,14 @@ class DisorderDream():
             update_progress_f=lambda *args, **kwargs: None, 
             task_index=0,
         )
+        self._compare_orig_constructed(
+            original_im=original_image,
+            constructed_im=constructed_dream.to(device),
+            label=label,
+            logger=logger,
+        )
 
-        constructed_dreams.append(constructed_dream)
-
-        self._log(constructed_dreams=constructed_dreams, real_image=image, used_class=used_class, logger=logger, label=label)
+        self._log(constructed_dreams=constructed_dream, real_image=image, used_class=used_class, logger=logger, label=label)
 
     def _log(self, constructed_dreams, real_image, used_class, logger, label):
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()
@@ -144,5 +188,5 @@ class DisorderDream():
         })
 
         logger.log_metrics({
-            f'{label}/selected_image': wandb.Image(real_image)
+            f'{label}/used_image': wandb.Image(real_image)
         })

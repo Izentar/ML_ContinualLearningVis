@@ -1,11 +1,11 @@
 import torch
 from lucent.optvis.objectives import wrap_objective, handle_batch
 from lucent.optvis import objectives
-import wandb
+from utils.counter import Counter
 
-counter = {}
-for i in range(10):
-    counter[i] = 0
+"""
+    If the function has in name '_creator' part then it will be invoked during init_objectives_creator.
+"""
 
 @wrap_objective()
 def inner_obj_latent_channel(layer, batch=None):
@@ -15,21 +15,23 @@ def inner_obj_latent_channel(layer, batch=None):
     return inner
 
 @wrap_objective()
-def inner_obj_latent(target, target_layer, target_val, logger=None, batch=None, loss_f=None):
+def inner_obj_latent(target, target_layer, target_val, logger=None, label=None, batch=None, loss_f=None):
     inner_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
+    counter = Counter()
+
     @handle_batch(batch)
     def inner(model):
-        global counter
+        #global counter
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         loss = inner_loss_f(latent, latent_target)
-        if(logger is not None):
-            logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
-            #logger.log_metrics({f'dream/sum_latent_{target}': latent.detach().sum().item()}, counter[target])
-            #logger.log_metrics({f'dream/sum_latent_target_{target}': latent_target.detach().sum().item()}, counter[target])
-            #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter[target])
-            #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter[target])
-        counter[target] += 1
+        if(logger is not None and label is not None):
+            logger.log_metrics({f'{label}/loss_target_{target}': loss}, counter.get())
+            #logger.log_metrics({f'dream/sum_latent_{target}': latent.detach().sum().item()}, counter.get())
+            #logger.log_metrics({f'dream/sum_latent_target_{target}': latent_target.detach().sum().item()}, counter.get())
+            #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter.get())
+            #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter.get())
+        counter.up()
         return loss
     return inner
 
@@ -38,16 +40,16 @@ def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, logge
     loss_f = torch.nn.MSELoss() 
     @handle_batch(batch)
     def inner(model):
-        global counter
+        #global counter
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         latent = latent[:, 0]
         latent_target = latent_target[:, 0]
         loss = loss_f(latent, latent_target)
-        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter[target])
-        #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0]}, counter[target])
-        #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0]}, counter[target])
-        counter[target] += 1
+        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter.get())
+        #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0]}, counter.get())
+        #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0]}, counter.get())
+        counter.up()
         return loss
     return inner
 
@@ -83,7 +85,7 @@ def dream_objective_RESNET20_C100_diversity(model, **kwargs):
 def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
     return objectives.channel(model.get_objective_target(), target_point)
 
-def dream_objective_latent_lossf_creator(logger, loss_f=None, **kwargs):
+def dream_objective_latent_lossf_creator(logger, label=None, loss_f=None, **kwargs):
     def inner(target, target_point, model, **inner_kwargs):
         return inner_obj_latent(
             target_layer=model.get_objective_target(), 
@@ -91,16 +93,18 @@ def dream_objective_latent_lossf_creator(logger, loss_f=None, **kwargs):
             logger=logger, 
             target=target,
             loss_f=loss_f,
+            label=label,
         ) #- objectives.diversity(
         #    "model_model_conv2"
         #)
     return inner
 
-def dream_objective_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2):
+def dream_objective_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2, logger=None, label=None):
     '''
         latent_saver - must be a list, where the last tensor point 
             from model output layer will be saved at position 0 (zero).
     '''
+    counter = Counter()
     def wrapper(target, target_point, model, **kwargs):
         @wrap_objective()
         def dream_objective_step_sample_normal(target, target_layer, target_val, batch=None):
@@ -111,6 +115,9 @@ def dream_objective_step_sample_normal_creator(loss_f, latent_saver: list, std_s
                 latent_saver.append(latent.detach().cpu().numpy())
                 latent_target = out_target_val.repeat(len(latent), 1).to(latent.device)
                 loss = loss_f(latent, latent_target)
+                if(logger is not None and label is not None):
+                    logger.log_metrics({f'{label}/step_sample_normal_loss': loss}, counter.get())
+                    counter.up()
                 return loss
             return inner
         return dream_objective_step_sample_normal(
@@ -120,20 +127,24 @@ def dream_objective_step_sample_normal_creator(loss_f, latent_saver: list, std_s
         )
     return wrapper
 
-def dream_objective_lossf_latent_compare_creator(loss_f, latent_saver: list):
+def dream_objective_lossf_latent_compare_creator(loss_f, latent_saver: list, logger=None, label=None):
     '''
         latent_saver - must be a list, where the last tensor point 
             from model output layer will be saved at position 0 (zero).
     '''
+    counter = Counter()
     def wrapper(target, target_point, model, **kwargs):
         @wrap_objective()
         def dream_objective_lossf_latent_compare(target, target_layer, target_val, batch=None):
             @handle_batch(batch)
             def inner(model_layers, **kwargs):
-                latent = model(target_layer) # return feature map
-                latent_saver.append(latent.numpy(force=True))
+                latent = model_layers(target_layer) # return feature map
+                latent_saver.append(latent.detach().cpu().numpy())
                 latent_target = target_val.repeat(len(latent), 1)
                 loss = loss_f(latent, latent_target)
+                if(logger is not None and label is not None):
+                    logger.log_metrics({f'{label}/lossf_latent_compare_loss': loss}, counter.get())
+                    counter.up()
                 return loss
             return inner
         return dream_objective_lossf_latent_compare(

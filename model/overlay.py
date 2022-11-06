@@ -164,6 +164,9 @@ class CLModelIslandsTest(CLModel):
     def forward(self, *args, make_adv=False, with_image=False, **kwargs):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)
 
+    def decode(self, target):
+        return self.loss_f.decode(target)
+
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self.loss_f(latent, y)
         self.log(f"{log_label}/MSE_loss", loss)
@@ -217,7 +220,9 @@ class CLModelIslandsTest(CLModel):
             selected = (y == i)
             correct_sum = torch.logical_and((classified_to_class == i), selected).sum().item()
             target_sum_total = selected.sum().item()
-            print(f'Cl {i.item()}: {correct_sum / target_sum_total}')
+            if(target_sum_total != 0):
+                pass
+                print(f'Cl {i.item()}: {correct_sum / target_sum_total}')
             self.valid_correct += correct_sum
             self.valid_all += target_sum_total
         print(self.valid_correct, self.valid_all, self.valid_correct/self.valid_all)

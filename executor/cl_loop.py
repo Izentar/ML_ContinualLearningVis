@@ -63,7 +63,9 @@ class CLLoop(Loop):
             export_path: save model parameters to path on current task
 
             num_loops - if None then the same as num_tasks. It is used to loop over the num_tasks.
-                If num_loops == num_tasks then nothing is changed.
+                If num_loops == num_tasks then nothing is changed. 
+                It can be used to loop more than the num_tasks after 
+                all tasks are done.
         """
         super().__init__()
         self.num_tasks = len(epochs_per_task)

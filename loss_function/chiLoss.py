@@ -39,15 +39,22 @@ class DummyLoss():
     def sample(self, selected_class, utype='normal'):
         raise Exception("Not implemented")
 
+    def decode(self, target):
+        return target
+
 class ChiLossBase():
     def __init__(self, cyclic_latent_buffer):
         self.centers_of_clouds = cyclic_latent_buffer
         self.to_log = {}
+        self._train = True
 
     def __call__(self, input, target, train=True):
         assert not torch.any(torch.isnan(input)), f"Input is NaN\n{input}"
-        if train:
+        if self._train and train:
             self.centers_of_clouds.push_target(input, target)
+
+    def train(self, flag):
+        self._train = flag
 
     def _get_stack_means(self, example):
         """
@@ -88,6 +95,9 @@ class ChiLossBase():
     def remove_diagonal(self, matrix, batch_size):
         # remove diagonal - distance from, to the same class
         return matrix.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
+
+    def decode(self, target):
+        return target
 
 class ChiLoss(ChiLossBase):
     def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1., eps=1e-5, start_mean_buff_at=500):
@@ -367,10 +377,13 @@ class ChiLossOneHot(ChiLossBase):
         return torch.stack(batch, 0)
 
     def __call__(self, input, target, train=True):
-        super().__call__(input, target)
+        super().__call__(input, target, train)
 
         one_hot_batch = self._create_one_hot_batch(target)
-        return self.loss_f(input, one_hot_batch)
+        return self.loss_f(input, one_hot_batch.float())
+
+    def decode(self, target):
+        return self._create_one_hot_batch(target)
 
 class ChiLossOneHotPairwise(ChiLossBase):
     """

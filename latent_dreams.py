@@ -5,30 +5,19 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from utils.fun_config_set import FunConfigSet, FunConfigSetPredefined
 from utils.progress_bar import CustomRichProgressBar
-from executor.cl_loop import BaseCLDataModule, CLLoop
+from executor.cl_loop import CLLoop
 from config.default import datasets, datasets_map
-from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
 #from loss_function import point_scope
 
-from utils import data_manipulation as datMan
-from utils.functional import dream_objective
-from utils.functional import select_task
-from utils.functional import target_processing
-from utils.functional import task_split
 from dataset import dream_sets
 
 from lucent.optvis import param
 from lucent.optvis import transform as tr
 
-from model.ResNet import ResNet18, Resnet20C100
-from model.SAE import SAE_standalone, SAE_CIFAR, SAE_CIFAR_TEST
-from model.vgg import vgg11_bn
 from dataset.CLModule import CLDataModule
 from dataset.pairing import PairingBatchSampler, PairingBatchSamplerV2
-from utils.data_manipulation import get_target_from_dataset
 import torch
 import numpy as np
-from loss_function.chiLoss import ChiLoss
 
 from stats.point_plot import PointPlot, Statistics
 from torch.utils.data import DataLoader
@@ -268,6 +257,32 @@ def CIFAR100_labels():
     99: "worm",
 }
 
+def select_datasampler(dtype, main_split):
+    def inner(dataset, batch_size, shuffle, classes): 
+        return PairingBatchSamplerV2(
+            dataset=dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            classes=classes,
+            main_class_split=main_split,
+        )
+    def inner2(dataset, batch_size, shuffle, classes):
+        return PairingBatchSampler(
+            dataset=dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            classes=classes,
+            main_class_split=main_split,
+            classes_frequency=[1 / len(classes)] * len(classes)
+        )
+
+    if(dtype == 'none'):
+        return None
+    elif(dtype == 'v2'):
+        return inner
+    else:
+        raise Exception(f'Unknown type: {dtype}')
+
 def second_demo():
     # normal dreaming
     args = arg_parser()
@@ -282,14 +297,14 @@ def second_demo():
     num_loops = 1
     scheduler_steps = (1, 6)
     #scheduler_steps = None
-    num_classes = 3
+    num_classes = 10
     epochs_per_task = 5
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 8
-    main_split = collect_main_split = 0.5
+    main_split = collect_main_split = 0.1
     sigma = 0.01
     rho = 1.
-    hidden = 4
+    hidden = 10
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
@@ -300,8 +315,9 @@ def second_demo():
     freeze_task_at_end = True
     only_dream_batch = False
     with_reconstruction = False
-    run_without_training = True
+    run_without_training = False
     collect_numb_of_points = 2500
+    datasampler_type = 'none'
     cyclic_latent_buffer_size_per_class = 40
     optimizer = lambda param: torch.optim.Adam(param, lr=1e-3)
     #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
@@ -319,6 +335,7 @@ def second_demo():
     train_normal_robustly = True
     train_dreams_robustly = True
     dataset_class_labels = CIFAR100_labels()
+    datasampler = select_datasampler(dtype=datasampler_type, main_split=main_split)
 
     only_one_hot = False
     one_hot_means = get_one_hots(mytype='diagonal', size=hidden)
@@ -361,7 +378,7 @@ def second_demo():
     #)
     set_manager = FunConfigSetPredefined('decode', logger)
 
-    set_manager.init_dream_objectives(logger=logger)
+    set_manager.init_dream_objectives(logger=logger, label='dream')
 
     source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
     target_processing_f = set_manager.target_processing
@@ -462,22 +479,7 @@ def second_demo():
         freeze_task_at_end=freeze_task_at_end,
         logger=logger,
         dataset_class_labels=dataset_class_labels,
-        datasampler=lambda dataset, batch_size, shuffle, classes: 
-            #PairingBatchSampler(
-            #    dataset=dataset,
-            #    batch_size=batch_size,
-            #    shuffle=shuffle,
-            #    classes=classes,
-            #    main_class_split=main_split,
-            #    classes_frequency=[1 / len(classes)] * len(classes)
-            #),
-            PairingBatchSamplerV2(
-                dataset=dataset,
-                batch_size=batch_size,
-                shuffle=shuffle,
-                classes=classes,
-                main_class_split=main_split,
-            ),
+        datasampler=datasampler,
         batch_size=my_batch_size
     )
     
@@ -528,21 +530,21 @@ def second_demo():
                 classes=np.unique(targets),
                 main_class_split=collect_main_split,
             )
-    #collect_stats(model=model, dataset=dataset,
-    #    collect_numb_of_points=collect_numb_of_points, 
-    #    collector_batch_sampler=collector_batch_sampler,
-    #    nrows=nrows, ncols=ncols, 
-    #    logger=logger, attack_kwargs=attack_kwargs)
+    collect_stats(model=model, dataset=dataset,
+        collect_numb_of_points=collect_numb_of_points, 
+        collector_batch_sampler=collector_batch_sampler,
+        nrows=nrows, ncols=ncols, 
+        logger=logger, attack_kwargs=attack_kwargs)
 
-    #compare_latent = CompareLatent()
-    #compare_latent(
-    #    model=model,
-    #    loss_f=model.loss_f, 
-    #    used_class=0, 
-    #    logger=logger,
-    #    dream_transform=dreams_transforms,
-    #    target_processing_f=set_manager.target_processing,
-    #)
+    compare_latent = CompareLatent()
+    compare_latent(
+        model=model,
+        #loss_f=model.loss_f, 
+        used_class=0, 
+        logger=logger,
+        dream_transform=dreams_transforms,
+        target_processing_f=set_manager.target_processing,
+    )
 
     disorder_dream = DisorderDream()
     dataset = dataset_class(root="./data", train=True, transform=transform)
