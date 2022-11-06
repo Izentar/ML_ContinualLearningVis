@@ -69,7 +69,7 @@ def get_target_from_dataset(dataset, toTensor=False) -> list:
         return torch.tensor(dataset.targets)
     return dataset.targets
 
-def select_class_indices_tensor(cl, target):
+def select_class_indices_tensor(cl, target: torch.Tensor):
     cl_indices = torch.isin(target, cl)
     cl_indices_list = torch.where(cl_indices)[0]
     return cl_indices_list

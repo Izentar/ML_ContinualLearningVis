@@ -66,11 +66,7 @@ class FunConfigSet(FunConfigSetBase):
             otype=otype, 
             logger=logger
         )
-        self.dream_obj_first = None
-        self.dream_obj_rest = []
-        self.select_t = None
-        self.target_proc = None
-        self.task_spl = None
+
         self.model_constructor = None
         self.model_ov = None
 
@@ -126,6 +122,9 @@ class FunConfigSet(FunConfigSetBase):
         self.select_task_manager = select_task.SelectTaskManager(select_task_type)
         self.target_processing_manager = target_processing.TargetProcessingManager(target_processing_type)
         self.task_split_manager = task_split.TaskSplitManager(task_split_type)
+
+    def init_dream_objectives(self, **kwargs):
+        self.dream_obj_manager.init_objectives_creator(**kwargs)
 
     def _init_register_template(self, ftype, fdict, error_mss: str):
         if(not isinstance(ftype, list)):

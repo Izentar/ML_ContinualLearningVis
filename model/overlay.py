@@ -39,8 +39,8 @@ class CLModel(base.CLBase):
     def forward(self, *args, make_adv=False, with_image=False, **kwargs):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)
 
-    def call_loss(self, input, target, **kwargs):
-        return self.loss_f(input, target)
+    def call_loss(self, input, target, train, **kwargs):
+        return self.loss_f(input, target, train)
 
     def training_step_normal(self, batch):
         x, y = batch
@@ -151,32 +151,21 @@ class CLModelIslandsTest(CLModel):
         kwargs.pop('loss_f', None)
         super().__init__(num_classes=num_classes, *args, loss_f=torch.nn.MSELoss(), **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
+        
         self.one_hot_means = one_hot_means
+        self.loss_f = ChiLossOneHot(one_hot_means, self.cyclic_latent_buffer, loss_f=self.loss_f)
 
-        self.loss_f = self._loss_decorator(self.loss_f)
-        self.loss_f = DummyLoss(self.loss_f)
+        self.valid_correct = 0
+        self.valid_all = 0
 
-    def _loss_decorator(self, f):
-        def wrapper(input, target):
-            self.cyclic_latent_buffer.push_target(input, target.to(torch.int))
-            return f(input, target)
-        return wrapper
-
-    def decode(self, target: list):
-        one_hot = []
-        for t in target:
-            one_hot.append(self.one_hot_means[t.item()].to(t.device))
-        return torch.stack(one_hot, 0)
-
-    def call_loss(self, input, target, **kwargs):
-        return self.loss_f(input, self.decode(target))
+    def call_loss(self, input, target, train, **kwargs):
+        return self.loss_f(input, target, train)
 
     def forward(self, *args, make_adv=False, with_image=False, **kwargs):
         return self.model(*args, make_adv=make_adv, with_image=with_image, **kwargs)
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        y_decoded = self.decode(y)
-        loss = self.loss_f(latent, y_decoded.float())
+        loss = self.loss_f(latent, y)
         self.log(f"{log_label}/MSE_loss", loss)
 
         loss = self.process_losses_normal_reconstruction(
@@ -186,6 +175,7 @@ class CLModelIslandsTest(CLModel):
             model_out_dict=model_out_dict
         )
 
+        # log values of a point
         selected_class = 0
         uniq = torch.unique(y)
         cl_batch = None
@@ -211,28 +201,40 @@ class CLModelIslandsTest(CLModel):
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
-        y = self.decode(y)
         model_out = self(x)
-        y_cl, _ = self.get_model_out_data(model_out)
-        val_loss = self.loss_f(y_cl, y)
+        y_model, _ = self.get_model_out_data(model_out)
+        val_loss = self.loss_f(y_model, y)
         self.log("val_loss", val_loss)
 
+        classified_to_class = self.loss_f.classify(y_model)
         valid_acc = self.valid_accs[dataloader_idx]
-        valid_acc(y_cl, y)
+        valid_acc(classified_to_class, y)
         self.log("valid_acc", valid_acc)
+
+    def valid_to_class(self, classified_to_class, y):
+        uniq = torch.unique(classified_to_class)
+        for i in uniq:
+            selected = (y == i)
+            correct_sum = torch.logical_and((classified_to_class == i), selected).sum().item()
+            target_sum_total = selected.sum().item()
+            print(f'Cl {i.item()}: {correct_sum / target_sum_total}')
+            self.valid_correct += correct_sum
+            self.valid_all += target_sum_total
+        print(self.valid_correct, self.valid_all, self.valid_correct/self.valid_all)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y = self.decode(y)
         model_out = self(x)
-        y_cl, _ = self.get_model_out_data(model_out)
-        test_loss = self.loss_f(y_cl, y)
+        y_model, _ = self.get_model_out_data(model_out)
+        test_loss = self.loss_f(y_model, y)
         self.log("test_loss", test_loss)
-        self.test_acc(y_cl, y)
+
+        classified_to_class = self.loss_f.classify(y_model)
+        self.test_acc(classified_to_class, y)
+        #self.valid_to_class(classified_to_class, y)
         self.log("test_acc", self.test_acc)
 
     def get_buffer(self):
-        #raise Exception("Buffer not implemented")
         return self.cyclic_latent_buffer
 
     def get_obj_str_type(self) -> str:

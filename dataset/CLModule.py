@@ -69,6 +69,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dataset_class_labels=None,
         custom_f_steps=(0,),
         custom_f=lambda *args: None,
+        disable_transforms=False,
     ):
         """
         Args:
@@ -90,6 +91,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams_per_target = max_logged_dreams_per_target
         self.progress_bar = progress_bar
+        self.disable_transforms = disable_transforms
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
@@ -292,8 +294,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     #transforms=None, # default use standard transforms on the image that is generating.
                     #optimizer=None, # default Adam
                     #preprocess=True, # simple ImageNet normalization that will be used on the image that is generating.
-                    thresholds=thresholds # max() - how many iterations is used to generate an input image. Also
+                    thresholds=thresholds, # max() - how many iterations is used to generate an input image. Also
                                         # for the rest of the numbers, save the image during the i-th iteration
+                    disable_transforms=self.disable_transforms,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))

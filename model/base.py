@@ -68,6 +68,9 @@ class CLBase(LightningModule):
         return self._inner_training_step(batch, batch_idx)
 
     def get_model_out_data(self, model_out):
+        """
+            Return latent and model output dictionary if exist else None
+        """
         model_out_dict = None
         latent = model_out
         if(isinstance(model_out, tuple)):

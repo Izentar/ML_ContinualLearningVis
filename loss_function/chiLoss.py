@@ -30,7 +30,7 @@ class DummyLoss():
     def __init__(self, loss):
         self.loss = loss
         
-    def __call__(self, input, target):
+    def __call__(self, input, target, train=True):
         return self.loss(input, target)
 
     def classify(self, input):
@@ -42,6 +42,7 @@ class DummyLoss():
 class ChiLossBase():
     def __init__(self, cyclic_latent_buffer):
         self.centers_of_clouds = cyclic_latent_buffer
+        self.to_log = {}
 
     def __call__(self, input, target, train=True):
         assert not torch.any(torch.isnan(input)), f"Input is NaN\n{input}"
@@ -63,7 +64,9 @@ class ChiLossBase():
         return torch.stack(means, 0), torch.stack(target, 0)
             
     def classify(self, input):
-        # return only a vector of classes that will be compared to real batch target
+        """
+            Return only a vector of classes that will be compared to real batch target
+        """ 
         input = input.detach()
         means, target = self._get_stack_means(example=input)
         target = target.repeat((len(input), 1))
@@ -94,8 +97,6 @@ class ChiLoss(ChiLossBase):
         self.rho = rho
         self.loss_means_from_buff = loss_means_from_buff
         self.start_mean_buff_at = start_mean_buff_at
-
-        self.to_log = {}
 
         #if(sigma >= rho):
         #    raise Exception(f"Sigma cannot be bigger or equal than rho - sigma: {sigma}; rho: {tho}")
@@ -343,17 +344,41 @@ class ChiLoss(ChiLossBase):
         return self._simple_mean_from_batch_chi_loss(input, target)
         #return self._simple_mean_buffer_chi_loss(input, target)
 
-
 class ChiLossOneHot(ChiLossBase):
-    def __init__(self, one_hot_means:dict, cyclic_latent_buffer, sigma=0.2, rho=1., eps=1e-5, only_one_hot=False):
+    """
+        Compare points from batch to onehots using custom loss function.
+        Custom loss function should take input and onehot vector targets like MSELoss.
+    """
+    def __init__(self, one_hot_means:dict, cyclic_latent_buffer, loss_f=torch.nn.MSELoss()):
         super().__init__(cyclic_latent_buffer=cyclic_latent_buffer)
-        self.sigma = sigma
-        self.rho = rho
         self.one_hot_means = one_hot_means
-        self.eps = eps
-        self.only_one_hot = only_one_hot
+        self.loss_f = loss_f
 
-        self.to_log = {}
+        if (one_hot_means is None or len(one_hot_means) == 0):
+            raise Exception('Empty dictionary.')
+
+    def to(self, device):
+        return
+
+    def _create_one_hot_batch(self, target):
+        batch = []
+        for t in target:
+            batch.append(self.one_hot_means[t.item()].detach().to(t.device))
+        return torch.stack(batch, 0)
+
+    def __call__(self, input, target, train=True):
+        super().__call__(input, target)
+
+        one_hot_batch = self._create_one_hot_batch(target)
+        return self.loss_f(input, one_hot_batch)
+
+class ChiLossOneHotPairwise(ChiLossBase):
+    """
+        Compare points from batch to onehots using pairwise distance
+    """
+    def __init__(self, one_hot_means:dict, cyclic_latent_buffer):
+        super().__init__(cyclic_latent_buffer=cyclic_latent_buffer)
+        self.one_hot_means = one_hot_means
 
         if (one_hot_means is None or len(one_hot_means) == 0):
             raise Exception('Empty dictionary.')
@@ -369,6 +394,34 @@ class ChiLossOneHot(ChiLossBase):
             batch.append(self.one_hot_means[t.item()].detach().to(t.device))
         return torch.stack(batch, 0)
 
+    def __call__(self, input, target, train=True):
+        super().__call__(input, target)
+
+        one_hot_batch = self._create_one_hot_batch(target)
+        loss = self.pdist(one_hot_batch, input) ** 2
+        loss = loss.sum()
+        return loss
+
+class ChiLossOneHotIslands(ChiLossBase):
+    """
+        Use chiloss positive (cdist) on the points from batch from the same class and 
+        compare last X classes points means to corresponding onehots.
+    """
+    def __init__(self, one_hot_means:dict, cyclic_latent_buffer, sigma=0.2, eps=1e-5, onehot_means_distance_scale=5000):
+        super().__init__(cyclic_latent_buffer=cyclic_latent_buffer)
+        self.sigma = sigma
+        self.one_hot_means = one_hot_means
+        self.eps = eps
+        self.onehot_means_distance_scale = onehot_means_distance_scale
+
+        if (one_hot_means is None or len(one_hot_means) == 0):
+            raise Exception('Empty dictionary.')
+
+        self.pdist = torch.nn.PairwiseDistance(p=2)
+
+    def to(self, device):
+        return
+
     def _get_means_and_onehot(self, input, target):
         means = []
         one_hot = []
@@ -380,38 +433,31 @@ class ChiLossOneHot(ChiLossBase):
 
     def __call__(self, input, target, train=True):
         super().__call__(input, target)
+        k = input.size(dim=1)
+        batch_size = input.size(dim=0)
 
-        if(self.only_one_hot):
-            one_hot_batch = self._create_one_hot_batch(target)
-            loss = self.pdist(one_hot_batch, input) ** 2
-            
-            loss = loss.sum()
-        else:
-            k = input.size(dim=1)
-            batch_size = input.size(dim=0)
+        target_stacked = target.repeat((len(target), 1))
+        positive_mask = (target_stacked == target_stacked.T).float()
 
-            target_stacked = target.repeat((len(target), 1))
-            positive_mask = (target_stacked == target_stacked.T).float()
+        means, one_hot = self._get_means_and_onehot(input, target)
 
-            means, one_hot = self._get_means_and_onehot(input, target)
+        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
 
-            z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
+        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
+        second_part_positive = z_positive / (2 * k)
 
-            first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
-            second_part_positive = z_positive / (2 * k)
-
-            positive_loss = (first_part_positive + second_part_positive) * positive_mask
-            # remove diagonal - distance from, to the same class
-            positive_loss = positive_loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
-            
-            loss = positive_loss.sum()
-
-            distance = self.pdist(means, one_hot) ** 2
-            one_hot_loss = distance.sum()
-            self.to_log['one-hot-loss-dist'] = one_hot_loss
-            one_hot_loss = one_hot_loss * 5000
-            self.distance = distance
-            self.one_hot_loss = one_hot_loss
-            loss += one_hot_loss
+        positive_loss = (first_part_positive + second_part_positive) * positive_mask
+        # remove diagonal - distance from, to the same class
+        positive_loss = positive_loss.flatten()[1:].view(batch_size-1, batch_size+1)[:,:-1].reshape(batch_size, batch_size-1)
         
+        loss = positive_loss.sum()
+
+        distance = self.pdist(means, one_hot) ** 2
+        one_hot_loss = distance.sum()
+        self.to_log['one-hot-loss-dist'] = one_hot_loss
+        one_hot_loss = one_hot_loss * self.onehot_means_distance_scale
+        self.distance = distance
+        self.one_hot_loss = one_hot_loss
+        loss += one_hot_loss
+    
         return loss

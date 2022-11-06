@@ -24,7 +24,7 @@ class DisorderDream():
         self.logged_main_point = [0]
 
     def target_processing_custom_creator(point):
-        def target_processing_custom(target, model, *args, **kwargs):
+        def target_processing_custom(*args, **kwargs):
             return point
         return target_processing_custom
 
@@ -62,14 +62,14 @@ class DisorderDream():
 
     def get_dream_optim(self):
         def inner(params):
-            self.optimizer = torch.optim.Adam(params, lr=5e-3)
+            self.optimizer = torch.optim.Adam(params, lr=5e-5)
             #self.optimizer = torch.optim.SGD(params, lr=0.1, momentum=0.9)
             self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
             return self.optimizer
         return inner
 
     def _select_rand_image(self, dataset, used_class, label):
-        indices = select_class_indices_tensor(torch.IntTensor(dataset.targets), used_class)
+        indices = select_class_indices_tensor(used_class, torch.IntTensor(dataset.targets))
         index = random.choice(indices)
         wandb.log({f'{label}/index_of_selected_img': index})
         return dataset[index]
@@ -92,7 +92,7 @@ class DisorderDream():
 
         with torch.no_grad():
             model.eval()
-            point = model.forward(image)
+            point = model(image)
 
         point.to(device)
 
@@ -104,11 +104,13 @@ class DisorderDream():
             dreams_per_target=1,
             dream_threshold=(1024*6,),
             custom_f_steps=(1024*3,1024*5),
-            custom_f=self.scheduler_step,
+            #custom_f=self.scheduler_step,
+            custom_f=lambda: None,
             param_f=DisorderDream.starting_image_creator(detached_image=image),
             const_target_images_per_dreaming_batch=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
+            disable_transforms=True,
         )
 
         constructed_dream = dream_module._generate_dreams_for_target(

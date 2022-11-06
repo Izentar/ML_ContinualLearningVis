@@ -46,6 +46,7 @@ def render_vis(
     image_name=None,
     show_inline=False,
     fixed_image_size=None,
+    disable_transforms=False,
 ):
     if param_f is None:
         param_f = lambda: param.image(128)
@@ -84,7 +85,10 @@ def render_vis(
             torch.nn.Upsample(size=new_size, mode="bilinear", align_corners=True)
         )
 
-    transform_f = transform.compose(transforms)
+    if(disable_transforms):
+        transform_f = lambda x: x
+    else:
+        transform_f = transform.compose(transforms)
 
     hook = hook_model(model, image_f)
     objective_f = objectives.as_objective(objective_f)

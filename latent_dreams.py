@@ -65,14 +65,6 @@ def getDatasetList(name:str):
             return datasets_map[cap]
     raise Exception(f"Unknown dataset {name}.")
 
-def getModelType(mtype: str):
-    model_types = {
-        "clmodelisland": CLModelWithIslands,
-        "clmodel": CLModel,
-        "clmodelislandtest": CLModelIslandsTest
-    }
-    return model_types.get(mtype, CLModel)
-
 def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
     if(mytype == 'one_cl'):
         #d = {
@@ -297,7 +289,7 @@ def second_demo():
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
-    hidden = 3
+    hidden = 4
     norm_lambd = 0.
     dream_threshold = (512, )
     dream_frequency = 1
@@ -308,7 +300,7 @@ def second_demo():
     freeze_task_at_end = True
     only_dream_batch = False
     with_reconstruction = False
-    run_without_training = False
+    run_without_training = True
     collect_numb_of_points = 2500
     cyclic_latent_buffer_size_per_class = 40
     optimizer = lambda param: torch.optim.Adam(param, lr=1e-3)
@@ -322,15 +314,10 @@ def second_demo():
     dream_optim = get_dream_optim()
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
-    #source_model = SAE_CIFAR(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
-    #source_model = vgg11_bn(num_classes=hidden)
-    #source_model = ResNet18(num_classes=hidden)
-    #source_model = Resnet20C100()
 
     train_with_logits = False
     train_normal_robustly = True
     train_dreams_robustly = True
-    aux_task_type = "clmodelislandtest"
     dataset_class_labels = CIFAR100_labels()
 
     only_one_hot = False
@@ -372,32 +359,15 @@ def second_demo():
     #    mtype='sae',
     #    otype='cl-model-island-test',
     #)
-
     set_manager = FunConfigSetPredefined('decode', logger)
+
+    set_manager.init_dream_objectives(logger=logger)
 
     source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
     val_tasks_split = train_tasks_split = set_manager.task_split(num_classes, num_tasks)
-
-
-    #target_processing_f = target_processing.target_processing_latent_sample_normal_buffer
-    #target_processing_f = target_processing.target_processing_latent_buffer_last_point
-    #   target_processing_f = target_processing.target_processing_latent_decode
-    #   select_dream_tasks_f = select_task.select_task_decremental
-    #   objective_f = dream_objective.dream_objective_latent_lossf_creator(logger=logger)
-    #objective_f = dream_objective.dream_objective_latent_neuron_direction
-
-    # cross_entropy_loss test
-    #target_processing_f = target_processing.target_processing_default
-    #select_dream_tasks_f = select_task.select_task_decremental
-    #objective_f = dream_objective.dream_objective_channel
-
-    # pretrined RESNET test
-    #target_processing_f = target_processing.target_processing_default
-    #select_dream_tasks_f = select_task.select_task_decremental
-    #objective_f = dream_objective.dream_objective_RESNET20_C100_channel
 
 
     if(fast_dev_run):
@@ -425,7 +395,6 @@ def second_demo():
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
     dataset_class_robust = getDatasetList(args.dataset)[1]
-    #model_overlay = getModelType(aux_task_type)
 
     #if fast_dev_run:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
@@ -439,7 +408,6 @@ def second_demo():
         with_reconstruction=with_reconstruction, 
         train_normal_robustly=train_normal_robustly, 
         train_dreams_robustly=train_dreams_robustly,
-        aux_task_type=aux_task_type,
     )
 
     model = set_manager.model_overlay(
@@ -518,7 +486,7 @@ def second_demo():
         max_epochs=-1,  # This value doesn't matter
         logger=logger,
         callbacks=callbacks,
-        #fast_dev_run=fast_dev_run_batches, # error when multiple tasks - in new task 0 batches are done.
+        fast_dev_run=fast_dev_run_batches if fast_dev_run else False, # error when multiple tasks - in new task 0 batches are done.
         limit_train_batches=fast_dev_run_batches if fast_dev_run else None,
         gpus="0,",
         log_every_n_steps=1 if fast_dev_run else 50,
@@ -560,28 +528,28 @@ def second_demo():
                 classes=np.unique(targets),
                 main_class_split=collect_main_split,
             )
-    collect_stats(model=model, dataset=dataset,
-        collect_numb_of_points=collect_numb_of_points, 
-        collector_batch_sampler=collector_batch_sampler,
-        nrows=nrows, ncols=ncols, 
-        logger=logger, attack_kwargs=attack_kwargs)
+    #collect_stats(model=model, dataset=dataset,
+    #    collect_numb_of_points=collect_numb_of_points, 
+    #    collector_batch_sampler=collector_batch_sampler,
+    #    nrows=nrows, ncols=ncols, 
+    #    logger=logger, attack_kwargs=attack_kwargs)
 
-    compare_latent = CompareLatent()
-    compare_latent(
-        model=model,
-        loss_f=model.loss_f, 
-        used_class=0, 
-        logger=logger,
-        dream_transform=dreams_transforms,
-        target_processing_f=set_manager.target_processing,
-    )
+    #compare_latent = CompareLatent()
+    #compare_latent(
+    #    model=model,
+    #    loss_f=model.loss_f, 
+    #    used_class=0, 
+    #    logger=logger,
+    #    dream_transform=dreams_transforms,
+    #    target_processing_f=set_manager.target_processing,
+    #)
 
     disorder_dream = DisorderDream()
-    dataset = dataset_class(root="./data", train=False, transform=transform)
+    dataset = dataset_class(root="./data", train=True, transform=transform)
     disorder_dream(
         model=model,
         dream_loss_f=model.loss_f, 
-        used_class=0, 
+        used_class=1, 
         logger=logger,
         dataset=dataset,
         dream_transform=dreams_transforms,
@@ -630,7 +598,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
-def check(split, num_classes, hidden, num_tasks, with_reconstruction, train_normal_robustly, train_dreams_robustly, aux_task_type):
+def check(split, num_classes, hidden, num_tasks, with_reconstruction, train_normal_robustly, train_dreams_robustly):
     test = set()
     for s in split:
         test = test.union(s)
@@ -641,8 +609,6 @@ def check(split, num_classes, hidden, num_tasks, with_reconstruction, train_norm
     if(with_reconstruction and (train_normal_robustly or train_dreams_robustly)):
         raise Exception(f"Framework robusness does not support model that returns multiple variables. Set correct flags. Current:\
 \nwith_reconstruction: {with_reconstruction}\ntrain_normal_robustly: {train_normal_robustly}\ntrain_dreams_robustly: {train_dreams_robustly}")
-    if(num_classes > hidden and aux_task_type == 'default'):
-        raise Exception(f"Hidden dimension {hidden} is smaller than number of classes {num_classes} in binary classification.")
 
 
 if __name__ == "__main__":

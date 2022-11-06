@@ -9,6 +9,7 @@ import wandb
 from lucent.optvis.objectives import wrap_objective, handle_batch
 from torch.optim.lr_scheduler import StepLR
 from tests.evaluation.utils import CustomDreamDataModule
+from utils.functional import dream_objective
 
 
 class CompareLatent():
@@ -22,7 +23,7 @@ class CompareLatent():
     def __init__(self):
         self.scheduler = None
         self.logged_main_point = [0]
-        self.point_from_model = [0]
+        self.point_from_model = []
         self.custom_loss_f = torch.nn.MSELoss() 
 
     def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
@@ -46,34 +47,6 @@ class CompareLatent():
             return point
         return wrapper
 
-    def custom_objective_f(self, target, target_point, model, **kwargs):
-        @wrap_objective()
-        def inner_obj_latent(target, target_layer, target_val, batch=None):
-            loss_f = self.custom_loss_f
-            @handle_batch(batch)
-            def inner(model):
-                latent = model(target_layer) # return feature map
-                self.point_from_model[0] = latent
-                latent_target = target_val.repeat(len(latent), 1)
-                #print(latent[0][0], latent_target[0][0])
-                loss = loss_f(latent, latent_target)
-                return loss
-
-            def inner_choose_random_sample(model_layers):
-                latent = model_layers(target_layer) # return feature map
-                out_target_val = target_processing.target_processing_latent_sample_normal_std(target_val, torch.ones_like(target_val) * 0.2)
-                self.point_from_model[0] = latent
-                latent_target = out_target_val.repeat(len(latent), 1).to(latent.device)
-                #print(latent[0][0], latent_target[0][0])
-                loss = loss_f(latent, latent_target)
-                return loss
-            return inner_choose_random_sample
-        return inner_obj_latent(
-            target_layer=model.get_objective_target(), 
-            target_val=target_point.to(model.device),  
-            target=target
-        )
-
     def get_dream_optim(self):
         def inner(params):
             self.optimizer = torch.optim.Adam(params, lr=5e-3)
@@ -92,7 +65,11 @@ class CompareLatent():
         custom_target_processing_f = self.target_processing_decorator(target_processing_f)
 
         self.custom_loss_f = self.custom_loss_f if loss_f is None else loss_f
-        objective_fun = self.custom_objective_f
+        objective_fun = dream_objective.dream_objective_step_sample_normal_creator(
+            loss_f=self.custom_loss_f,
+            std_scale=0.2,
+            latent_saver=self.point_from_model,
+        )
 
         dream_module = CustomDreamDataModule(
             train_tasks_split=[used_class],
@@ -122,7 +99,7 @@ class CompareLatent():
         self._log(constructed_dreams=constructed_dreams, logger=logger)
 
     def _log(self, constructed_dreams, logger):
-        point_from_model = self.point_from_model[0].detach().cpu().squeeze()
+        point_from_model = torch.from_numpy(self.point_from_model[-1]).cpu().squeeze()
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()
         print('model', point_from_model)
         print('main ', logged_main_point)
