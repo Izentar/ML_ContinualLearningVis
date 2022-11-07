@@ -46,6 +46,7 @@ class CLBase(LightningModule):
         self.optimizer_construct_f = optimizer_construct_f
         self.scheduler_construct_f = scheduler_construct_f
         self.scheduler = None
+        self.optimizer = None
 
         self.scheduler_steps = scheduler_steps if scheduler_steps is not None else (None, )
 
@@ -124,6 +125,7 @@ class CLBase(LightningModule):
         
         if(self.scheduler_construct_f is not None):
             self.scheduler = self.scheduler_construct_f(optim)
+        self.optimizer = optim
         return optim
 
     def on_train_batch_start(self, batch, batch_idx):
@@ -138,8 +140,13 @@ class CLBase(LightningModule):
 
     # training_epoch_end
     def training_epoch_end(self, output):
-        print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.scheduler_steps {self.scheduler_steps}")
+        # OK
+        #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.current_epoch {self.current_epoch}, self.scheduler_steps {self.scheduler_steps}")
         if(self.scheduler is not None):
+            if not (self.current_epoch < self.data_passer['epoch_per_task']):
+                self.scheduler = self.scheduler_construct_f(self.optimizer)
+                print(f'Scheduler restarted at the epoch {self.current_epoch} end. Learning rate: {self.scheduler._last_lr}')
             if(self.current_epoch in self.scheduler_steps):
                 self.scheduler.step()
-                print(f"Changed learning rate to: {self.scheduler._last_lr}, debug current_task_loop: {self.data_passer['current_task_loop']}, self.scheduler_steps {self.scheduler_steps}")
+                print(f"Changed learning rate to: {self.scheduler._last_lr}")
+                #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.scheduler_steps {self.scheduler_steps}")

@@ -112,6 +112,7 @@ class CLLoop(Loop):
             self.data_passer['current_task'] = -1
             self.data_passer['current_task_loop'] = -1
             self.data_passer['model_train_end_f'] = lambda: None
+        self.data_passer['epoch_per_task'] = self.epochs_per_task[self.current_task]
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the

@@ -188,10 +188,18 @@ class FunConfigSetPredefined(FunConfigSet):
             "sae", 
             "cl-model-island-test"
         ],
-        "island-mean-std": [
+        "island-mean-std-split-decremental": [
             "select-decremental", 
             "target-latent-sample-normal-buffer", 
             "split-decremental", 
+            "objective-latent-lossf-creator", 
+            "sae", 
+            "cl-model-island"
+        ],
+        "island-mean-std-split-classic": [
+            "select-decremental", 
+            "target-latent-sample-normal-buffer", 
+            "split-classic", 
             "objective-latent-lossf-creator", 
             "sae", 
             "cl-model-island"

@@ -8,6 +8,7 @@ from tests.evaluation.utils import CustomDreamDataModule
 from utils.data_manipulation import select_class_indices_tensor
 import random
 import numpy as np
+from utils.counter import CounterBase, Counter
 
 class DisorderDream():
     """
@@ -18,6 +19,7 @@ class DisorderDream():
     """
     def __init__(self) -> None:
         self.logged_main_point = [0]
+        self.class_label = 'disorder_dream'
 
     def target_processing_custom_creator(point):
         def target_processing_custom(*args, **kwargs):
@@ -89,6 +91,22 @@ class DisorderDream():
             f'{label}/heatmap_squared_compare': wandb.Image(torch.sum(heatmap **2, dim=0), mode='L')
         })
 
+    def _inner_magic_wrapper(self, fun, logger, dd_counter: CounterBase):
+        def inner(*args, **kwargs):
+            loss = fun(*args, **kwargs)
+            logger.log_metrics({f'{self.class_label}/loss': loss}, dd_counter.get())
+            dd_counter.up()
+            return loss
+        return inner
+
+    def _magic_wrapper(self, fun, logger):
+        dd_counter = Counter()
+        def inner(**kwargs):
+            objective_fun = fun(**kwargs)
+            objective_wrapped = self._inner_magic_wrapper(objective_fun, logger=logger, dd_counter=dd_counter)
+            return objective_wrapped
+        return inner
+
     def __call__(
             self, 
             model, 
@@ -103,19 +121,18 @@ class DisorderDream():
             scheduler_steps=(1024*3, 1024*4, 1024*5),
             dream_threshold=(1024*6,),
         ):
-        label = 'disorder_dream'
         point = None
         device = 'cuda:0'
 
         custom_loss_f = torch.nn.MSELoss() if dream_loss_f is None else dream_loss_f
-        custom_objective_f = objective_f if objective_f is not None else dream_objective_latent_lossf_creator(
+        custom_objective_f = self._magic_wrapper(objective_f, logger) if objective_f is not None else dream_objective_latent_lossf_creator(
             logger=logger, 
             loss_f=custom_loss_f, 
-            label=label,
+            label=self.class_label,
         )
 
         # select image
-        image, _ = self._select_rand_image(dataset, used_class, label=label)
+        image, _ = self._select_rand_image(dataset, used_class, label=self.class_label)
 
         image = torch.unsqueeze(image, dim=0)
         image = image.to(device)
@@ -131,7 +148,7 @@ class DisorderDream():
 
         image = self._disorder_image(
             logger=logger,
-            label=label,
+            label=self.class_label,
             image=image,
             device=device,
             disorder_input_image=disorder_input_image,
@@ -163,11 +180,11 @@ class DisorderDream():
         self._compare_orig_constructed(
             original_im=original_image,
             constructed_im=constructed_dream.to(device),
-            label=label,
+            label=self.class_label,
             logger=logger,
         )
 
-        self._log(constructed_dreams=constructed_dream, real_image=image, used_class=used_class, logger=logger, label=label)
+        self._log(constructed_dreams=constructed_dream, real_image=image, used_class=used_class, logger=logger, label=self.class_label)
 
     def _log(self, constructed_dreams, real_image, used_class, logger, label):
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()

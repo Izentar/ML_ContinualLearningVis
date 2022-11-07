@@ -291,35 +291,35 @@ def second_demo():
     fast_dev_run = args.fast_dev_run
     fast_dev_run_batches = 30
     fast_dev_run_epochs = 1
-    fast_dev_run_dream_threshold = 32
+    fast_dev_run_dream_threshold = (32, )
 
-    num_loops = num_tasks = 1
-    num_loops = 1
-    scheduler_steps = (1, 6)
+    num_loops = num_tasks = 5
+    #num_loops = 1
+    scheduler_steps = (3, )
     #scheduler_steps = None
     num_classes = 10
     epochs_per_task = 5
     dreams_per_target = 64
     const_target_images_per_dreaming_batch = 8
-    main_split = collect_main_split = 0.1
+    main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
     hidden = 10
     norm_lambd = 0.
-    dream_threshold = (512, )
+    dream_threshold = (1024, )
     dream_frequency = 1
     wandb_offline = False if not fast_dev_run else True
     #wandb_offline = True
-    enable_dreams = False
+    enable_dreams = True
     dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
     freeze_task_at_end = True
     only_dream_batch = False
     with_reconstruction = False
     run_without_training = False
     compare_latent_step_sample = False
-    testing_disable_transforms=True
+    disable_dream_transforms=True
     collect_numb_of_points = 2500
-    datasampler_type = 'none'
+    datasampler_type = 'v2'
     cyclic_latent_buffer_size_per_class = 40
     optimizer = lambda param: torch.optim.Adam(param, lr=1e-3)
     #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
@@ -393,7 +393,7 @@ def second_demo():
     #    mtype='sae',
     #    otype='cl-model-island-test',
     #)
-    set_manager = FunConfigSetPredefined('island-mean-std', logger)
+    set_manager = FunConfigSetPredefined('island-mean-std-split-classic', logger)
     set_manager.init_dream_objectives(logger=logger, label='dream')
 
     source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
@@ -486,7 +486,8 @@ def second_demo():
         logger=logger,
         dataset_class_labels=dataset_class_labels,
         datasampler=datasampler,
-        batch_size=my_batch_size
+        batch_size=my_batch_size,
+        disable_transforms=disable_dream_transforms,
     )
     
 
@@ -551,7 +552,7 @@ def second_demo():
         dream_transform=dreams_transforms,
         target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
         loss_obj_step_sample=compare_latent_step_sample,
-        disable_transforms=testing_disable_transforms,
+        disable_transforms=disable_dream_transforms,
     )
 
     disorder_dream = DisorderDream()

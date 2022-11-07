@@ -271,7 +271,6 @@ class CLModelWithIslands(CLModel):
         kwargs.pop('loss_f', None)
         super().__init__(
             loss_f=ChiLoss(sigma=sigma, rho=rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False),
-            #loss_f = ChiLossOneHot(cyclic_latent_buffer=self.cyclic_latent_buffer, sigma=sigma, rho=rho, one_hot_means=one_hot_means, only_one_hot=only_one_hot)
             num_classes=num_classes,
             *args, 
             **kwargs

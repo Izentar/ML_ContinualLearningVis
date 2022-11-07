@@ -187,10 +187,10 @@ class DreamObjectiveManager():
         self.function_names = []
 
     def __call__(self, *args, **kwargs):
-        loss = self.first_objectives_f(*args, **kwargs)
+        combined_objectives = self.first_objective_f(*args, **kwargs)
         for fun in self.objectives_f:
-            loss += fun(*args, **kwargs)
-        return loss
+            combined_objectives += fun(*args, **kwargs)
+        return combined_objectives
 
     def get_names(self) -> list[str]:
         return self.function_names
@@ -204,11 +204,11 @@ class DreamObjectiveManager():
             self.objectives_f.append(obj)
             self.function_names.append(i)
 
-        self.first_objectives_f = self.objectives_f[0]
+        self.first_objective_f = self.objectives_f[0]
         self.objectives_f = self.objectives_f[1:]
 
     def is_latent(self) -> bool:
-        b = '_latent' in self.first_objectives_f.__name__
+        b = '_latent' in self.first_objective_f.__name__
         for i in self.objectives_f:
             b = b or '_latent' in i.__name__
         return b
