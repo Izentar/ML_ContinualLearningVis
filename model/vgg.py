@@ -4,6 +4,7 @@ import torch.nn.init as init
 import torch.nn.functional as F
 from torch.nn.functional import cross_entropy
 from torch.autograd import Variable
+from model.model_base import ModelBase
 
 
 from model import base
@@ -26,7 +27,7 @@ import os, sys
 (c) YANG, Wei 
 '''
 
-class VGG(nn.Module):
+class VGG(nn.Module, ModelBase):
     def __init__(self, features, num_classes=1000, *args, **kwargs):
         super(VGG, self).__init__()
         # *args, **kwargs to ignore arguments
@@ -58,6 +59,12 @@ class VGG(nn.Module):
                 n = m.weight.size(1)
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
+
+    def get_objective_layer(self):
+        return self.classifier
+
+    def get_objective_layer_output_shape(self):
+        return (self.classifier.out_features, )
 
 def make_layers(cfg, batch_norm=False):
     layers = []

@@ -80,6 +80,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
             target_processing_f: function that will take the list of targets and process them to the desired form.
                 For example it will take a task and transform it to the point from normal distribution.
                 The default function do nothing to targets. 
+            freeze_task_at_end - at the end of task loop, select all previous tasks. Ex. having [0, 1], [2, 3] at third loop
+                the classes for task will be [0, 1, 2, 3].
         """
         super().__init__()
         self.train_tasks_split = train_tasks_split
@@ -569,7 +571,7 @@ class CLDataModule(DreamDataModule):
             self.train_task,
             batch_size=self.batch_size if self.datasampler is None else 1,
             num_workers=self.num_workers,
-            shuffle=shuffle if self.datasampler is None else False, 
+            shuffle=self.shuffle if self.datasampler is None else False, 
             pin_memory=True,
             batch_sampler=self.datasampler(
                     dataset=self.train_task, 

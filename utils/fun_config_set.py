@@ -18,8 +18,8 @@ class FunConfigSetBase():
         'OBJECTIVE-RESNET20-C100-DIVERSITY': 'RESNET20C100',
         'OBJECTIVE-RESNET20-C100-CHANNEL': 'RESNET20',
         'TARGET-LATENT-DECODE': 'CL-MODEL-ISLAND-TEST',
-        'CLMODEL': 'TARGET-DEFAULT',
-        'TARGET-DEFAULT': 'CLMODEL',
+        'CL-MODEL': 'TARGET-DEFAULT',
+        'TARGET-DEFAULT': 'CL-MODEL',
     }
     
     GET_MODEL = {
@@ -123,6 +123,12 @@ class FunConfigSet(FunConfigSetBase):
         self.target_processing_manager = target_processing.TargetProcessingManager(target_processing_type)
         self.task_split_manager = task_split.TaskSplitManager(task_split_type)
 
+    def is_target_processing_latent(self) -> bool:
+        return self.target_processing_manager.is_latent()
+    
+    def is_dream_objective_latent(self) -> bool:
+        return self.dream_obj_manager.is_latent()
+
     def init_dream_objectives(self, **kwargs):
         self.dream_obj_manager.init_objectives_creator(**kwargs)
 
@@ -182,7 +188,7 @@ class FunConfigSetPredefined(FunConfigSet):
             "sae", 
             "cl-model-island-test"
         ],
-        "normal-buffer": [
+        "island-mean-std": [
             "select-decremental", 
             "target-latent-sample-normal-buffer", 
             "split-decremental", 
@@ -206,12 +212,12 @@ class FunConfigSetPredefined(FunConfigSet):
             "sae", 
             "cl-model"
         ],
-        "resnet-default": [
+        "resnet-pretrain-c100": [
             "select-decremental", 
             "target-default", 
             "split-decremental", 
-            "objective-resnet20-c100-channel", 
-            "resnet", 
+            "objective-channel", 
+            "resnet20c100", 
             "cl-model"
         ]
 

@@ -1,10 +1,12 @@
 import torch
 from lucent.optvis.objectives import wrap_objective, handle_batch
 from lucent.optvis import objectives
-from utils.counter import Counter
+from utils.counter import Counter, CounterBase, CounterKeys, CounterKeysBase
 
 """
     If the function has in name '_creator' part then it will be invoked during init_objectives_creator.
+    Because of that inside it you can create Counter object. Inside other functions do not create counter
+    because during target changing the Counter object will be created again, effectively overriting existing data inside logs.
 """
 
 @wrap_objective()
@@ -15,40 +17,39 @@ def inner_obj_latent_channel(layer, batch=None):
     return inner
 
 @wrap_objective()
-def inner_obj_latent(target, target_layer, target_val, logger=None, label=None, batch=None, loss_f=None):
+def inner_obj_latent(target, target_layer, target_val, counter: CounterKeysBase, logger=None, label=None, batch=None, loss_f=None):
     inner_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
-    counter = Counter()
 
     @handle_batch(batch)
     def inner(model):
-        #global counter
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         loss = inner_loss_f(latent, latent_target)
         if(logger is not None and label is not None):
-            logger.log_metrics({f'{label}/loss_target_{target}': loss}, counter.get())
+            logger.log_metrics({f'{label}/loss_target_{target}': loss}, counter.get(target))
             #logger.log_metrics({f'dream/sum_latent_{target}': latent.detach().sum().item()}, counter.get())
             #logger.log_metrics({f'dream/sum_latent_target_{target}': latent_target.detach().sum().item()}, counter.get())
             #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter.get())
             #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter.get())
-        counter.up()
+        counter.up(target)
         return loss
     return inner
 
 @wrap_objective()
-def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, logger, batch=None):
-    loss_f = torch.nn.MSELoss() 
+def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, counter: CounterBase, logger=None, label=None, batch=None, loss_f=None):
+    loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
+
     @handle_batch(batch)
     def inner(model):
-        #global counter
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         latent = latent[:, 0]
         latent_target = latent_target[:, 0]
         loss = loss_f(latent, latent_target)
-        logger.log_metrics({f'dream/loss_target_{target}': loss}, counter.get())
-        #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0]}, counter.get())
-        #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0]}, counter.get())
+        if(logger is not None and label is not None):
+            logger.log_metrics({f'{label}/loss_target_{target}': loss}, counter.get())
+            #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0]}, counter.get())
+            #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0]}, counter.get())
         counter.up()
         return loss
     return inner
@@ -86,6 +87,7 @@ def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
     return objectives.channel(model.get_objective_target(), target_point)
 
 def dream_objective_latent_lossf_creator(logger, label=None, loss_f=None, **kwargs):
+    counter = CounterKeys()
     def inner(target, target_point, model, **inner_kwargs):
         return inner_obj_latent(
             target_layer=model.get_objective_target(), 
@@ -94,12 +96,13 @@ def dream_objective_latent_lossf_creator(logger, label=None, loss_f=None, **kwar
             target=target,
             loss_f=loss_f,
             label=label,
+            counter=counter,
         ) #- objectives.diversity(
         #    "model_model_conv2"
         #)
     return inner
 
-def dream_objective_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2, logger=None, label=None):
+def dream_objective_latent_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2, logger=None, label=None):
     '''
         latent_saver - must be a list, where the last tensor point 
             from model output layer will be saved at position 0 (zero).
@@ -127,7 +130,7 @@ def dream_objective_step_sample_normal_creator(loss_f, latent_saver: list, std_s
         )
     return wrapper
 
-def dream_objective_lossf_latent_compare_creator(loss_f, latent_saver: list, logger=None, label=None):
+def dream_objective_latent_lossf_compare_creator(loss_f, latent_saver: list, logger=None, label=None):
     '''
         latent_saver - must be a list, where the last tensor point 
             from model output layer will be saved at position 0 (zero).
@@ -172,8 +175,8 @@ class DreamObjectiveManager():
         'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
         'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity,
         'OBJECTIVE-RESNET20-C100-DIVERSITY': dream_objective_RESNET20_C100_diversity,
-        'OBJECTIVE-STEP-SAMPLE-NORMAL-CREATOR': dream_objective_step_sample_normal_creator,
-        'OBJECTIVE-LOSSF-LATENT-COMPARE-CREATOR': dream_objective_lossf_latent_compare_creator,
+        'OBJECTIVE-LATENT-STEP-SAMPLE-NORMAL-CREATOR': dream_objective_latent_step_sample_normal_creator,
+        'OBJECTIVE-LATENT-LOSSF-COMPARE-CREATOR': dream_objective_latent_lossf_compare_creator,
     }
     def __init__(self, dtype: list[str]) -> None:
         if isinstance(dtype, str):
@@ -203,3 +206,9 @@ class DreamObjectiveManager():
 
         self.first_objectives_f = self.objectives_f[0]
         self.objectives_f = self.objectives_f[1:]
+
+    def is_latent(self) -> bool:
+        b = '_latent' in self.first_objectives_f.__name__
+        for i in self.objectives_f:
+            b = b or '_latent' in i.__name__
+        return b

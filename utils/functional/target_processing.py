@@ -1,14 +1,18 @@
 import torch
 
+def target_processing_latent_binary_classification(target, model, *args, **kwargs):
+    out = torch.zeros(model.get_objective_layer_output_shape(), dtype=torch.float32)
+    out[target] = 1.
+    return out
 
 def target_processing_default(target, *args, **kwargs):
-    return target
+    return torch.tensor(target, dtype=torch.float32)
 
 def target_processing_latent_decode(target, model, *args, **kwargs):
     return model.decode(torch.tensor([target], dtype=torch.int32)).float()
 
-def target_processing_latent_sample_normal_std(target_point, std_vector, *args, **kwargs):
-    return torch.normal(target_point, std_vector)
+def target_processing_latent_sample_normal_std(mean, std, *args, **kwargs):
+    return torch.normal(mean, std)
 
 def target_processing_latent_sample_normal_mean_std_full_targets(target, mean, std, *args, **kwargs):
     """
@@ -28,15 +32,15 @@ def target_processing_latent_sample_normal_mean_std_full_targets(target, mean, s
         return torch.index_select(tmp, dim=0, index=torch.tensor(target))
     return tmp[target]
 
-def target_processing_latent_sample_normal_mean_std_vectors(mean_vector, std_vector, *args, **kwargs):
-    assert torch.all(std_vector >= 0.0), f"Bad value mean/std \n{mean_vector} \n{std_vector}"
-    point = torch.normal(mean=mean_vector, std=std_vector)
+def target_processing_latent_sample_normal_mean_std_vectors(mean, std, *args, **kwargs):
+    assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std}"
+    point = torch.normal(mean=mean, std=std)
     return point
 
 def target_processing_latent_sample_normal_buffer(target, model, *args, **kwargs):
     std, mean = model.get_buffer().std_mean_target(target)
     assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{target}"
-    return target_processing_latent_sample_normal_mean_std_vectors(mean_vector=mean, std_vector=std)
+    return target_processing_latent_sample_normal_mean_std_vectors(mean=mean, std=std)
 
 def target_processing_latent_sample_multivariate(target, model, *args, **kwargs):
     sample = model.loss_f.sample(target)
@@ -62,6 +66,7 @@ class TargetProcessingManager():
         'TARGET-LATENT-SAMPLE-MULTIVARIATE': target_processing_latent_sample_multivariate,
         'TARGET-LATENT-BUFFER-LAST-POINT': target_processing_latent_buffer_last_point,
         'TARGET-LATENT-MEAN': target_processing_latent_mean,
+        'TARGET-LATENT-BINARY-CLASSIFICATION': target_processing_latent_binary_classification
     }
 
     def __init__(self, dtype: str) -> None:
@@ -74,3 +79,6 @@ class TargetProcessingManager():
 
     def get_name(self) -> str:
         return self.target_processing_name
+
+    def is_latent(self) -> bool:
+        return '_latent' in self.target_processing.__name__

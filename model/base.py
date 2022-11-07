@@ -108,6 +108,14 @@ class CLBase(LightningModule):
     def get_obj_str_type(self) -> str:
         pass
 
+    @abstractmethod
+    def get_objective_layer(self):
+        pass
+
+    @abstractmethod
+    def get_objective_layer_output_shape(self):
+        pass
+
     def configure_optimizers(self):
         if(self.optimizer_construct_f is None):
             optim = torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])

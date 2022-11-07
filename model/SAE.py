@@ -5,8 +5,9 @@ from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 from robustness.tools import custom_modules
 import math
+from model.model_base import ModelBase
 
-class SAE_CIFAR(nn.Module):
+class SAE_CIFAR(nn.Module, ModelBase):
     def __init__(self, num_classes, hidd1=256, last_hidd_layer=32, with_reconstruction=True):
         super().__init__()
         self.with_reconstruction = with_reconstruction
@@ -101,6 +102,12 @@ class SAE_CIFAR(nn.Module):
 
     def get_root_name(self):
         return ""
+
+    def get_objective_layer(self):
+        return self.fc1_2
+
+    def get_objective_layer_output_shape(self):
+        return (self.fc1_2.out_features, )
 
 class SAE_CIFAR_TEST(SAE_CIFAR):
     def __init__(self, num_classes, *args, **kwargs):

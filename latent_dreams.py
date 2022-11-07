@@ -316,6 +316,8 @@ def second_demo():
     only_dream_batch = False
     with_reconstruction = False
     run_without_training = False
+    compare_latent_step_sample = False
+    testing_disable_transforms=True
     collect_numb_of_points = 2500
     datasampler_type = 'none'
     cyclic_latent_buffer_size_per_class = 40
@@ -332,10 +334,25 @@ def second_demo():
     dreams_transforms = data_transform()
 
     train_with_logits = False
-    train_normal_robustly = True
-    train_dreams_robustly = True
+    train_normal_robustly = False
+    train_dreams_robustly = False
     dataset_class_labels = CIFAR100_labels()
     datasampler = select_datasampler(dtype=datasampler_type, main_split=main_split)
+
+    attack_kwargs = {
+        "constraint": "2",
+        "eps": 0.5,
+        "step_size": 1.5,
+        "iterations": 10,
+        "random_start": 0,
+        "custom_loss": None,
+        "random_restarts": 0,
+        "use_best": True,
+        'with_latent': False,
+        'fake_relu': False,
+        'no_relu':False,
+    }
+    attack_kwargs = {}
 
     only_one_hot = False
     one_hot_means = get_one_hots(mytype='diagonal', size=hidden)
@@ -376,8 +393,7 @@ def second_demo():
     #    mtype='sae',
     #    otype='cl-model-island-test',
     #)
-    set_manager = FunConfigSetPredefined('decode', logger)
-
+    set_manager = FunConfigSetPredefined('island-mean-std', logger)
     set_manager.init_dream_objectives(logger=logger, label='dream')
 
     source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
@@ -386,6 +402,10 @@ def second_demo():
     objective_f = set_manager.dream_objective
     val_tasks_split = train_tasks_split = set_manager.task_split(num_classes, num_tasks)
 
+    if(train_normal_robustly):
+        print('WARNING:\tTRAIN NORMAL ROBUSTLY IS ENABLED, SLOWER TRAINING.')
+    if(train_dreams_robustly):
+        print('WARNING:\tTRAIN DREAMS ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
     if(fast_dev_run):
         pass
@@ -394,20 +414,6 @@ def second_demo():
         #const_target_images_per_dreaming_batch = 8
         #epochs_per_task = 2
         dreams_per_target = 64
-
-    attack_kwargs = {
-        "constraint": "2",
-        "eps": 0.5,
-        "step_size": 1.5,
-        "iterations": 10,
-        "random_start": 0,
-        "custom_loss": None,
-        "random_restarts": 0,
-        "use_best": True,
-        'with_latent': False,
-        'fake_relu': False,
-        'no_relu':False,
-    }
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
     dataset_class = getDataset(args.dataset)
@@ -543,21 +549,21 @@ def second_demo():
         used_class=0, 
         logger=logger,
         dream_transform=dreams_transforms,
-        target_processing_f=set_manager.target_processing,
+        target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
+        loss_obj_step_sample=compare_latent_step_sample,
+        disable_transforms=testing_disable_transforms,
     )
 
     disorder_dream = DisorderDream()
     dataset = dataset_class(root="./data", train=True, transform=transform)
     disorder_dream(
         model=model,
-        dream_loss_f=model.loss_f, 
         used_class=1, 
         logger=logger,
         dataset=dataset,
         dream_transform=dreams_transforms,
-        objective_f=set_manager.dream_objective
+        objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
     )
-
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
 

@@ -7,6 +7,7 @@ from tests.evaluation.utils import CustomDreamDataModule
 from utils.functional import dream_objective
 from loss_function.chiLoss import ChiLossBase
 import numpy as np
+from utils.functional.target_processing import target_processing_latent_binary_classification
 
 
 class CompareLatent():
@@ -62,27 +63,41 @@ class CompareLatent():
             used_class, 
             logger, 
             dream_transform, 
-            target_processing_f, 
+            target_processing_f=None, 
             loss_f=None,
-            enable_scheduler=True, 
+            enable_scheduler=False, 
             scheduler_steps=(1024*3, 1024*4, 1024*5),
             dream_threshold=(1024*6,),
+            loss_obj_step_sample=False,
+            disable_transforms=True,
         ):
         label = 'compare_latent'
 
         if(isinstance(loss_f, ChiLossBase)):
             raise Exception(f'ChiLoss cannot be used as loss function. Use default MSELoss.')
 
-        custom_target_processing_f = self.target_processing_decorator(target_processing_f)
+        custom_target_processing_f = self.target_processing_decorator(
+            target_processing_f
+        ) if target_processing_f is not None else self.target_processing_decorator(
+            target_processing_latent_binary_classification
+        )
 
         self.custom_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
-        objective_fun = dream_objective.dream_objective_lossf_latent_compare_creator(
-            loss_f=self.custom_loss_f,
-            #std_scale=0.2,
-            latent_saver=self.point_from_model,
-            label=label,
-            logger=logger,
-        )
+        if(loss_obj_step_sample):
+            objective_fun = dream_objective.dream_objective_latent_step_sample_normal_creator(
+                loss_f=self.custom_loss_f,
+                std_scale=0.1,
+                latent_saver=self.point_from_model,
+                label=label,
+                logger=logger,
+            )
+        else:
+            objective_fun = dream_objective.dream_objective_latent_lossf_compare_creator(
+                loss_f=self.custom_loss_f,
+                latent_saver=self.point_from_model,
+                label=label,
+                logger=logger,
+            )
 
         dream_module = CustomDreamDataModule(
             train_tasks_split=[[used_class]],
@@ -97,6 +112,7 @@ class CompareLatent():
             const_target_images_per_dreaming_batch=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
+            disable_transforms=disable_transforms
         )
 
         model.to('cuda:0').eval()
@@ -113,14 +129,18 @@ class CompareLatent():
     def _log(self, constructed_dreams, logger, label):
         point_from_model = torch.from_numpy(self.point_from_model[-1]).cpu().squeeze()
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()
-        print('model', point_from_model)
-        print('main ', logged_main_point)
+        print('COMPARE LATENT: model point', point_from_model)
+        print('COMPARE LATENT: main point', logged_main_point)
 
         diff = self.custom_loss_f(point_from_model, logged_main_point)
         point_from_model = point_from_model.numpy().squeeze()
         logged_main_point = logged_main_point.numpy().squeeze()
         table_model = wandb.Table(columns=[f'd{i}' for i in range(len(point_from_model))])
-        table_main = wandb.Table(columns=[f'd{i}' for i in range(len(logged_main_point))])
+        print(logged_main_point.ndim)
+        if(logged_main_point.ndim == 0):
+            table_main = wandb.Table(columns=f'd{logged_main_point}')
+        else:
+            table_main = wandb.Table(columns=[f'd{i}' for i in range(len(logged_main_point))])
         table_model.add_data(*point_from_model)
         table_main.add_data(*logged_main_point)
 

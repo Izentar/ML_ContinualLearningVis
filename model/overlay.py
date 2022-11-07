@@ -137,6 +137,12 @@ class CLModel(base.CLBase):
     def get_objective_target(self):
         return "model_model_" + self.model.model.get_objective_layer_name()
 
+    def get_objective_layer(self):
+        return self.model.model.get_objective_layer()
+
+    def get_objective_layer_output_shape(self):
+        return self.model.model.get_objective_layer_output_shape()
+
     def get_root_objective_target(self): 
         return "model_model_" + self.model.model.get_root_name()
 
@@ -144,7 +150,7 @@ class CLModel(base.CLBase):
         return
 
     def get_obj_str_type(self) -> str:
-        return 'CLModel_' + self.model.__qualname__
+        return 'CLModel_' + type(self.model).__qualname__
 
 class CLModelIslandsTest(CLModel):
     def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, only_one_hot=False, size_per_class=40, **kwargs):
@@ -332,16 +338,6 @@ class CLModelWithIslands(CLModel):
         self.test_acc(self.loss_f.classify(latent), y)
         self.log("test_acc", self.test_acc)
 
-    def _calculate_cov(self, inp, target):
-        target_unique, target_count = torch.unique(target, return_counts=True)
-        max_idx = torch.argmax(target_count)
-        main_target_class = target_unique[max_idx]
-        
-        select_class_indices_tensor(main_target, target)
-        cl_indices = torch.isin(new_buffer_target, cl)
-        cl_indices_list = torch.where(cl_indices)[0]
-
-        cov_matrix = torch.cov(inp)
 
     def training_step(self, batch, batch_idx):
         if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):

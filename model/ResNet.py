@@ -2,8 +2,9 @@
 from torchvision.models import resnet18
 from torch import nn
 from pytorchcv.model_provider import get_model as ptcv_get_model
+from model.model_base import ModelBase
 
-class ResNet18(nn.Module):
+class ResNet18(nn.Module, ModelBase):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__()
 
@@ -18,8 +19,14 @@ class ResNet18(nn.Module):
     def get_root_name(self):
         return "resnet_"
 
-class Resnet20C100(nn.Module):
-    def __init__(self, pretrained=True):
+    def get_objective_layer(self):
+        return self.resnet.fc
+
+    def get_objective_layer_output_shape(self):
+        return (self.resnet.fc.out_features,)
+
+class Resnet20C100(nn.Module, ModelBase):
+    def __init__(self, pretrained=True, *args, **kwargs):
         super().__init__()
 
         self.resnet = ptcv_get_model("resnet20_cifar100", pretrained=pretrained)
@@ -33,4 +40,8 @@ class Resnet20C100(nn.Module):
     def get_root_name(self):
         return "resnet_"
 
-    
+    def get_objective_layer(self):
+        return self.resnet.output
+
+    def get_objective_layer_output_shape(self):
+        return (self.resnet.output.out_features, )
