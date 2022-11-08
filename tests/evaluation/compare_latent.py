@@ -65,7 +65,7 @@ class CompareLatent():
             dream_transform, 
             target_processing_f=None, 
             loss_f=None,
-            enable_scheduler=False, 
+            enable_scheduler=True, 
             scheduler_steps=(1024*3, 1024*4, 1024*5),
             dream_threshold=(1024*6,),
             loss_obj_step_sample=False,

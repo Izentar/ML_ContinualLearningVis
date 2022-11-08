@@ -42,14 +42,14 @@ class Counter(CounterBase):
 
 class CounterKeys(CounterKeysBase):
     def __init__(self, start=0, keys=None) -> None:
-        self.keys = keys if keys is not None else [0]
+        keys = keys if keys is not None else [0]
         self.start = start
         self.values = {}
-        for i in self.keys:
+        for i in keys:
             self.values[i] = start
 
     def _create_exist(self, key):
-        if(key not in self.keys):
+        if(key not in self.values):
             self.values[key] = self.start
 
     def up(self, key):
@@ -62,7 +62,7 @@ class CounterKeys(CounterKeysBase):
 
     def reset(self, key=None):
         if(key is None):
-            for i in self.keys:
+            for i in self.values:
                 self.values = self.start
         else:
             self.values[key] = self.start
