@@ -18,6 +18,7 @@ class CLBase(LightningModule):
         only_dream_batch=False,
         optimizer_construct_f=None,
         scheduler_construct_f=None,
+        optimizer_restart_params=None,
         scheduler_steps=None,
         *args, 
         **kwargs
@@ -25,6 +26,7 @@ class CLBase(LightningModule):
         '''
             optimizer_construct_f - function with signature fun(parameters)
             scheduler_construct_f - function with signature fun(optim)
+            optimizer_restart_params - function with signature fun(optimizer)
         '''
         super().__init__()
         # ignore *args, **kwargs
@@ -45,6 +47,7 @@ class CLBase(LightningModule):
         self.only_dream_batch = only_dream_batch
         self.optimizer_construct_f = optimizer_construct_f
         self.scheduler_construct_f = scheduler_construct_f
+        self.optimizer_restart_params = optimizer_restart_params
         self.scheduler = None
         self.optimizer = None
 
@@ -141,11 +144,14 @@ class CLBase(LightningModule):
     # training_epoch_end
     def training_epoch_end(self, output):
         # OK
-        #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.current_epoch {self.current_epoch}, self.scheduler_steps {self.scheduler_steps}")
+        #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.current_epoch {self.current_epoch}")
+        #print(f"self.data_passer['epoch_per_task'] {self.data_passer['epoch_per_task']}, self.scheduler_steps {self.scheduler_steps}")
         if(self.scheduler is not None):
-            if not (self.current_epoch < self.data_passer['epoch_per_task']):
+            if(self.current_epoch >= self.data_passer['epoch_per_task'] - 1):
+                self.optimizer_restart_params(self.optimizer)
                 self.scheduler = self.scheduler_construct_f(self.optimizer)
-                print(f'Scheduler restarted at the epoch {self.current_epoch} end. Learning rate: {self.scheduler._last_lr}')
+                print(f'Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.scheduler._last_lr}')
+                return
             if(self.current_epoch in self.scheduler_steps):
                 self.scheduler.step()
                 print(f"Changed learning rate to: {self.scheduler._last_lr}")

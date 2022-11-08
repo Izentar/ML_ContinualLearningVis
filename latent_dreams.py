@@ -321,10 +321,14 @@ def second_demo():
     collect_numb_of_points = 2500
     datasampler_type = 'v2'
     cyclic_latent_buffer_size_per_class = 40
-    optimizer = lambda param: torch.optim.Adam(param, lr=1e-3)
+    lr = 1e-3
+    optimizer = lambda param: torch.optim.Adam(param, lr=lr)
     #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
     #scheduler = None
     scheduler = lambda optim: torch.optim.lr_scheduler.ExponentialLR(optim, gamma=0.1)
+    def reset_optim(optim, sched=None):
+        for g in optim.param_groups:
+            g['lr'] = lr
     nrows = 4
     ncols = 4
     my_batch_size = 32
@@ -456,6 +460,7 @@ def second_demo():
         optimizer_construct_f=optimizer,
         scheduler_construct_f=scheduler,
         scheduler_steps=scheduler_steps,
+        optimizer_restart_params=reset_optim,
     )
     print(f'MODEL TYPE: {model.get_obj_str_type()}')
 

@@ -129,7 +129,7 @@ class CLLoop(Loop):
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
         if (self.current_task_loop > 0 and self.enable_dreams):
-            print(f"DREAMING FOR TASK: {self.current_task}, loop {self.current_task_loop}")
+            print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_task_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
@@ -167,7 +167,7 @@ class CLLoop(Loop):
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule
         and its optimizers."""
-        print(f"ENDING TASK {self.current_task}, loop {self.current_task_loop}")
+        print(f"ENDING TASK {self.current_task - 1}, loop {self.current_task_loop}")
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
         if self.export_path is not None:
