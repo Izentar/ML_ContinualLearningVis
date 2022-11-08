@@ -115,7 +115,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         if(empty_dream_dataset is None):
             raise Exception("Empty dream dataset.")
-    
+
+        self.wandb_flushed = False
 
     @abstractmethod
     def prepare_data(self):
@@ -137,6 +138,14 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def test_dataloader(self):
         pass
 
+    def flush_wandb(self):
+        wandb.log({'train_dream_examples': self.wandb_dream_img_table})
+        self.wandb_flushed = True
+
+    def __del__(self):
+        if not (self.wandb_flushed):
+            print('WARNING:\tdreaming images were not flushed by wandb.')
+
     def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
         """Generate new dreams."""
         primal_dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
@@ -156,13 +165,11 @@ class DreamDataModule(BaseCLDataModule, ABC):
         )
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
-        wandb.log({'dream_examples': self.wandb_dream_img_table})
 
         self.calculated_mean_std = False
         if model_mode:
             model.train()
 
-    
     def _generate_dreams(self, model, dream_targets, iterations, task_index):
         new_dreams = []
         new_targets = []
