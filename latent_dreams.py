@@ -186,6 +186,8 @@ def second_demo():
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
+    test_sigma_disorder = 0.0
+    start_img_value = 0.0
     hidden = 10
     norm_lambd = 0.
     dream_threshold = (1024, )
@@ -448,7 +450,9 @@ def second_demo():
         logger=logger,
         dataset=dataset,
         dream_transform=dreams_transforms,
-        objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
+        #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
+        sigma_disorder=test_sigma_disorder,
+        start_img_value=start_img_value,
     )
 
     # show dream png

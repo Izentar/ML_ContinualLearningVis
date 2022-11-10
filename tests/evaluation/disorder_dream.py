@@ -9,6 +9,7 @@ from utils.data_manipulation import select_class_indices_tensor
 import random
 import numpy as np
 from utils.counter import CounterBase, Counter
+from torchvision import transforms
 
 class DisorderDream():
     """
@@ -72,23 +73,40 @@ class DisorderDream():
         wandb.log({f'{label}/index_of_selected_img': index})
         return dataset[index]
 
-    def _disorder_image(self, logger, label, image, device, disorder_input_image):
+    def _disorder_image(self, logger, label, image, device, disorder_input_image, sigma_disorder, start_img_value=None):
         logger.log_metrics({
             f'{label}/original_image': wandb.Image(image)
         })
 
         if(disorder_input_image):
-            random = torch.rand(image.shape).to(device)
-            image *= random
+            mean = torch.zeros_like(image)
+            std = torch.ones_like(image) * sigma_disorder
+            #print(f'DEBUG: DISORDER DREAM: mean: {mean}; sigma: {std}')
+            random = torch.normal(mean, std**2).to(device)
+            if(start_img_value is not None):
+                image = torch.ones_like(image) * start_img_value
+                image += random
         return image
 
-    def _compare_orig_constructed(self, original_im, constructed_im, label, logger):
-        heatmap = torch.abs(original_im - constructed_im).squeeze()
+    def _compare_orig_constructed(self, original_img, disorder_img, constructed_img, label, logger):
+        assert original_img.shape == constructed_img.shape
+        assert disorder_img.shape == constructed_img.shape
+        heatmap = torch.abs(original_img - constructed_img).squeeze()
+        to_pil = lambda img: transforms.ToPILImage()(img)
+        
         logger.log_metrics({
-            f'{label}/heatmap_abs_compare': wandb.Image(torch.sum(heatmap, dim=0), mode='L')
+            f'{label}/heatmap_abs_compare(original - constructed)': wandb.Image(to_pil(torch.sum(heatmap, dim=0)), mode='L')
         })
         logger.log_metrics({
-            f'{label}/heatmap_squared_compare': wandb.Image(torch.sum(heatmap **2, dim=0), mode='L')
+            f'{label}/heatmap_squared_compare(original - constructed)': wandb.Image(to_pil(torch.sum(heatmap **2, dim=0)), mode='L')
+        })
+        
+        heatmap = torch.abs(disorder_img - constructed_img).squeeze()
+        logger.log_metrics({
+            f'{label}/heatmap_abs_compare(disorder - constructed)': wandb.Image(to_pil(torch.sum(heatmap, dim=0)), mode='L')
+        })
+        logger.log_metrics({
+            f'{label}/heatmap_squared_compare(disorder - constructed)': wandb.Image(to_pil(torch.sum(heatmap **2, dim=0)), mode='L')
         })
 
     def _inner_magic_wrapper(self, fun, logger, dd_counter: CounterBase):
@@ -114,12 +132,14 @@ class DisorderDream():
             dataset, 
             logger, 
             dream_transform, 
+            sigma_disorder,
             objective_f=None, 
             dream_loss_f=None, 
             disorder_input_image=True,
             enable_scheduler=True, # in experiments it does not changes output significantly but the loss converge to zero
             scheduler_steps=(1024*3, 1024*4, 1024*5),
             dream_threshold=(1024*6,),
+            start_img_value=None,
         ):
         point = None
         device = 'cuda:0'
@@ -152,6 +172,8 @@ class DisorderDream():
             image=image,
             device=device,
             disorder_input_image=disorder_input_image,
+            sigma_disorder=sigma_disorder,
+            start_img_value=start_img_value,
         )
 
         dream_module = CustomDreamDataModule(
@@ -178,8 +200,9 @@ class DisorderDream():
             task_index=0,
         )
         self._compare_orig_constructed(
-            original_im=original_image,
-            constructed_im=constructed_dream.to(device),
+            original_img=original_image,
+            disorder_img=image,
+            constructed_img=constructed_dream.to(device),
             label=self.class_label,
             logger=logger,
         )
