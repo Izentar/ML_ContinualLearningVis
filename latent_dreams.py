@@ -28,6 +28,7 @@ from tests.evaluation.disorder_dream import DisorderDream
 def arg_parser():
     parser = ArgumentParser()
     parser.add_argument("-f", "--fast-dev-run", action="store_true")
+    parser.add_argument("--cpu", action="store_true")
     parser.add_argument("-d", "--dataset", type=str)
     return parser.parse_args()
 
@@ -175,7 +176,7 @@ def second_demo():
     fast_dev_run_epochs = 1
     fast_dev_run_dream_threshold = (32, )
 
-    num_loops = num_tasks = 5
+    num_loops = num_tasks = 1
     #num_loops = 1
     scheduler_steps = (3, )
     #scheduler_steps = None
@@ -194,7 +195,7 @@ def second_demo():
     dream_frequency = 1
     wandb_offline = False if not fast_dev_run else True
     #wandb_offline = True
-    enable_dreams = True
+    enable_dreams = False
     dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
     freeze_task_at_end = True
     only_dream_batch = False
@@ -280,7 +281,7 @@ def second_demo():
     #    mtype='sae',
     #    otype='cl-model-island-test',
     #)
-    set_manager = FunConfigSetPredefined('island-mean-std-split-classic', logger)
+    set_manager = FunConfigSetPredefined(name_type='decode', mtype='SAECONJ', logger=logger)
     set_manager.init_dream_objectives(logger=logger, label='dream')
 
     source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
@@ -385,7 +386,7 @@ def second_demo():
         callbacks=callbacks,
         fast_dev_run=fast_dev_run_batches if fast_dev_run else False, # error when multiple tasks - in new task 0 batches are done.
         limit_train_batches=fast_dev_run_batches if fast_dev_run else None,
-        gpus="0,",
+        gpus=None if args.cpu else "0,",
         log_every_n_steps=1 if fast_dev_run else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )

@@ -3,12 +3,12 @@ import torch
 from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
-from robustness.tools import custom_modules
 import math
 from model.model_base import ModelBase
+from model.activation_layer import GaussAL, Conjuction
 
 class SAE_CIFAR(nn.Module, ModelBase):
-    def __init__(self, num_classes, hidd1=256, last_hidd_layer=32, with_reconstruction=True):
+    def __init__(self, num_classes, hidd1=20, last_hidd_layer=32, with_reconstruction=True):
         super().__init__()
         self.with_reconstruction = with_reconstruction
         self.hidd1 = hidd1
@@ -187,3 +187,39 @@ class SAE_standalone(base.CLBase):
     def forward(self, *args):
         return self.model(*args)
 
+class SAE_CIFAR_GAUSS(SAE_CIFAR):
+    def forward_encoder(self, x):
+        xe = GaussAL(self.conv1(x))
+        xe = GaussAL(self.conv2(xe))
+        shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
+
+        xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
+        xe = GaussAL(self.fc1_1(xe))
+        xe_latent_pre_relu = self.fc1_2(xe)
+
+        return xe_latent_pre_relu, shp
+
+    def forward_decoder(self, xe, shp):
+        xd = GaussAL(self.fc_dec_1_1(xe))
+        xd = GaussAL(self.fc_dec_1_2(xd))
+        xd = torch.reshape(xd, (shp[0], shp[1], shp[2], shp[3]))
+        xd = GaussAL(self.conv_dec_1(xd))
+        return sigmoid(self.conv_dec_2(xd))
+
+class SAE_CIFAR_CONJ(SAE_CIFAR_GAUSS):
+    def __init__(self, num_classes, hidd1=19, last_hidd_layer=32, with_reconstruction=True):
+        super().__init__(num_classes, hidd1, last_hidd_layer, with_reconstruction)
+
+        self.fc1_2 = nn.Linear(in_features=math.ceil(hidd1 / 2), out_features=last_hidd_layer)
+
+    def forward_encoder(self, x):
+        xe = GaussAL(self.conv1(x))
+        xe = GaussAL(self.conv2(xe))
+        shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
+
+        xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
+        t = self.fc1_1(xe)
+        xe = Conjuction(t)
+        xe_latent_pre_relu = self.fc1_2(xe)
+
+        return xe_latent_pre_relu, shp

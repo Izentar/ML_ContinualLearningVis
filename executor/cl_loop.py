@@ -170,10 +170,10 @@ class CLLoop(Loop):
         print(f"ENDING TASK {self.current_task - 1}, loop {self.current_task_loop}")
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
-        if self.export_path is not None:
-            self.trainer.save_checkpoint(
-                self.export_path / f"model.{self.current_task_loop}.pt"
-            )
+        #if self.export_path is not None:
+        #    self.trainer.save_checkpoint(
+        #        self.export_path / f"model.{self.current_task_loop}.pt"
+        #    )
 
         torch.cuda.empty_cache()
         gc.collect()

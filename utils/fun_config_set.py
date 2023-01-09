@@ -6,7 +6,7 @@ from utils.functional import task_split
 
 from typing import Union
 
-from model.SAE import SAE_CIFAR
+from model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
 from model.vgg import vgg11_bn
 from model.ResNet import ResNet18, Resnet20C100
 from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
@@ -27,6 +27,8 @@ class FunConfigSetBase():
         'VGG': vgg11_bn,
         'RESNET18': ResNet18,
         'RESNET20C100': Resnet20C100,
+        'SAEGAUSS': SAE_CIFAR_GAUSS,
+        'SAECONJ': SAE_CIFAR_CONJ,
     }
 
     GET_OVERLAY = {
@@ -231,17 +233,27 @@ class FunConfigSetPredefined(FunConfigSet):
 
     }
 
-    def __init__(self, name_type: str, logger=None):
+    def __init__(
+        self, 
+        name_type: str, 
+        dream_obj_type: Union[list[str], str]=None, 
+        select_task_type: str=None,
+        target_processing_type: str=None,
+        task_split_type: str=None,
+        mtype: str=None, 
+        otype: str=None, 
+        logger=None
+    ):
         if(name_type not in FunConfigSetPredefined.PREDEFINED_TYPES):
             raise Exception(f"Unknown predefined type: {name_type}")
 
         type_list = FunConfigSetPredefined.PREDEFINED_TYPES[name_type]
-        select_task_type = type_list[0]
-        target_processing_type = type_list[1]
-        task_split_type = type_list[2]
-        dream_obj_type = type_list[3]
-        mtype = type_list[4]
-        otype = type_list[5]
+        select_task_type = type_list[0] if select_task_type is None else select_task_type
+        target_processing_type = type_list[1] if target_processing_type is None else target_processing_type
+        task_split_type = type_list[2] if task_split_type is None else task_split_type
+        dream_obj_type = type_list[3] if dream_obj_type is None else dream_obj_type
+        mtype = type_list[4] if mtype is None else mtype
+        otype = type_list[5] if otype is None else otype
 
         super().__init__(
             dream_obj_type=dream_obj_type, 
