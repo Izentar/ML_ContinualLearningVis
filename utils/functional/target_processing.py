@@ -6,7 +6,7 @@ def target_processing_latent_binary_classification(target, model, *args, **kwarg
     return out
 
 def target_processing_default(target, *args, **kwargs):
-    return torch.tensor(target, dtype=torch.float32)
+    return torch.tensor(target, dtype=torch.int32)
 
 def target_processing_latent_decode(target, model, *args, **kwargs):
     return model.decode(torch.tensor([target], dtype=torch.int32)).float()

@@ -62,19 +62,17 @@ def dream_objective_SAE_standalone_diversity(model, **kwargs):
     )
 
 def dream_objective_SAE_diversity(model, **kwargs):
-    return - objectives.diversity(
-        "model_model_conv2"
-    )
+    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'conv_enc2')
 
 def dream_objective_latent_channel(model, **kwargs):
     return inner_obj_latent_channel(model.get_objective_target())
 
-def dream_objective_channel(target_point, model, **kwargs):
+def dream_objective_channel(target_point: torch.Tensor, model, **kwargs):
     # be careful for recursion by calling methods from source_dataset_obj
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
     # channel - diversity penalty
-    return objectives.channel(model.get_objective_target(), target_point) 
+    return objectives.channel(model.get_objective_target(), target_point.long()) 
     
     #- objectives.diversity(
     #    "model_model_conv2"
@@ -84,7 +82,7 @@ def dream_objective_RESNET20_C100_diversity(model, **kwargs):
     return - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
 
 def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
-    return objectives.channel(model.get_objective_target(), target_point)
+    return objectives.channel(model.get_objective_target(), target_point.long())
 
 def dream_objective_latent_lossf_creator(logger, label=None, loss_f=None, **kwargs):
     counter = CounterKeys()
@@ -161,9 +159,10 @@ def dream_objective_latent_neuron_direction(target_point, model, **kwargs):
     return objectives.direction_neuron(model.get_objective_target(), target_point.to(model.device))
 
 def test(target, model, source_dataset_obj):
-    return objectives.channel(model.get_objective_target(), target) - objectives.diversity(
+    return objectives.channel(model.get_objective_target(), target.long()) - objectives.diversity(
         "vgg_features_10"
     )
+
 
 class DreamObjectiveManager():
     GET_OBJECTIVE = {

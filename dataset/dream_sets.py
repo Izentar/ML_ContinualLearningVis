@@ -2,12 +2,13 @@ import torch
 from torchvision import transforms
 from torchvision.transforms.functional import to_pil_image, to_tensor
 import gc
+from torch.utils.data import Dataset
 
-class DreamDataset:
+class DreamDataset(Dataset):
     """
         Class for storing dreams. It implements extend method so it can accumulate them during 
     """
-    def __init__(self, transform=None) -> None:
+    def __init__(self, transform=None, **kwargs) -> None:
         self.dreams = []
         self.targets = []
         self.transform = transform
@@ -27,7 +28,7 @@ class DreamDataset:
             f"\nDreams: {new_dreams.size()}; {len(new_dreams)}\nTargets: {new_targets.size()}; {len(new_targets)}")
         with torch.no_grad():
             for dream, target in zip(new_dreams, new_targets):
-                dream = dream.detach()
+                dream = dream.detach().cpu()
                 self._generate_additional_data(dream, target, model)
                 self.targets.append(target)
                 if self.transform:
@@ -50,9 +51,10 @@ class DreamDataset:
         return len(self.dreams) == 0
 
 class DreamDatasetWithLogits(DreamDataset):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, enable_robust=False, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.logits = []
+        self.enable_robust = enable_robust
 
     def __getitem__(self, idx):
         batch = super().__getitem__(idx)
@@ -69,8 +71,11 @@ class DreamDatasetWithLogits(DreamDataset):
         super().extend(new_dreams, new_targets, model)
 
     def _generate_additional_data(self, dream, target, model):
-        logits = model(dream.unsqueeze(0).to(model.device), make_adv=False,
-                       with_image=False)[0]
+        if(self.enable_robust):
+            logits = model(dream.unsqueeze(0).to(model.device), make_adv=False,
+                        with_image=False)[0]
+        else:
+            logits = model(dream.unsqueeze(0).to(model.device))[0]
         logits = logits.squeeze().detach().cpu()
         self.logits.append(logits)
 

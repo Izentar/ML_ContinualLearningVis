@@ -66,6 +66,9 @@ class VGG(nn.Module, ModelBase):
     def get_objective_layer_output_shape(self):
         return (self.classifier.out_features, )
 
+    def init_weights(self):
+        self._initialize_weights()
+
 def make_layers(cfg, batch_norm=False):
     layers = []
     in_channels = 3

@@ -1,5 +1,3 @@
-from argparse import ArgumentParser
-
 from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
@@ -24,13 +22,7 @@ from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
-
-def arg_parser():
-    parser = ArgumentParser()
-    parser.add_argument("-f", "--fast-dev-run", action="store_true")
-    parser.add_argument("--cpu", action="store_true")
-    parser.add_argument("-d", "--dataset", type=str)
-    return parser.parse_args()
+from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs
 
 def data_transform():
     return transforms.Compose(
@@ -166,86 +158,53 @@ def select_datasampler(dtype, main_split):
     else:
         raise Exception(f'Unknown type: {dtype}')
 
-def second_demo():
+def model_summary(source_model):
+    from torchsummary import summary
+    source_model = source_model.cuda()
+    summary(source_model, (3, 32, 32))
+    exit()
+
+def logic(args):
     # normal dreaming
-    args = arg_parser()
     pl.seed_everything(42)
 
-    fast_dev_run = args.fast_dev_run
-    fast_dev_run_batches = 30
-    fast_dev_run_epochs = 1
-    fast_dev_run_dream_threshold = (32, )
-
-    num_loops = num_tasks = 1
-    #num_loops = 1
-    scheduler_steps = (3, )
-    #scheduler_steps = None
-    num_classes = 10
-    epochs_per_task = 5
-    dreams_per_target = 64
-    const_target_images_per_dreaming_batch = 8
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
     test_sigma_disorder = 0.0
     start_img_value = 0.0
-    hidden = 10
-    norm_lambd = 0.
-    dream_threshold = (1024, )
-    dream_frequency = 1
-    wandb_offline = False if not fast_dev_run else True
+    wandb_offline = False if not args.fast_dev_run else True
     #wandb_offline = True
-    enable_dreams = False
-    dream_only_once = False # multitask, dream once and do test, exit; sanity check for dreams
-    freeze_task_at_end = True
-    only_dream_batch = False
-    with_reconstruction = False
-    run_without_training = False
     compare_latent_step_sample = False
-    disable_dream_transforms=True
     collect_numb_of_points = 2500
-    datasampler_type = 'v2'
-    cyclic_latent_buffer_size_per_class = 40
-    lr = 1e-3
-    optimizer = lambda param: torch.optim.Adam(param, lr=lr)
+
+    optimizer = lambda param: torch.optim.Adam(param, lr=args.lr)
     #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
     #scheduler = None
     scheduler = lambda optim: torch.optim.lr_scheduler.ExponentialLR(optim, gamma=0.1)
     def reset_optim(optim, sched=None):
         for g in optim.param_groups:
-            g['lr'] = lr
+            g['lr'] = args.lr
+
+
+    
+
     nrows = 4
     ncols = 4
-    my_batch_size = 32
     num_sanity_val_steps = 0
     dream_optim = get_dream_optim()
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
 
-    train_with_logits = False
-    train_normal_robustly = False
-    train_dreams_robustly = False
-    datasampler = select_datasampler(dtype=datasampler_type, main_split=main_split)
+    datasampler = select_datasampler(dtype=args.datasampler_type, main_split=main_split)
 
-    attack_kwargs = {
-        "constraint": "2",
-        "eps": 0.5,
-        "step_size": 1.5,
-        "iterations": 10,
-        "random_start": 0,
-        "custom_loss": None,
-        "random_restarts": 0,
-        "use_best": True,
-        'with_latent': False,
-        'fake_relu': False,
-        'no_relu':False,
-    }
-    attack_kwargs = {}
+    attack_kwargs = attack_args_to_kwargs(args)
+    optim_params = optim_params_to_kwargs(args)
 
-    only_one_hot = False
-    one_hot_means = get_one_hots(mytype='diagonal', size=hidden)
+    one_hot_means = get_one_hots(mytype='diagonal', size=args.number_of_classes)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
-    param_f = param_f_create(ptype='image')
+    param_f = param_f_create(ptype=args.param_image)
+    render_transforms = None
     #render_transforms = [
     #    tr.pad(4), 
     #    tr.jitter(2), 
@@ -253,20 +212,20 @@ def second_demo():
     #    tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
     #    tr.jitter(2),
     #]
-    JITTER = 1.1
+    JITTER = 2
     ROTATE = 5
     SCALE = 1.1
-    render_transforms = [
-        tr.pad(2*JITTER),
-        tr.jitter(JITTER),
-        tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-        tr.random_rotate(range(-ROTATE, ROTATE+1))
-    ]
+    #render_transforms = [
+    #    tr.pad(JITTER),
+    #    tr.jitter(JITTER),
+    #    tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+    #    tr.random_rotate(range(-ROTATE, ROTATE+1))
+    #]
 
     data_passer = {}
 
     tags = []
-    if fast_dev_run:
+    if args.fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
     progress_bar = CustomRichProgressBar()
@@ -281,70 +240,72 @@ def second_demo():
     #    mtype='sae',
     #    otype='cl-model-island-test',
     #)
-    set_manager = FunConfigSetPredefined(name_type='decode', mtype='SAECONJ', logger=logger)
+    set_manager = FunConfigSetPredefined(
+        name_type='cl-sae-crossentropy', 
+        #mtype='SAEGAUSS', 
+        dream_obj_type=["objective-channel", "OBJECTIVE-SAE-DIVERSITY"],
+        logger=logger
+    )
     set_manager.init_dream_objectives(logger=logger, label='dream')
+    print(f"Selected configuration:\n{str(set_manager)}")
 
-    source_model = set_manager.model(num_classes=num_classes, last_hidd_layer=hidden, with_reconstruction=with_reconstruction)
+    source_model = set_manager.model(num_classes=args.number_of_classes, with_reconstruction=args.with_reconstruction)
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
-    val_tasks_split = train_tasks_split = set_manager.task_split(num_classes, num_tasks)
+    val_tasks_split = train_tasks_split = set_manager.task_split(args.number_of_classes, args.num_tasks)
 
-    if(train_normal_robustly):
-        print('WARNING:\tTRAIN NORMAL ROBUSTLY IS ENABLED, SLOWER TRAINING.')
-    if(train_dreams_robustly):
-        print('WARNING:\tTRAIN DREAMS ROBUSTLY IS ENABLED, SLOWER TRAINING.')
+    #model_summary(source_model)
 
-    if(fast_dev_run):
+    if(args.enable_robust):
+        print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
+
+    if(args.fast_dev_run):
         pass
         #num_tasks = 3
         #num_classes = 6
         #const_target_images_per_dreaming_batch = 8
         #epochs_per_task = 2
-        dreams_per_target = 64
+        args.dreams_per_target = 64
 
-    dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
+    dream_dataset_class = dream_sets.DreamDatasetWithLogits if args.train_with_logits else dream_sets.DreamDataset
     dataset_class, dataset_class_labels = getDataset(args.dataset)
-    dataset_class_robust = getDatasetList(args.dataset)[1]
 
-    #if fast_dev_run:
+    #if args.fast_dev_run:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
-    dataset_robust = dataset_class_robust(data_path="./data")
-
     check(split=train_tasks_split, 
-        num_classes=num_classes, 
-        hidden=hidden,
-        num_tasks=num_tasks,
-        with_reconstruction=with_reconstruction, 
-        train_normal_robustly=train_normal_robustly, 
-        train_dreams_robustly=train_dreams_robustly,
+        num_classes=args.number_of_classes, 
+        num_tasks=args.num_tasks,
+        with_reconstruction=args.with_reconstruction, 
+        enable_robust=args.enable_robust,
     )
 
     model = set_manager.model_overlay(
         model=source_model,
-        robust_dataset=dataset_robust,
-        num_tasks=num_tasks,
-        num_classes=num_classes,
+        load_model=args.load_model,
+        robust_dataset_name=args.dataset,
+        robust_data_path="./data",
+        num_tasks=args.num_tasks,
+        num_classes=args.number_of_classes,
         attack_kwargs=attack_kwargs,
-        dreams_with_logits=train_with_logits,
-        train_normal_robustly=train_normal_robustly,
-        #train_dreams_robustly=train_dreams_robustly,
-        dream_frequency=dream_frequency,
+        dreams_with_logits=args.train_with_logits,
+        dream_frequency=args.dream_frequency,
         sigma=sigma,
         rho=rho,
-        norm_lambd=norm_lambd,
-        hidden=hidden,
+        norm_lambda=args.norm_lambda,
+        hidden=args.number_of_classes,
         one_hot_means=one_hot_means,
-        only_one_hot=only_one_hot,
-        cyclic_latent_buffer_size_per_class=cyclic_latent_buffer_size_per_class,
+        cyclic_latent_buffer_size_per_class=args.cyclic_latent_buffer_size_per_class,
         loss_f=clModel_default_loss_f,
         data_passer=data_passer,
-        only_dream_batch=only_dream_batch,
-        optimizer_construct_f=optimizer,
-        scheduler_construct_f=scheduler,
-        scheduler_steps=scheduler_steps,
-        optimizer_restart_params=reset_optim,
+        train_only_dream_batch=args.train_only_dream_batch,
+        optimizer_construct_type=args.optimizer_type,
+        scheduler_construct_type=args.scheduler_type,
+        scheduler_steps=args.train_scheduler_steps,
+        optimizer_restart_params_type=args.reset_optim_type,
+        optimizer_params=optim_params,
+        swap_datasets=args.swap_datasets,
     )
     print(f'MODEL TYPE: {model.get_obj_str_type()}')
 
@@ -357,26 +318,31 @@ def second_demo():
         data_transform=train_data_transform,
         train_tasks_split=train_tasks_split,
         dataset_class=dataset_class,
-        dreams_per_target=dreams_per_target,
+        dreams_per_target=args.dreams_per_target,
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
         param_f=param_f,
         render_transforms=render_transforms,
-        fast_dev_run=fast_dev_run,
-        fast_dev_run_dream_threshold=fast_dev_run_dream_threshold,
-        dream_threshold=dream_threshold,
+        fast_dev_run=args.fast_dev_run,
+        fast_dev_run_dream_threshold=args.fast_dev_run_dream_threshold,
+        dream_threshold=args.dream_threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_dataset_class(transform=dreams_transforms),
+        empty_dream_dataset=dream_dataset_class(enable_robust=args.enable_robust, transform=dreams_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
-        const_target_images_per_dreaming_batch=const_target_images_per_dreaming_batch,
+        const_target_images_per_dreaming_batch=args.target_images_per_dreaming_batch,
         optimizer=dream_optim,
-        freeze_task_at_end=freeze_task_at_end,
         logger=logger,
         dataset_class_labels=dataset_class_labels,
         datasampler=datasampler,
-        batch_size=my_batch_size,
-        disable_transforms=disable_dream_transforms,
+        batch_size=args.batch_size,
+        disable_dream_transforms=args.enable_dream_transforms,
+        shuffle=args.disable_shuffle,
+        dream_shuffle=args.disable_dream_shuffle,
+        swap_datasets=args.swap_datasets,
+        num_workers=args.num_workers,
+        dream_num_workers=args.dream_num_workers,
+        test_val_num_workers=args.test_val_num_workers,
     )
     
 
@@ -384,27 +350,36 @@ def second_demo():
         max_epochs=-1,  # This value doesn't matter
         logger=logger,
         callbacks=callbacks,
-        fast_dev_run=fast_dev_run_batches if fast_dev_run else False, # error when multiple tasks - in new task 0 batches are done.
-        limit_train_batches=fast_dev_run_batches if fast_dev_run else None,
+        fast_dev_run=args.fast_dev_run_batches if args.fast_dev_run else False, # error when multiple tasks - in new task 0 batches are done.
+        limit_train_batches=args.fast_dev_run_batches if args.fast_dev_run else None,
         gpus=None if args.cpu else "0,",
-        log_every_n_steps=1 if fast_dev_run else 50,
+        log_every_n_steps=1 if args.fast_dev_run else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )
     progress_bar._init_progress(trainer)
+
+    #WandbLogger.log("model/sigmaParams": )
     
 
-    print(f"Fast dev run is {fast_dev_run}")
+    print(f"Fast dev run is {args.fast_dev_run}")
 
     internal_fit_loop = trainer.fit_loop
     trainer.fit_loop = CLLoop(
-        [epochs_per_task] * num_tasks, 
-        enable_dreams=enable_dreams,
-        fast_dev_run_epochs=fast_dev_run_epochs,
-        fast_dev_run=fast_dev_run,
+        [args.epochs_per_task] * args.num_tasks, 
+        enable_dreams=args.disable_dreams,
+        fast_dev_run_epochs=args.fast_dev_run_epochs,
+        fast_dev_run=args.fast_dev_run,
         data_passer=data_passer,
-        num_loops=num_loops,
-        run_without_training=run_without_training,
-        dream_only_once=dream_only_once,
+        num_loops=args.num_loops,
+        run_without_training=args.run_without_training,
+        early_finish_at=args.early_finish_at,
+        reload_model_after_loop=args.reload_model_after_loop,
+        swap_datasets=args.swap_datasets,
+        reinit_model_after_loop=args.reinit_model_after_loop,
+        weight_reset_sanity_check=args.weight_reset_sanity_check,
+        enable_checkpoint=args.enable_checkpoint,
+        save_trained_model=args.save_trained_model,
+        load_model=args.load_model,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
@@ -422,39 +397,39 @@ def second_demo():
         targets = dataset.targets
     collector_batch_sampler = PairingBatchSamplerV2(
                 dataset=dataset,
-                batch_size=my_batch_size,
+                batch_size=args.batch_size,
                 shuffle=True,
                 classes=np.unique(targets),
                 main_class_split=collect_main_split,
             )
-    collect_stats(model=model, dataset=dataset,
-        collect_numb_of_points=collect_numb_of_points, 
-        collector_batch_sampler=collector_batch_sampler,
-        nrows=nrows, ncols=ncols, 
-        logger=logger, attack_kwargs=attack_kwargs)
-    compare_latent = CompareLatent()
-    compare_latent(
-        model=model,
-        #loss_f=model.loss_f, 
-        used_class=0, 
-        logger=logger,
-        dream_transform=dreams_transforms,
-        target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
-        loss_obj_step_sample=compare_latent_step_sample,
-        disable_transforms=disable_dream_transforms,
-    )
-    disorder_dream = DisorderDream()
-    dataset = dataset_class(root="./data", train=True, transform=transform)
-    disorder_dream(
-        model=model,
-        used_class=1, 
-        logger=logger,
-        dataset=dataset,
-        dream_transform=dreams_transforms,
-        #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
-        sigma_disorder=test_sigma_disorder,
-        start_img_value=start_img_value,
-    )
+    #collect_stats(model=model, dataset=dataset,
+    #    collect_numb_of_points=collect_numb_of_points, 
+    #    collector_batch_sampler=collector_batch_sampler,
+    #    nrows=nrows, ncols=ncols, 
+    #    logger=logger, attack_kwargs=attack_kwargs)
+    #compare_latent = CompareLatent()
+    #compare_latent(
+    #    model=model,
+    #    #loss_f=model.loss_f, 
+    #    used_class=0, 
+    #    logger=logger,
+    #    dream_transform=dreams_transforms,
+    #    target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
+    #    loss_obj_step_sample=compare_latent_step_sample,
+    #    disable_transforms=args.disable_dream_transforms,
+    #)
+    #disorder_dream = DisorderDream()
+    #dataset = dataset_class(root="./data", train=True, transform=transform)
+    #disorder_dream(
+    #    model=model,
+    #    used_class=1, 
+    #    logger=logger,
+    #    dataset=dataset,
+    #    dream_transform=dreams_transforms,
+    #    #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
+    #    sigma_disorder=test_sigma_disorder,
+    #    start_img_value=start_img_value,
+    #)
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
@@ -498,7 +473,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
-def check(split, num_classes, hidden, num_tasks, with_reconstruction, train_normal_robustly, train_dreams_robustly):
+def check(split, num_classes, num_tasks, with_reconstruction, enable_robust):
     test = set()
     for s in split:
         test = test.union(s)
@@ -506,10 +481,11 @@ def check(split, num_classes, hidden, num_tasks, with_reconstruction, train_norm
         raise Exception(f"Wrong number of classes: {num_classes} / train or validation split: {len(test)}.")
     if(len(split) != num_tasks):
         raise Exception(f"Wrong number of tasks: {num_tasks} / train or validation split size: {len(split)}.")
-    if(with_reconstruction and (train_normal_robustly or train_dreams_robustly)):
+    if(with_reconstruction and enable_robust):
         raise Exception(f"Framework robusness does not support model that returns multiple variables. Set correct flags. Current:\
-\nwith_reconstruction: {with_reconstruction}\ntrain_normal_robustly: {train_normal_robustly}\ntrain_dreams_robustly: {train_dreams_robustly}")
-
+\nwith_reconstruction: {with_reconstruction}\enable_robust: {enable_robust}")
 
 if __name__ == "__main__":
-    second_demo()
+    args = arg_parser()
+    log_to_wandb(args)
+    logic(args)

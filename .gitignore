@@ -10,3 +10,7 @@ data/generated_impressions
 *continual_dreaming
 *.json
 *.pickle
+model_save/*
+data_ssd
+*.tmp
+*.txt

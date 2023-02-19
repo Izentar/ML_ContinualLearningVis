@@ -41,6 +41,13 @@ class BaseCLDataModule(LightningDataModule, ABC):
         """
         pass
 
+    @abstractmethod
+    def next(self) -> None:
+        """
+            Set the next that will be processed.
+        """
+        pass
+
     def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
         """
             Generate new dreams from the tasks.
@@ -69,7 +76,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dataset_class_labels=None,
         custom_f_steps=(0,),
         custom_f=lambda *args: None,
-        disable_transforms=False,
+        disable_dream_transforms=False,
     ):
         """
         Args:
@@ -80,8 +87,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
             target_processing_f: function that will take the list of targets and process them to the desired form.
                 For example it will take a task and transform it to the point from normal distribution.
                 The default function do nothing to targets. 
-            freeze_task_at_end - at the end of task loop, select all previous tasks. Ex. having [0, 1], [2, 3] at third loop
-                the classes for task will be [0, 1, 2, 3].
         """
         super().__init__()
         self.train_tasks_split = train_tasks_split
@@ -93,7 +98,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams_per_target = max_logged_dreams_per_target
         self.progress_bar = progress_bar
-        self.disable_transforms = disable_transforms
+        self.disable_dream_transforms = disable_dream_transforms
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
@@ -305,7 +310,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     #preprocess=True, # simple ImageNet normalization that will be used on the image that is generating.
                     thresholds=thresholds, # max() - how many iterations is used to generate an input image. Also
                                         # for the rest of the numbers, save the image during the i-th iteration
-                    disable_transforms=self.disable_transforms,
+                    disable_transforms=self.disable_dream_transforms,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
@@ -333,18 +338,17 @@ class CLDataModule(DreamDataModule):
         dataset_class,
         data_transform,
         val_tasks_split=None,
-        max_logged_dreams_per_target=8, 
         batch_size=32,
         dream_batch_size=8,
-        num_workers=4,
+        num_workers=0,
         shuffle=True,
         steps_to_locate_mean = None,
-        dream_num_workers=None,
-        test_val_num_workers=None,
-        dream_shuffle=None,
+        dream_num_workers=0,
+        test_val_num_workers=0,
+        dream_shuffle=True,
         datasampler=None,
         root="data",
-        freeze_task_at_end=False,
+        swap_datasets=False,
         **kwargs
     ):
         """
@@ -372,13 +376,12 @@ class CLDataModule(DreamDataModule):
         self.shuffle = shuffle
         self.steps_to_locate_mean = steps_to_locate_mean
 
-        self.dream_num_workers = dream_num_workers if dream_num_workers is not None else num_workers
-        self.dream_shuffle = dream_shuffle if dream_shuffle is not None else shuffle
-        self.test_val_num_workers = test_val_num_workers if test_val_num_workers is not None else num_workers
+        self.dream_num_workers = dream_num_workers
+        self.dream_shuffle = dream_shuffle if dream_shuffle else shuffle
+        self.test_val_num_workers = test_val_num_workers
         self.datasampler = datasampler if datasampler is not None else None
         self.root = root
         self.dream_batch_size = dream_batch_size
-        self.freeze_task_at_end = freeze_task_at_end
 
         self.train_task = None
         self.dream_dataset_current_task = None
@@ -387,8 +390,11 @@ class CLDataModule(DreamDataModule):
         # TODO
         self.dataset_class = dataset_class
         self.data_transform = data_transform
+        self.swap_datasets = swap_datasets
 
         print(f"Validation task split: {self.val_tasks_split}")
+        if(self.swap_datasets):
+            print(f"INFO: Datasets in swap_datasets mode.")
 
     def prepare_data(self):
         train_dataset = self.dataset_class(
@@ -431,8 +437,6 @@ class CLDataModule(DreamDataModule):
             Choose the index of the task that will be used during training.
         """
         #TODO - to log
-        if task_index == self.current_task_index: # guard
-            return
         if task_index >= len(self.train_datasets):
             raise Exception(f"Index {task_index} out of range {len(self.train_datasets)}")
         print(f"Selected task number: {task_index}")
@@ -444,23 +448,42 @@ class CLDataModule(DreamDataModule):
         if(self.train_task is None or len(self.train_task) <= 0):
             raise Exception(f"Train task dataset not set properly. Used index {task_index} from {len(self.train_datasets)}")
 
+    def next(self) -> None:
+        if(self.current_task_index is None):
+            self.current_task_index = 0
+            self.current_loop_index = 0
+            return
+        if self.current_task_index >= len(self.train_datasets):
+            raise Exception(f"Index for train dataset out of range: '{len(self.train_datasets)}'")
+        self.current_task_index += 1 
+        self.current_loop_index += 1
+        self.train_task = self.train_datasets[self.current_task_index]
+        self.__setup_dream_dataset()
+            
+        if(self.train_task is None or len(self.train_task) <= 0):
+            raise Exception(f"Train task dataset not set properly. Used index '{self.current_task_index}' from '{len(self.train_datasets)}'")
+
     def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
         super().generate_synthetic_data(model=model, task_index=task_index)
         self.__setup_dream_dataset()
 
-    def _select_dream_classes(self):
-        flag = self.freeze_task_at_end and len(self.val_tasks_split) == self.current_task_index
-        if(self.current_task_index < 1 and not (flag)):
-            raise Exception("Cannot create dream dataloader. No tasks were done before / no data avaliable.")
+    def _get_all_prev_dream_classes(self) -> list:
+        to_range = self.current_task_index if len(self.train_tasks_split) >= self.current_task_index else len(self.train_tasks_split)
+        print(to_range, self.current_task_index, self.train_tasks_split)
         dream_tasks_classes = set()
-        
-        to_range = self.current_task_index
-        if(flag):
-            to_range = len(self.val_tasks_split)
-        for i in range(to_range):
-            dream_tasks_classes = dream_tasks_classes.union(self.val_tasks_split[i])
-        dream_tasks_classes = list(dream_tasks_classes)
-        return dream_tasks_classes
+        for i in range(to_range + 1): # i < to_range
+            dream_tasks_classes = dream_tasks_classes.union(self.train_tasks_split[i])
+        if(len(dream_tasks_classes) == 0):
+            raise Exception("Dream dataset selected classes are empty!")
+        return list(dream_tasks_classes)
+
+    def _select_dream_classes_for_task(self, class_list, index):
+        if(len(class_list) <= index):
+            ret = set()
+            for i in class_list:
+                ret = ret.union(i)
+            return ret
+        return class_list[index]
 
     def train_dataloader(self):
         """
@@ -471,14 +494,12 @@ class CLDataModule(DreamDataModule):
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
-        if self.dream_dataset_current_task:
+        if self.dream_dataset_current_task and not (self.swap_datasets and self.current_loop_index % 2 == 0):
             # first loop is always False. After accumulating dreams this dataloader will be used.
             shuffle = self.dream_shuffle if self.datasampler is None else False
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
-
-            #dream_tasks_classes = self.val_tasks_split[self.current_task_index]
-
-            dream_tasks_classes = self._select_dream_classes()
+            dream_tasks_classes = self._get_all_prev_dream_classes()
+            print(f"Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}")
 
             dream_loader = DataLoader(
                 self.dreams_dataset, # give full dataset, var classes is used to select classes
@@ -489,10 +510,13 @@ class CLDataModule(DreamDataModule):
                 batch_sampler=self.datasampler(
                     dataset=self.dreams_dataset , # give full dataset, var classes is used to select classes
                     shuffle=self.dream_shuffle,
-                    classes=dream_tasks_classes,
+                    classes=dream_tasks_classes, # all classes that were dream of at least once
                     batch_size=self.dream_batch_size,
                 ) if self.datasampler is not None else None
             )
+
+        normal_classes = self._select_dream_classes_for_task(self.val_tasks_split, self.current_task_index)
+        print(f"Selected classes for normal dataloader: {normal_classes}")
 
         shuffle = self.shuffle if self.datasampler is None else False
         normal_loader = DataLoader(
@@ -504,7 +528,7 @@ class CLDataModule(DreamDataModule):
             batch_sampler=self.datasampler(
                     dataset=self.train_task, 
                     shuffle=self.shuffle,
-                    classes=self.val_tasks_split[self.current_task_index],
+                    classes=normal_classes,
                     batch_size=self.batch_size,
                 ) if self.datasampler is not None else None
         )

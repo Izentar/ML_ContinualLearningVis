@@ -26,8 +26,9 @@ def l1_norm(model, lambd):
     norm = sum(torch.sum(torch.abs(p)) for p in model.parameters())
     return norm * lambd
 
-class DummyLoss():
+class DummyLoss(torch.nn.Module):
     def __init__(self, loss):
+        super().__init__()
         self.loss = loss
         
     def __call__(self, input, target, train=True):
@@ -42,8 +43,12 @@ class DummyLoss():
     def decode(self, target):
         return target
 
-class ChiLossBase():
+    def __str__(self):
+        return 'DUMMY_LOSS__' + str(type(self.loss).__name__)
+
+class ChiLossBase(torch.nn.Module):
     def __init__(self, cyclic_latent_buffer):
+        super().__init__()
         self.centers_of_clouds = cyclic_latent_buffer
         self.to_log = {}
         self._train = True
@@ -52,6 +57,9 @@ class ChiLossBase():
         assert not torch.any(torch.isnan(input)), f"Input is NaN\n{input}"
         if self._train and train:
             self.centers_of_clouds.push_target(input, target)
+
+    def __str__(self):
+        return 'CHI_LOSS_BASE'
 
     def train(self, flag):
         self._train = flag
@@ -124,6 +132,9 @@ class ChiLoss(ChiLossBase):
         self.pdist = torch.nn.PairwiseDistance(p=2)
 
         self.to_log['rho_sigma'] = (self.rho/self.sigma)**2
+
+    def __str__(self):
+        return 'CHI_LOSS'
 
     def to(self, device):
         self.start_latent_means = self._change_device(device, self.start_latent_means)
@@ -367,6 +378,9 @@ class ChiLossOneHot(ChiLossBase):
         if (one_hot_means is None or len(one_hot_means) == 0):
             raise Exception('Empty dictionary.')
 
+    def __str__(self):
+        return 'CHI_LOSS_ONEHOT'
+
     def to(self, device):
         return
 
@@ -397,6 +411,9 @@ class ChiLossOneHotPairwise(ChiLossBase):
             raise Exception('Empty dictionary.')
 
         self.pdist = torch.nn.PairwiseDistance(p=2)
+
+    def __str__(self):
+        return 'CHI_LOSS_ONEHOT_PAIRWISE'
 
     def to(self, device):
         return
@@ -431,6 +448,9 @@ class ChiLossOneHotIslands(ChiLossBase):
             raise Exception('Empty dictionary.')
 
         self.pdist = torch.nn.PairwiseDistance(p=2)
+
+    def __str__(self):
+        return 'CHI_LOSS_ONEHOT_ISLANDS'
 
     def to(self, device):
         return

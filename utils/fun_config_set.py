@@ -3,6 +3,7 @@ from utils.functional import dream_objective
 from utils.functional import select_task
 from utils.functional import target_processing
 from utils.functional import task_split
+from utils.functional import model_optimizer
 
 from typing import Union
 
@@ -214,7 +215,7 @@ class FunConfigSetPredefined(FunConfigSet):
             "sae", 
             "cl-model-island"
         ],
-        "custom_lossf_test": [
+        "cl-sae-crossentropy": [
             "select-decremental", 
             "target-default", 
             "split-decremental", 
@@ -255,6 +256,13 @@ class FunConfigSetPredefined(FunConfigSet):
         mtype = type_list[4] if mtype is None else mtype
         otype = type_list[5] if otype is None else otype
 
+        self.predef_select_task_type = select_task_type
+        self.predef_target_processing_type = target_processing_type
+        self.predef_task_split_type = task_split_type
+        self.predef_dream_obj_type = dream_obj_type
+        self.predef_mtype = mtype
+        self.predef_otype = otype
+
         super().__init__(
             dream_obj_type=dream_obj_type, 
             select_task_type=select_task_type,
@@ -264,3 +272,9 @@ class FunConfigSetPredefined(FunConfigSet):
             otype=otype, 
             logger=logger
         )
+
+    def __str__(self):
+        s = f"SELECT TASK:{self.predef_select_task_type}; TARGET PROCESSING:{self.predef_target_processing_type}; \
+TASK SPLIT:{self.predef_task_split_type}; DREAM OBJECTIVE:{self.predef_dream_obj_type}; \
+MODEL TYPE:{self.predef_mtype}; OVERLAY TYPE:{self.predef_otype}"
+        return s

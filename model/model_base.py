@@ -31,3 +31,7 @@ class ModelBase():
             The shape should be a tuple that does not contain batch size.
         """
         pass
+
+    @abstractmethod
+    def init_weights(self):
+        pass
