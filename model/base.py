@@ -14,7 +14,7 @@ class CLBase(LightningModule):
         self, 
         num_tasks:int, 
         num_classes:int, 
-        load_model:bool=False,
+        load_model:str=None,
         dream_frequency:Union[int,list[int]]=1, 
         data_passer:dict=None, 
         train_only_dream_batch:bool=False,
@@ -35,14 +35,15 @@ class CLBase(LightningModule):
         super().__init__()
         # ignore *args, **kwargs
 
-        if(not load_model and (num_tasks is None or num_classes is None)):
-            raise Exception('Number of tasks or number of classes not provided. This can be omnited only when loading model.')
+        #if(load_model is None and (num_tasks is None or num_classes is None)):
+        #    raise Exception('Number of tasks or number of classes not provided. This can be omnited only when loading model.')
 
         # needed for pytorch lightning metadata save framework
         self.optimizer_construct_type = optimizer_construct_type
         self.scheduler_construct_type = scheduler_construct_type
         self.optimizer_restart_params_type = optimizer_restart_params_type
         self.optimizer_params = optimizer_params
+        self.load_model = load_model
 
         self.optim_manager = ModelOptimizerManager(
             optimizer_type=optimizer_construct_type,

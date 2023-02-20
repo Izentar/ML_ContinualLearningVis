@@ -28,6 +28,8 @@ import gc
 import torch
 import datetime, glob
 
+from config.default import default_export_path, model_to_save_file_type
+
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
 # class Loop:                                                          #
@@ -61,8 +63,9 @@ class CLLoop(Loop):
         early_finish_at=-1,
         swap_datasets=False,
         weight_reset_sanity_check=False,
-        enable_checkpoint=False,
-        save_trained_model:str=None,
+        enable_checkpoint:bool=False,
+        save_trained_model:bool=False,
+        save_model_name:str=None,
         load_model:str=None,
     ) -> None:
         """
@@ -80,8 +83,9 @@ class CLLoop(Loop):
         self.epochs_per_task = epochs_per_task
         self.current_task: int = 0
         self.current_loop: int = 0
-        self.export_path = Path(export_path) if export_path is not None else Path('./model_save/')
-        Path.mkdir(self.export_path, parents=True, exist_ok=True, mode=770)
+        self.export_path = Path(export_path) if export_path is not None else Path(default_export_path)
+        Path.mkdir(self.export_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
+        self.save_model_name = save_model_name if save_model_name is not None else ""
 
         
         self.reload_model_after_loop = reload_model_after_loop
@@ -221,15 +225,15 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
             time = datetime.datetime.now().strftime("%H:%M:%S")
             self.trainer.save_checkpoint(
-                self.export_path / f"{folder}" / f"checkpoint.{type(self.trainer.lightning_module.model).__name__}.loop_{self.current_loop}.{time}.pt"
+                self.export_path / f"{self.save_model_name}" / f"{folder}" / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             )
 
     def _try_save_trained_model(self):
-        if(self.save_trained_model is not None):
+        if(self.save_trained_model):
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
             time = datetime.datetime.now().strftime("%H:%M:%S")
             self.trainer.save_checkpoint(
-                self.export_path / f"{folder}" / f"trained.{type(self.trainer.lightning_module.model).__name__}.loop_{self.current_loop}.{time}.pt",
+                self.export_path / f"{self.save_model_name}" / f"{folder}" / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
                 weights_only=True
             )
 
@@ -241,8 +245,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
                 raise Exception(f'Cannot load model - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
             path = path[0]
             if('checkpoint' in self.load_model):
-                self.trainer.lightning_module.load_from_checkpoint(path)
-                print(f'INFO: Loaded model "{path}"')
+                pass
             elif('trained' in self.load_model):
                 checkpoint = torch.load(path)
                 self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])

@@ -98,8 +98,8 @@ class CLModel(base.CLBase):
     
         super().__init__(load_model=load_model, *args, **kwargs)
 
-        if(not load_model and (model is None or loss_f is None)):
-            raise Exception('Model or loss function not provided. This can be omnited only when loading model.')
+        #if(load_model is None and (model is None or loss_f is None)):
+        #    raise Exception('Model or loss function not provided. This can be omnited only when loading model.')
 
         self.attack_kwargs = attack_kwargs
         self.dreams_with_logits = dreams_with_logits
@@ -107,7 +107,6 @@ class CLModel(base.CLBase):
         self.robust_data_path = robust_data_path
         self.robust_dataset_name = robust_dataset_name
         self.resume_path = resume_path
-        self.load_model = load_model
         if(enable_robust):
             robust_dataset = self._get_dataset_list(robust_dataset_name)[1](data_path=robust_data_path)
             if(robust_dataset_name is not None and robust_data_path is not None and

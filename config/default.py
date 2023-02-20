@@ -155,7 +155,8 @@ datasets_map = {
     "RC10": [CIFAR10, CIFAR10_robust]
 }
 
-
+default_export_path = './model_save/'
+model_to_save_file_type = 770
 
 
 colors_list = ('r', 'g', 'b', 'c', 'k', 'm', 'y', 'indianred', 'salmon', 'darkkhaki', 'violet')

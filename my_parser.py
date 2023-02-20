@@ -29,13 +29,15 @@ buffer used in island overlay for model.')
     parser.add_argument("--num_workers", type=int, default=4, help='Number of dataloader workers.')
     parser.add_argument("--dream_num_workers", type=int, default=4, help='Number of dream dataloader workers.')
     parser.add_argument("--test_val_num_workers", type=int, default=4, help='Number of test and validation dataloader workers.')
-    parser.add_argument("--save_trained_model", type=str, help='')
+    parser.add_argument("--save_trained_model", action="store_true", help='')
+    parser.add_argument("--save_model_name", type=str, help='')
     parser.add_argument("--load_model", type=str, help='')
     parser.add_argument("--enable_checkpoint", action="store_true", help='')
     parser.add_argument("--disable_normal_dataset", action="store_true", help='Do not use normal dataset, only dream dataset.')
     parser.add_argument("--optimizer_type", type=str, default='adam', help='')
     parser.add_argument("--scheduler_type", type=str, default='none', help='')
     parser.add_argument("--reset_optim_type", type=str, default='default', help='')
+    parser.add_argument("--export_path", type=str, help='')
     
     ######################################
     #####    numerical parameters   ######

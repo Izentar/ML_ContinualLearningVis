@@ -24,6 +24,8 @@ from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
 from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs
 
+from utils.load import try_load
+
 def data_transform():
     return transforms.Compose(
         [
@@ -281,32 +283,35 @@ def logic(args):
         enable_robust=args.enable_robust,
     )
 
-    model = set_manager.model_overlay(
-        model=source_model,
-        load_model=args.load_model,
-        robust_dataset_name=args.dataset,
-        robust_data_path="./data",
-        num_tasks=args.num_tasks,
-        num_classes=args.number_of_classes,
-        attack_kwargs=attack_kwargs,
-        dreams_with_logits=args.train_with_logits,
-        dream_frequency=args.dream_frequency,
-        sigma=sigma,
-        rho=rho,
-        norm_lambda=args.norm_lambda,
-        hidden=args.number_of_classes,
-        one_hot_means=one_hot_means,
-        cyclic_latent_buffer_size_per_class=args.cyclic_latent_buffer_size_per_class,
-        loss_f=clModel_default_loss_f,
-        data_passer=data_passer,
-        train_only_dream_batch=args.train_only_dream_batch,
-        optimizer_construct_type=args.optimizer_type,
-        scheduler_construct_type=args.scheduler_type,
-        scheduler_steps=args.train_scheduler_steps,
-        optimizer_restart_params_type=args.reset_optim_type,
-        optimizer_params=optim_params,
-        swap_datasets=args.swap_datasets,
-    )
+    model = try_load(args.export_path, args.load_model)
+
+    if(model is None):
+        model = set_manager.model_overlay(
+            model=source_model,
+            load_model=args.load_model,
+            robust_dataset_name=args.dataset,
+            robust_data_path="./data",
+            num_tasks=args.num_tasks,
+            num_classes=args.number_of_classes,
+            attack_kwargs=attack_kwargs,
+            dreams_with_logits=args.train_with_logits,
+            dream_frequency=args.dream_frequency,
+            sigma=sigma,
+            rho=rho,
+            norm_lambda=args.norm_lambda,
+            hidden=args.number_of_classes,
+            one_hot_means=one_hot_means,
+            cyclic_latent_buffer_size_per_class=args.cyclic_latent_buffer_size_per_class,
+            loss_f=clModel_default_loss_f,
+            data_passer=data_passer,
+            train_only_dream_batch=args.train_only_dream_batch,
+            optimizer_construct_type=args.optimizer_type,
+            scheduler_construct_type=args.scheduler_type,
+            scheduler_steps=args.train_scheduler_steps,
+            optimizer_restart_params_type=args.reset_optim_type,
+            optimizer_params=optim_params,
+            swap_datasets=args.swap_datasets,
+        )
     print(f'MODEL TYPE: {model.get_obj_str_type()}')
 
     #from lucent.modelzoo.util import get_model_layers
@@ -378,8 +383,10 @@ def logic(args):
         reinit_model_after_loop=args.reinit_model_after_loop,
         weight_reset_sanity_check=args.weight_reset_sanity_check,
         enable_checkpoint=args.enable_checkpoint,
+        save_model_name=args.save_model_name,
         save_trained_model=args.save_trained_model,
         load_model=args.load_model,
+        export_path=args.export_path,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
