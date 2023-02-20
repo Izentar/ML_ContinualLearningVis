@@ -67,6 +67,7 @@ class CLLoop(Loop):
         save_trained_model:bool=False,
         save_model_name:str=None,
         load_model:str=None,
+        dream_at_beginning:bool=False,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -103,6 +104,7 @@ class CLLoop(Loop):
         self.enable_checkpoint = enable_checkpoint
         self.save_trained_model = save_trained_model
         self.load_model = load_model
+        self.dream_at_beginning = dream_at_beginning
 
         if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
@@ -160,7 +162,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         self._update_data_passer()
 
     def _try_generate_dream(self):
-        if (self.current_loop > 0 and self.enable_dreams):
+        if (self.current_loop > 0 and self.enable_dreams) or self.dream_at_beginning:
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(

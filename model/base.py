@@ -97,9 +97,12 @@ class CLBase(LightningModule):
         return loss_normal
 
     def _inner_training_step_swap_datasets(self, batch, batch_idx):
-        if "dream" in batch:
+        if("dream" in batch):
             return self.training_step_dream(batch["dream"])
-        return self.training_step_normal(batch["normal"])
+        elif("normal" in batch):
+            return self.training_step_normal(batch["normal"])
+        else:
+            raise Exception(f'No batch found. Batch keys: {batch.keys()}')
 
     
     def training_step(self, batch, batch_idx):

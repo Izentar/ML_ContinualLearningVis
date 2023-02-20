@@ -186,7 +186,7 @@ class DisorderDream():
             custom_f_steps=scheduler_steps,
             custom_f=self.scheduler_step if enable_scheduler else lambda: None,
             param_f=DisorderDream.starting_image_creator(detached_image=image),
-            const_target_images_per_dreaming_batch=1,
+            dreaming_batch_size=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
             disable_transforms=True,

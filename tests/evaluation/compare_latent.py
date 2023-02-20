@@ -24,12 +24,12 @@ class CompareLatent():
         self.point_from_model = []
         self.custom_loss_f = torch.nn.MSELoss() 
 
-    def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
+    def param_f_image(image_size, dreaming_batch_size, **kwargs):
         def param_f():
             # uses 2D Fourier coefficients
             # sd - scale of the random numbers [0, 1)
             return param.image(
-                image_size, batch=target_images_per_dreaming_batch, sd=0.4, #fft=False
+                image_size, batch=dreaming_batch_size, sd=0.4, #fft=False
             )
         return param_f
 
@@ -109,7 +109,7 @@ class CompareLatent():
             custom_f_steps=scheduler_steps,
             custom_f=self.scheduler_step if enable_scheduler else lambda: None,
             param_f=CompareLatent.param_f_image,
-            const_target_images_per_dreaming_batch=1,
+            dreaming_batch_size=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
             disable_transforms=disable_transforms

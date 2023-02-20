@@ -63,9 +63,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dream_threshold,
         param_f,
         target_processing_f,
-        const_target_images_per_dreaming_batch=8,
+        dreaming_batch_size=8,
         max_logged_dreams_per_target=8, 
-        fast_dev_run=False,
+        fast_dev_run:bool=False,
         fast_dev_run_dream_threshold=None,
         image_size = 32,
         progress_bar = None,
@@ -76,7 +76,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dataset_class_labels=None,
         custom_f_steps=(0,),
         custom_f=lambda *args: None,
-        disable_dream_transforms=False,
+        disable_dream_transforms:bool=False,
+        train_only_dream_batch:bool=False,
+        richbar_refresh_fequency:int=50,
     ):
         """
         Args:
@@ -93,7 +95,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.select_dream_tasks_f = select_dream_tasks_f
         self.target_processing_f = target_processing_f
         self.dreams_per_target = dreams_per_target
-        self.const_target_images_per_dreaming_batch = const_target_images_per_dreaming_batch
+        self.dreaming_batch_size = dreaming_batch_size
         self.image_size = image_size
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams_per_target = max_logged_dreams_per_target
@@ -110,11 +112,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.logger = logger
         self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if dataset_class_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
         self.render_transforms = render_transforms
-        self.param_f = param_f(image_size=image_size, target_images_per_dreaming_batch=const_target_images_per_dreaming_batch)
+        self.param_f = param_f(image_size=image_size, dreaming_batch_size=dreaming_batch_size)
         
         self.dataset_class_labels = dataset_class_labels
         self.custom_f_steps = custom_f_steps
         self.custom_f = custom_f
+        self.train_only_dream_batch = train_only_dream_batch
+        self.richbar_refresh_fequency = richbar_refresh_fequency
 
         print(f"Train task split: {self.train_tasks_split}")
 
@@ -161,7 +165,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.eval()
 
-        iterations = ceil(self.dreams_per_target / self.const_target_images_per_dreaming_batch)
+        iterations = ceil(self.dreams_per_target / self.dreaming_batch_size)
         new_dreams, new_targets = self._generate_dreams(
             model=model,
             dream_targets=dream_targets, 
@@ -180,7 +184,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_targets = []
 
         if (self.progress_bar is not None):
-            #self.progress_bar._stop_progress()
             self._generate_dreams_impl(
                 model=model, 
                 dream_targets=dream_targets, 
@@ -191,7 +194,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 progress=self.progress_bar,
             )
             self.progress_bar.clear_dreaming()
-            #self.progress_bar._init_progress()
         else:
             with Progress(
                 "[progress.description]{task.description}",
@@ -214,22 +216,18 @@ class DreamDataModule(BaseCLDataModule, ABC):
         return new_dreams, new_targets
 
     def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
-        progress.setup_dreaming(dream_targets=dream_targets, iterations=iterations)
+        progress.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
-            progress.next_dream(target=target, iterations=iterations)
-
-            def update_progress():
-                progress.update_dreaming()
-
             target_dreams = self._generate_dreams_for_target(
                 model=model, 
                 target=target, 
                 iterations=iterations, 
-                update_progress_f=update_progress,
+                progress_bar=progress,
                 task_index=task_index
             )
             new_targets.extend([target] * target_dreams.shape[0])
             new_dreams.append(target_dreams)
+            progress.update_dreaming(0)
     
     def _log_target_dreams(self, new_dreams, target):
         if not self.fast_dev_run and self.logger is not None:
@@ -253,6 +251,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                         idx, 
                         img
                     )
+            print(f'INFO: Generated {new_dreams.size(dim=0)} dreams')
 
     def _log_fast_dev_run(self, new_dreams, new_targets):
         if not self.fast_dev_run:
@@ -269,19 +268,11 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def _generate_dreams_for_target(self, model, target, iterations, update_progress_f, task_index):
+    def _generate_dreams_for_target(self, model, target, iterations, progress_bar, task_index):
         dreams = []
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
+        progress_bar.setup_repeat(target=target, iterations=iterations)
         for _ in range(iterations):
-
-            def batch_param_f():
-                # uses 2D Fourier coefficients
-                # sd - scale of the random numbers [0, 1)
-                #return param.image(
-                #    self.image_size, batch=self.const_target_images_per_dreaming_batch, sd=0.4
-                #)
-                return param.cppn(self.image_size)
-
             target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
             objective = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
 
@@ -298,7 +289,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     objective_f=objective,
                     param_f=self.param_f,
                     fixed_image_size=self.image_size,
-                    progress=False,
                     custom_f_steps=self.custom_f_steps,
                     custom_f=self.custom_f,
                     show_image=False,
@@ -311,12 +301,14 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     thresholds=thresholds, # max() - how many iterations is used to generate an input image. Also
                                         # for the rest of the numbers, save the image during the i-th iteration
                     disable_transforms=self.disable_dream_transforms,
+                    progress_bar=progress_bar,
+                    refresh_fequency=self.richbar_refresh_fequency,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
 
             dreams.append(numpy_render)
-            update_progress_f()
+            progress_bar.update_dreaming(1)
         target_dreams = torch.cat(dreams)
         self._log_target_dreams(target_dreams, target)
         return target_dreams
@@ -494,7 +486,7 @@ class CLDataModule(DreamDataModule):
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
-        if self.dream_dataset_current_task and not (self.swap_datasets and self.current_loop_index % 2 == 0):
+        if self.dream_dataset_current_task and not (self.swap_datasets and self.current_loop_index % 2 == 0) or self.train_only_dream_batch:
             # first loop is always False. After accumulating dreams this dataloader will be used.
             shuffle = self.dream_shuffle if self.datasampler is None else False
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
@@ -533,11 +525,15 @@ class CLDataModule(DreamDataModule):
                 ) if self.datasampler is not None else None
         )
 
+        normal_key = "normal"
+        # need new label to not use this dataset but still keep CombinedLoader functionality
+        if(self.train_only_dream_batch):
+            normal_key = 'dull'
 
         if dream_loader is not None:
-            loaders = {"normal": normal_loader, "dream": dream_loader}
+            loaders = {normal_key: normal_loader, "dream": dream_loader}
         else:
-            loaders = {"normal": normal_loader}
+            loaders = {normal_key: normal_loader}
         return CombinedLoader(loaders, mode="max_size_cycle")
 
     def clear_dreams_dataset(self):

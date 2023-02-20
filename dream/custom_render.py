@@ -40,13 +40,14 @@ def render_vis(
     custom_f=empty_f,
     verbose=False,
     preprocess=True,
-    progress=True,
     show_image=True,
     save_image=False,
     image_name=None,
     show_inline=False,
     fixed_image_size=None,
     disable_transforms=False,
+    progress_bar=None,
+    refresh_fequency=50,
 ):
     if param_f is None:
         param_f = lambda: param.image(128)
@@ -98,42 +99,47 @@ def render_vis(
         print("Initial loss: {:.3f}".format(objective_f(hook)))
 
     images = []
-    try:
-        for i in tqdm(range(1, max(thresholds) + 1), disable=(not progress)):
-            def closure():
-                optimizer.zero_grad()
-                try:
-                    model(transform_f(image_f()))
-                except RuntimeError as ex:
-                    if i == 1:
-                        # Only display the warning message
-                        # on the first iteration, no need to do that
-                        # every iteration
-                        warnings.warn(
-                            "Some layers could not be computed because the size of the "
-                            "image is not big enough. It is fine, as long as the non"
-                            "computed layers are not used in the objective function"
-                            f"(exception details: '{ex}')"
-                        )
-                loss = objective_f(hook)
-                loss.backward()
-                return loss
-                
-            optimizer.step(closure)
-            if i in custom_f_steps:
-                custom_f()
-            if i in thresholds:
-                image = tensor_to_img_array(image_f())
-                if verbose:
-                    print("Loss at step {}: {:.3f}".format(i, objective_f(hook)))
-                    if show_inline:
-                        show(image)
-                images.append(image)
-    except KeyboardInterrupt:
-        print("Interrupted optimization at step {:d}.".format(i))
-        if verbose:
-            print("Loss at step {}: {:.3f}".format(i, objective_f(hook)))
-        images.append(tensor_to_img_array(image_f()))
+    iterations = max(thresholds)
+    progress_bar.setup_iteration(iterations=iterations)
+    for i in range(1, iterations + 1):
+        def closure():
+            optimizer.zero_grad()
+            try:
+                model(transform_f(image_f()))
+            except RuntimeError as ex:
+                if i == 1:
+                    # Only display the warning message
+                    # on the first iteration, no need to do that
+                    # every iteration
+                    warnings.warn(
+                        "Some layers could not be computed because the size of the "
+                        "image is not big enough. It is fine, as long as the non"
+                        "computed layers are not used in the objective function"
+                        f"(exception details: '{ex}')"
+                    )
+            loss = objective_f(hook)
+            loss.backward()
+            #progress_bar.update_dreaming(2)
+            return loss
+            
+        optimizer.step(closure)
+        if i in custom_f_steps:
+            custom_f()
+        if i in thresholds:
+            image = tensor_to_img_array(image_f())
+            if verbose:
+                print("Loss at step {}: {:.3f}".format(i, objective_f(hook)))
+                if show_inline:
+                    show(image)
+            images.append(image)
+        progress_bar.update_dreaming(2)
+        if i % refresh_fequency == 0:
+            progress_bar.refresh()
+    #except KeyboardInterrupt:
+    #    print("Interrupted optimization at step {:d}.".format(i))
+    #    if verbose:
+    #        print("Loss at step {}: {:.3f}".format(i, objective_f(hook)))
+    #    images.append(tensor_to_img_array(image_f()))
 
     if save_image:
         export(image_f(), image_name)

@@ -27,13 +27,12 @@ Avaliable types are:
 buffer used in island overlay for model.')
     parser.add_argument("--train_with_logits", action="store_true", help='Use dataset with logits.')
     parser.add_argument("--num_workers", type=int, default=4, help='Number of dataloader workers.')
-    parser.add_argument("--dream_num_workers", type=int, default=4, help='Number of dream dataloader workers.')
+    parser.add_argument("--dream_num_workers", type=int, default=2, help='Number of dream dataloader workers.')
     parser.add_argument("--test_val_num_workers", type=int, default=4, help='Number of test and validation dataloader workers.')
     parser.add_argument("--save_trained_model", action="store_true", help='')
     parser.add_argument("--save_model_name", type=str, help='')
     parser.add_argument("--load_model", type=str, help='')
     parser.add_argument("--enable_checkpoint", action="store_true", help='')
-    parser.add_argument("--disable_normal_dataset", action="store_true", help='Do not use normal dataset, only dream dataset.')
     parser.add_argument("--optimizer_type", type=str, default='adam', help='')
     parser.add_argument("--scheduler_type", type=str, default='none', help='')
     parser.add_argument("--reset_optim_type", type=str, default='default', help='')
@@ -61,7 +60,7 @@ If less than in dataset then model will be trained and validated only using this
     #####     dream parameters      ######
     ######################################
     parser.add_argument("--dreams_per_target", type=int, default=64, help='How many epochs do per one task in "num_tasks"')
-    parser.add_argument("--target_images_per_dreaming_batch", type=int, default=8, help='How many images \
+    parser.add_argument("--dreaming_batch_size", type=int, default=32, help='How many images \
 in batch during dreaming should be produced.')
     parser.add_argument("--dream_threshold", nargs='+', type=int, default=(1024, ), help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
@@ -74,7 +73,7 @@ during training.')
 tranforms on dreamed images used in lucid framework in main function.')
     parser.add_argument("--disable_dream_shuffle", action="store_false", help='Flag to shuffle only train dream dataset')
     parser.add_argument("--param_image", type=str, default='image', help='Type of image. Default \
-"image"-normal image  "cppn"-cppn image')
+"image"-normal image  "cppn"-cppn image (does not use "dreaming_batch_size")')
     parser.add_argument("--train_only_dream_batch", action="store_true", help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.')
 

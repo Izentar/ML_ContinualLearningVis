@@ -25,6 +25,7 @@ from tests.evaluation.disorder_dream import DisorderDream
 from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs
 
 from utils.load import try_load
+from config.default import robust_data_path
 
 def data_transform():
     return transforms.Compose(
@@ -111,12 +112,12 @@ def get_dream_optim():
 
 def param_f_create(ptype, decorrelate=True):
 
-    def param_f_image(image_size, target_images_per_dreaming_batch, **kwargs):
+    def param_f_image(image_size, dreaming_batch_size, **kwargs):
         def param_f():
             # uses 2D Fourier coefficients
             # sd - scale of the random numbers [0, 1)
             return param.image(
-                image_size, batch=target_images_per_dreaming_batch, sd=0.4, 
+                image_size, batch=dreaming_batch_size, sd=0.4, 
                 fft=decorrelate, decorrelate=decorrelate
             )
         return param_f
@@ -245,7 +246,7 @@ def logic(args):
     set_manager = FunConfigSetPredefined(
         name_type='cl-sae-crossentropy', 
         #mtype='SAEGAUSS', 
-        dream_obj_type=["objective-channel", "OBJECTIVE-SAE-DIVERSITY"],
+        #dream_obj_type=["objective-channel", "OBJECTIVE-SAE-DIVERSITY"],
         logger=logger
     )
     set_manager.init_dream_objectives(logger=logger, label='dream')
@@ -266,7 +267,7 @@ def logic(args):
         pass
         #num_tasks = 3
         #num_classes = 6
-        #const_target_images_per_dreaming_batch = 8
+        #dreaming_batch_size = 8
         #epochs_per_task = 2
         args.dreams_per_target = 64
 
@@ -290,7 +291,7 @@ def logic(args):
             model=source_model,
             load_model=args.load_model,
             robust_dataset_name=args.dataset,
-            robust_data_path="./data",
+            robust_data_path=robust_data_path,
             num_tasks=args.num_tasks,
             num_classes=args.number_of_classes,
             attack_kwargs=attack_kwargs,
@@ -335,7 +336,7 @@ def logic(args):
         empty_dream_dataset=dream_dataset_class(enable_robust=args.enable_robust, transform=dreams_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
-        const_target_images_per_dreaming_batch=args.target_images_per_dreaming_batch,
+        dreaming_batch_size=args.dreaming_batch_size,
         optimizer=dream_optim,
         logger=logger,
         dataset_class_labels=dataset_class_labels,
@@ -348,6 +349,7 @@ def logic(args):
         num_workers=args.num_workers,
         dream_num_workers=args.dream_num_workers,
         test_val_num_workers=args.test_val_num_workers,
+        train_only_dream_batch=args.train_only_dream_batch,
     )
     
 
@@ -387,6 +389,7 @@ def logic(args):
         save_trained_model=args.save_trained_model,
         load_model=args.load_model,
         export_path=args.export_path,
+        dream_at_beginning=args.train_only_dream_batch,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
