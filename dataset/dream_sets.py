@@ -50,12 +50,28 @@ class DreamDataset(Dataset):
     def empty(self):
         return len(self.dreams) == 0
 
-    def save(self, location:str):
-        to_save = {
-            'metadata':{
-                
-            },
-        }
+    def save(self, location:str, metadata=None):
+        location = str(location)
+        if(metadata is None):
+            to_save = {}
+        else:
+            to_save = {
+                'metadata':{
+                    metadata
+                },
+            }
+        to_save['dataset'] = self.dreams
+        to_save['target'] = self.targets
+        torch.save(to_save, location)
+        
+    def load(self, location:str):
+        location = str(location)
+        to_load = torch.load(location)
+        self.dreams = to_load['dataset']
+        self.targets = to_load['target']
+        if('metadata' in to_load):
+            return to_load['metadata']
+        return None
 
 class DreamDatasetWithLogits(DreamDataset):
     def __init__(self, enable_robust=False, *args, **kwargs) -> None:

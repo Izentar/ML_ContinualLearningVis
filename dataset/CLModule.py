@@ -179,6 +179,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.train()
 
+    def save_dream_dataset(self, location):
+        self.dreams_dataset.save(location)
+    
+    def load_dream_dataset(self, location):
+        self.dreams_dataset.load(location)
+
     def _generate_dreams(self, model, dream_targets, iterations, task_index):
         new_dreams = []
         new_targets = []

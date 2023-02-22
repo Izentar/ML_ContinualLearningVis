@@ -16,7 +16,7 @@ Test dataset uses test data with only the classes used in previous tasks.
     parser.add_argument("--with_reconstruction", action="store_true", help='If exist use the model with reconstruction \
 of the original image during training and use additional comparison loss of the original and reconstructed image.')
     parser.add_argument("--run_without_training", action="store_true", help='Run framework without invoking training call. \
-All other functionalities still work the same. Running with "disable_dreams" will run only test.')
+All other functionalities still work the same. Running with "disable_dreams_gen" will run only test.')
     parser.add_argument("--disable_shuffle", action="store_false", help='Flag to shuffle train normal and dream datasets. If \
 flag "disable_dream_shuffle" is set then it takes precedence over this flag.')
     parser.add_argument("--datasampler_type", type=str, default='none', help='''Select datasampler type.
@@ -38,7 +38,8 @@ buffer used in island overlay for model.')
 to choose epoch at which to call it.')
     parser.add_argument("--reset_optim_type", type=str, default='default', help='')
     parser.add_argument("--export_path", type=str, help='')
-    parser.add_argument("--save_dreams", action="store_true", help='')
+    parser.add_argument("--save_dreams", type=str, help='')
+    parser.add_argument("--load_dreams", type=str, help='')
     
     ######################################
     #####    numerical parameters   ######
@@ -69,7 +70,7 @@ be used to generate an output image during dreaming, using only max value. Value
 images from the batch will be additionaly saved.')
     parser.add_argument("--dream_frequency", type=int, default=1, help='How often dream images should be used during \
 training. The bigger value the lesser frequency.')
-    parser.add_argument("--disable_dreams", action="store_false", help='If framework should produce dreams and use them \
+    parser.add_argument("--disable_dreams_gen", action="store_false", help='If framework should produce dreams and use them \
 during training. Running with "run_without_training" will run only test.')
     parser.add_argument("--enable_dream_transforms", action="store_false", help='Enable and add all default \
 tranforms on dreamed images used in lucid framework in main function.')

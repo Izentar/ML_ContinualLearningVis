@@ -54,7 +54,7 @@ class CLLoop(Loop):
         reload_model_after_loop: bool = False,
         reinit_model_after_loop: bool = False,
         export_path: Optional[str] = None,
-        enable_dreams=True,
+        enable_dreams_gen=True,
         fast_dev_run_epochs=None,
         fast_dev_run=False,
         data_passer=None,
@@ -68,6 +68,8 @@ class CLLoop(Loop):
         save_model_name:str=None,
         load_model:str=None,
         dream_at_beginning:bool=False,
+        save_dreams:str=None,
+        load_dreams:str=None,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -91,7 +93,7 @@ class CLLoop(Loop):
         
         self.reload_model_after_loop = reload_model_after_loop
         self.reinit_model_after_loop = reinit_model_after_loop
-        self.enable_dreams = enable_dreams
+        self.enable_dreams_gen = enable_dreams_gen
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
         self.enable_data_parser = data_passer is not None
@@ -105,6 +107,8 @@ class CLLoop(Loop):
         self.save_trained_model = save_trained_model
         self.load_model = load_model
         self.dream_at_beginning = dream_at_beginning
+        self.save_dreams = save_dreams
+        self.load_dreams = load_dreams
 
         if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
@@ -160,9 +164,10 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             if(self.weight_reset_sanity_check):
                 self.state_dict_sanity_check_val = self.trainer.lightning_module.model.get_objective_layer().weight.cpu() 
         self._update_data_passer()
+        self._try_load_dreams()
 
     def _try_generate_dream(self):
-        if (self.current_loop > 0 and self.enable_dreams) or (self.dream_at_beginning and self.enable_dreams):
+        if (self.current_loop > 0 and self.enable_dreams_gen) or (self.dream_at_beginning and self.enable_dreams_gen):
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
@@ -198,6 +203,24 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             fit_loop=FitLoop(max_epochs=max_epochs)
         )
         self.custom_advance_f = self.fit_loop.run if not self.run_without_training else lambda: print("INFO: SKIPPING TRAINING")
+
+    def _try_save_dreams(self):
+        if(self.save_dreams is not None):
+            folder = datetime.datetime.now().strftime("%d-%m-%Y")
+            time = datetime.datetime.now().strftime("%H:%M:%S")
+            filepath = self.export_path / f"{self.save_model_name}" / f'{self.save_dreams}'/ f"{folder}" 
+            filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
+            Path.mkdir(filepath, parents=True, exist_ok=True, mode=model_to_save_file_type)
+            self.trainer.datamodule.save_dream_dataset(filepath / filename)
+
+    def _try_load_dreams(self):
+        if(self.load_dreams is not None):
+            find_path = self.export_path / self.load_dreams
+            path = glob.glob(str(find_path), recursive=True)
+            if(len(path) != 1):
+                raise Exception(f'Cannot load dreams - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
+            path = path[0]
+            self.trainer.datamodule.load_dream_dataset(path)
 
     def on_advance_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
@@ -274,6 +297,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
     def on_run_end(self) -> None:
         """Used to compute the performance of the ensemble model on the test set."""
         self._try_save_trained_model()
+        self._try_save_dreams()
 
     def on_save_checkpoint(self) -> Dict[str, int]:
         return {"current_task": self.current_task, "current_loop": self.current_loop}

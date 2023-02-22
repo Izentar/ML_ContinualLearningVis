@@ -379,7 +379,7 @@ def logic(args, log_args_to_wandb=True):
     internal_fit_loop = trainer.fit_loop
     trainer.fit_loop = CLLoop(
         [args.epochs_per_task] * args.num_tasks, 
-        enable_dreams=args.disable_dreams,
+        enable_dreams_gen=args.disable_dreams_gen,
         fast_dev_run_epochs=args.fast_dev_run_epochs,
         fast_dev_run=args.fast_dev_run,
         data_passer=data_passer,
@@ -396,6 +396,8 @@ def logic(args, log_args_to_wandb=True):
         load_model=args.load_model,
         export_path=args.export_path,
         dream_at_beginning=args.train_only_dream_batch,
+        save_dreams=args.save_dreams,
+        load_dreams=args.load_dreams,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
