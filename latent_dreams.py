@@ -167,7 +167,7 @@ def model_summary(source_model):
     summary(source_model, (3, 32, 32))
     exit()
 
-def logic(args):
+def logic(args, log_args_to_wandb=True):
     # normal dreaming
     pl.seed_everything(42)
 
@@ -218,12 +218,12 @@ def logic(args):
     JITTER = 2
     ROTATE = 5
     SCALE = 1.1
-    #render_transforms = [
-    #    tr.pad(JITTER),
-    #    tr.jitter(JITTER),
-    #    tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-    #    tr.random_rotate(range(-ROTATE, ROTATE+1))
-    #]
+    render_transforms = [
+        tr.pad(2 * JITTER), # int
+        tr.jitter(JITTER), # > 1
+        tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+        tr.random_rotate(range(-ROTATE, ROTATE+1))
+    ]
 
     data_passer = {}
 
@@ -231,6 +231,8 @@ def logic(args):
     if args.fast_dev_run:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
+    if(log_args_to_wandb):
+        log_to_wandb(args)
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
 
@@ -243,10 +245,14 @@ def logic(args):
     #    mtype='sae',
     #    otype='cl-model-island-test',
     #)
+
+    #### setting in dream_obj_type a diversity type will extend time of dreaming significantly
     set_manager = FunConfigSetPredefined(
         name_type='cl-sae-crossentropy', 
-        #mtype='SAEGAUSS', 
-        #dream_obj_type=["objective-channel", "OBJECTIVE-SAE-DIVERSITY"],
+        mtype='SAEGAUSS', 
+        #mtype='RESNET18', 
+        dream_obj_type=["objective-channel"],
+        #dream_obj_type=["objective-channel", "OBJECTIVE-DLA-DIVERSITY-1", "OBJECTIVE-DLA-DIVERSITY-2", "OBJECTIVE-DLA-DIVERSITY-3"],
         logger=logger
     )
     set_manager.init_dream_objectives(logger=logger, label='dream')
@@ -497,5 +503,4 @@ def check(split, num_classes, num_tasks, with_reconstruction, enable_robust):
 
 if __name__ == "__main__":
     args = arg_parser()
-    log_to_wandb(args)
     logic(args)

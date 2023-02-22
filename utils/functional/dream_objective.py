@@ -64,6 +64,21 @@ def dream_objective_SAE_standalone_diversity(model, **kwargs):
 def dream_objective_SAE_diversity(model, **kwargs):
     return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'conv_enc2')
 
+def dream_objective_DLA_diversity_1(model, **kwargs):
+    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer4_left_node_conv2')
+
+def dream_objective_DLA_diversity_2(model, **kwargs):
+    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer5_prev_root_conv2')
+
+def dream_objective_DLA_diversity_3(model, **kwargs):
+    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer6_right_node_conv2')
+
+def dream_objective_resnet18_diversity_1(model, **kwargs):
+    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer1_1_conv2')
+
+def dream_objective_resnet18_diversity_2(model, **kwargs):
+    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer4_0_conv2')
+
 def dream_objective_latent_channel(model, **kwargs):
     return inner_obj_latent_channel(model.get_objective_target())
 
@@ -176,6 +191,11 @@ class DreamObjectiveManager():
         'OBJECTIVE-RESNET20-C100-DIVERSITY': dream_objective_RESNET20_C100_diversity,
         'OBJECTIVE-LATENT-STEP-SAMPLE-NORMAL-CREATOR': dream_objective_latent_step_sample_normal_creator,
         'OBJECTIVE-LATENT-LOSSF-COMPARE-CREATOR': dream_objective_latent_lossf_compare_creator,
+        'OBJECTIVE-DLA-DIVERSITY-1': dream_objective_DLA_diversity_1,
+        'OBJECTIVE-DLA-DIVERSITY-2': dream_objective_DLA_diversity_2,
+        'OBJECTIVE-DLA-DIVERSITY-3': dream_objective_DLA_diversity_3,
+        'OBJECTIVE-RESNET-DIVERSITY-1': dream_objective_resnet18_diversity_1,
+        'OBJECTIVE-RESNET-DIVERSITY-2': dream_objective_resnet18_diversity_2,
     }
     def __init__(self, dtype: list[str]) -> None:
         if isinstance(dtype, str):

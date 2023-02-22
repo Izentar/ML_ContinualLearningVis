@@ -162,7 +162,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         self._update_data_passer()
 
     def _try_generate_dream(self):
-        if (self.current_loop > 0 and self.enable_dreams) or self.dream_at_beginning:
+        if (self.current_loop > 0 and self.enable_dreams) or (self.dream_at_beginning and self.enable_dreams):
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(

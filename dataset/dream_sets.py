@@ -50,6 +50,13 @@ class DreamDataset(Dataset):
     def empty(self):
         return len(self.dreams) == 0
 
+    def save(self, location:str):
+        to_save = {
+            'metadata':{
+                
+            },
+        }
+
 class DreamDatasetWithLogits(DreamDataset):
     def __init__(self, enable_robust=False, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

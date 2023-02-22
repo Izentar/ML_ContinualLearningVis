@@ -11,6 +11,7 @@ from model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
 from model.vgg import vgg11_bn
 from model.ResNet import ResNet18, Resnet20C100
 from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
+from model.DLA import DLA
 
 class FunConfigSetBase():
     # must be {main phrase: rule}
@@ -30,6 +31,7 @@ class FunConfigSetBase():
         'RESNET20C100': Resnet20C100,
         'SAEGAUSS': SAE_CIFAR_GAUSS,
         'SAECONJ': SAE_CIFAR_CONJ,
+        'DLA': DLA,
     }
 
     GET_OVERLAY = {
@@ -136,6 +138,7 @@ class FunConfigSet(FunConfigSetBase):
         self.dream_obj_manager.init_objectives_creator(**kwargs)
 
     def _init_register_template(self, ftype, fdict, error_mss: str):
+        "Add to rule buffer to later check for rules"
         if(not isinstance(ftype, list)):
             ftype = [ftype]
         for fun in ftype:

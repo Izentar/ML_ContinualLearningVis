@@ -251,7 +251,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
                         idx, 
                         img
                     )
-            print(f'INFO: Generated {new_dreams.size(dim=0)} dreams')
 
     def _log_fast_dev_run(self, new_dreams, new_targets):
         if not self.fast_dev_run:
@@ -508,7 +507,6 @@ class CLDataModule(DreamDataModule):
             )
 
         normal_classes = self._select_dream_classes_for_task(self.val_tasks_split, self.current_task_index)
-        print(f"Selected classes for normal dataloader: {normal_classes}")
 
         shuffle = self.shuffle if self.datasampler is None else False
         normal_loader = DataLoader(
@@ -529,6 +527,8 @@ class CLDataModule(DreamDataModule):
         # need new label to not use this dataset but still keep CombinedLoader functionality
         if(self.train_only_dream_batch):
             normal_key = 'dull'
+        else:
+            print(f"Selected classes for normal dataloader: {normal_classes}")
 
         if dream_loader is not None:
             loaders = {normal_key: normal_loader, "dream": dream_loader}
