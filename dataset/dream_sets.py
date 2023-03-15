@@ -1,6 +1,6 @@
 import torch
 from torchvision import transforms
-from torchvision.transforms.functional import to_pil_image, to_tensor
+from torchvision.transforms.functional import to_pil_image, to_tensor, pil_to_tensor
 import gc
 from torch.utils.data import Dataset
 
@@ -50,28 +50,50 @@ class DreamDataset(Dataset):
     def empty(self):
         return len(self.dreams) == 0
 
-    def save(self, location:str, metadata=None):
+    def save(self, location:str):
         location = str(location)
-        if(metadata is None):
-            to_save = {}
+        to_save = {
+            'metadata':{
+                'pil_image': bool(self.transform)
+            },
+        }
+        if self.transform:
+            to_save_dreams = []
+            for d in self.dreams:
+                to_save_dreams.append(pil_to_tensor(d))
         else:
-            to_save = {
-                'metadata':{
-                    metadata
-                },
-            }
-        to_save['dataset'] = self.dreams
+            to_save_dreams = self.dreams
+        to_save['dataset'] = to_save_dreams
         to_save['target'] = self.targets
         torch.save(to_save, location)
         
     def load(self, location:str):
+        def tensor_to_img_array(tensor):
+            import numpy as np
+            image = tensor.cpu().detach().numpy()
+            image = np.transpose(image, [1, 2, 0])
+            return image
         location = str(location)
         to_load = torch.load(location)
-        self.dreams = to_load['dataset']
+        to_load_dreams = to_load['dataset']
         self.targets = to_load['target']
-        if('metadata' in to_load):
-            return to_load['metadata']
-        return None
+        metadata = to_load['metadata']
+        if(metadata['pil_image']):
+            for d in to_load_dreams:
+                self.dreams.append(to_pil_image(d))
+
+        #from lucent.misc.io import show
+        #import matplotlib.pyplot as plt
+        #from PIL import Image
+        #image = Image.fromarray(tensor_to_img_array(pil_to_tensor(self.dreams[68])))
+        #image.show()
+        #image = Image.fromarray(tensor_to_img_array(pil_to_tensor(self.dreams[150])))
+        #image.show()
+        #image = Image.fromarray(tensor_to_img_array(pil_to_tensor(self.dreams[700])))
+        #image.show()
+        #exit()
+
+        
 
 class DreamDatasetWithLogits(DreamDataset):
     def __init__(self, enable_robust=False, *args, **kwargs) -> None:

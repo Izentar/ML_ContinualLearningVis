@@ -2,6 +2,7 @@ import torch
 from lucent.optvis.objectives import wrap_objective, handle_batch
 from lucent.optvis import objectives
 from utils.counter import Counter, CounterBase, CounterKeys, CounterKeysBase
+import torch.nn.functional as F
 
 """
     If the function has in name '_creator' part then it will be invoked during init_objectives_creator.
@@ -178,6 +179,50 @@ def test(target, model, source_dataset_obj):
         "vgg_features_10"
     )
 
+@wrap_objective()
+def diversity(layer):
+    """Encourage diversity between each batch element.
+
+    A neural net feature often responds to multiple things, but naive feature
+    visualization often only shows us one. If you optimize a batch of images,
+    this objective will encourage them all to be different.
+
+    In particular, it calculates the correlation matrix of activations at layer
+    for each image, and then penalizes cosine similarity between them. This is
+    very similar to ideas in style transfer, except we're *penalizing* style
+    similarity instead of encouraging it.
+
+    Args:
+        layer: layer to evaluate activation correlations on.
+
+    Returns:
+        Objective.
+    """
+    cos_sim = torch.nn.CosineSimilarity(dim=1)
+    def inner(model):
+        layer_t = model(layer)
+        batch, channels, _, _ = layer_t.shape
+        flattened = layer_t.view(batch, channels, -1)
+        grams = torch.matmul(flattened, torch.transpose(flattened, 1, 2))
+        grams = F.normalize(grams, p=2, dim=(1, 2))
+        sim = cos_sim(grams.view(batch, -1), grams.view(batch, -1))
+        flat_batch = grams.view(batch, -1)
+
+        flat_batch_T = flat_batch.T
+        z_norm = torch.linalg.norm(flat_batch, dim=1, keepdim=True)
+        b_norm = torch.linalg.norm(flat_batch_T, dim=0, keepdim=True)
+        cosine_similarity = ((flat_batch @ flat_batch_T) / (z_norm @ b_norm)).T
+        cosine_similarity = - cosine_similarity.flatten()[1:].view(batch-1, batch+1)[:,:-1].sum() / batch
+
+        ## too slow !!!
+        #b = -sum([ sum([ (grams[i]*grams[j]).sum()
+        #       for j in range(batch) if j != i])
+        #        for i in range(batch)]) / batch
+        return cosine_similarity
+    return inner
+
+def dream_objective_SAE_diversity_cosine(model, **kwargs):
+    return diversity(model.get_root_objective_target() + 'conv_enc2')
 
 class DreamObjectiveManager():
     GET_OBJECTIVE = {
@@ -187,7 +232,7 @@ class DreamObjectiveManager():
         'OBJECTIVE-LATENT-LOSSF-CREATOR': dream_objective_latent_lossf_creator,
         'OBJECTIVE-LATENT-NEURON-DIRECTION': dream_objective_latent_neuron_direction,
         'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
-        'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity,
+        'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity_cosine,
         'OBJECTIVE-RESNET20-C100-DIVERSITY': dream_objective_RESNET20_C100_diversity,
         'OBJECTIVE-LATENT-STEP-SAMPLE-NORMAL-CREATOR': dream_objective_latent_step_sample_normal_creator,
         'OBJECTIVE-LATENT-LOSSF-COMPARE-CREATOR': dream_objective_latent_lossf_compare_creator,
@@ -206,6 +251,7 @@ class DreamObjectiveManager():
         self.function_names = []
 
     def __call__(self, *args, **kwargs):
+        # calls objective creator and then combines objectives that have @wrap_objective decorator
         combined_objectives = self.first_objective_f(*args, **kwargs)
         for fun in self.objectives_f:
             combined_objectives += fun(*args, **kwargs)

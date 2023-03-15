@@ -82,16 +82,15 @@ class SAE_standalone(base.CLBase):
 class CLModel(base.CLBase):
     def __init__(
         self,
-        model=None,
-        loss_f=None,
+        model:nn.Module=None,
+        loss_f:nn.Module=None,
         load_model:bool=False,
-        robust_dataset=None,
         robust_dataset_name:str=None,
         robust_data_path:str=None,
-        attack_kwargs=None,
-        dreams_with_logits=False,
-        resume_path=None,
-        enable_robust=False,
+        attack_kwargs:dict=None,
+        dreams_with_logits:bool=False,
+        resume_path:str=None,
+        enable_robust:bool=False,
         *args, 
         **kwargs
     ):

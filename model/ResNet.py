@@ -3,12 +3,15 @@ from torchvision.models import resnet18
 from torch import nn
 from pytorchcv.model_provider import get_model as ptcv_get_model
 from model.model_base import ModelBase
+import torch
+from utils.utils import replace_layer
 
 class ResNet18(nn.Module, ModelBase):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__()
 
         self.resnet = resnet18(num_classes=num_classes)
+        #replace_layer(self, 'self', torch.nn.ReLU, lambda a, b, x: torch.nn.LeakyReLU(negative_slope=0.05, inplace=x.inplace))
 
     def forward(self, x, **kwargs):
         return self.resnet(x)

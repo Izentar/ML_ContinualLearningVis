@@ -72,6 +72,10 @@ class CustomRichProgressBar(RichProgressBar, BaseProgress):
         if(self.iteration_progress is not None and idx == 2):
             self.progress.update(self.iteration_progress, advance=1)
 
+    def update_iteration(self):
+        if(self.iteration_progress is not None):
+            self.progress.update(self.iteration_progress, advance=1)
+
     def _clear_iteration(self):
         if(self.iteration_progress is not None):
             self.progress.remove_task(self.iteration_progress)

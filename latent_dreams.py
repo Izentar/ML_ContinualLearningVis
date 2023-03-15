@@ -105,11 +105,6 @@ def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
             9: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 1]) * one_hot_scale,
         }
     
-def get_dream_optim():
-    def inner(params):
-        return torch.optim.Adam(params, lr=5e-3)
-    return inner
-
 def param_f_create(ptype, decorrelate=True):
 
     def param_f_image(image_size, dreaming_batch_size, **kwargs):
@@ -195,7 +190,7 @@ def logic(args, log_args_to_wandb=True):
     nrows = 4
     ncols = 4
     num_sanity_val_steps = 0
-    dream_optim = get_dream_optim()
+    dream_optim = lambda params: torch.optim.Adam(params, lr=args.dream_lr)
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
 
@@ -215,14 +210,15 @@ def logic(args, log_args_to_wandb=True):
     #    tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
     #    tr.jitter(2),
     #]
-    JITTER = 2
+    JITTER = 4
     ROTATE = 5
-    SCALE = 1.1
+    SCALE = 1.2
     render_transforms = [
-        tr.pad(2 * JITTER), # int
+        tr.pad(JITTER), # int
         tr.jitter(JITTER), # > 1
         tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-        tr.random_rotate(range(-ROTATE, ROTATE+1))
+        tr.random_rotate(range(-ROTATE, ROTATE+1)),
+        tr.jitter(int(JITTER / 2))
     ]
 
     data_passer = {}
@@ -248,10 +244,11 @@ def logic(args, log_args_to_wandb=True):
 
     #### setting in dream_obj_type a diversity type will extend time of dreaming significantly
     set_manager = FunConfigSetPredefined(
-        name_type='cl-sae-crossentropy', 
-        mtype='SAEGAUSS', 
+        name_type=args.framework_type, 
+        mtype=args.model_type,
+        #mtype='SAEGAUSS', 
         #mtype='RESNET18', 
-        dream_obj_type=["objective-channel"],
+        dream_obj_type=args.dream_obj_type,
         #dream_obj_type=["objective-channel", "OBJECTIVE-DLA-DIVERSITY-1", "OBJECTIVE-DLA-DIVERSITY-2", "OBJECTIVE-DLA-DIVERSITY-3"],
         logger=logger
     )
@@ -395,15 +392,23 @@ def logic(args, log_args_to_wandb=True):
         save_trained_model=args.save_trained_model,
         load_model=args.load_model,
         export_path=args.export_path,
-        dream_at_beginning=args.train_only_dream_batch,
         save_dreams=args.save_dreams,
         load_dreams=args.load_dreams,
+        generate_dreams_at_start=args.generate_dreams_at_start,
+        use_layer_loss_at=args.use_layer_loss_at,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
 
     trainer.test(model, datamodule=cl_data_module)
     cl_data_module.flush_wandb()
+
+
+
+    # 
+    # TODO
+    # write below to functions
+    #
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = dataset_class(root="./data", train=False, transform=transform)
@@ -504,5 +509,5 @@ def check(split, num_classes, num_tasks, with_reconstruction, enable_robust):
 \nwith_reconstruction: {with_reconstruction}\enable_robust: {enable_robust}")
 
 if __name__ == "__main__":
-    args = arg_parser()
+    args, _ = arg_parser()
     logic(args)

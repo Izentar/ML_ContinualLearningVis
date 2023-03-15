@@ -5,7 +5,7 @@ from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 import math
 from model.model_base import ModelBase
-from model.activation_layer import GaussAL, Conjuction, GaussALC
+from model.activation_layer import gaussA, conjunction
 
 class SAE_CIFAR(nn.Module, ModelBase):
     def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
@@ -18,6 +18,8 @@ class SAE_CIFAR(nn.Module, ModelBase):
         self.conv_enc2 = nn.Conv2d(
             in_channels=32, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
         )
+
+        self.relu = torch.nn.ReLU(inplace=True)
 
         self.ln_enc1 = nn.Linear(in_features=50176, out_features=ln_hidden1)
         self.ln_encode_cl = nn.Linear(in_features=ln_hidden1, out_features=num_classes)
@@ -85,12 +87,12 @@ class SAE_CIFAR(nn.Module, ModelBase):
         return self.ln_encode_cl(x)
 
     def forward_encoder_hidden(self, x):
-        xe = relu(self.conv_enc1(x))
-        xe = relu(self.conv_enc2(xe))
+        xe = self.relu(self.conv_enc1(x))
+        xe = self.relu(self.conv_enc2(xe))
         conv_to_linear_shape = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
         xe = xe.reshape(-1, conv_to_linear_shape[1] * conv_to_linear_shape[2] * conv_to_linear_shape[3])
-        xe = relu(self.ln_enc1(xe))
+        xe = self.relu(self.ln_enc1(xe))
 
         #xe_latent_pre_relu = self.fc2_3(xe)
         #xe_latent = relu(xe_latent_pre_relu)
@@ -99,13 +101,13 @@ class SAE_CIFAR(nn.Module, ModelBase):
         return xe, conv_to_linear_shape#, xe_latent, xe_latent_second, encoder_hat, conv_to_linear_shape
 
     def forward_decoder_class(self, xe):
-        xd = relu(self.ln_decode_cl(xe))
+        xd = self.relu(self.ln_decode_cl(xe))
         return xd
 
     def forward_decoder_hidden(self, xe, linear_to_conv_shape):
-        xd = relu(self.ln_dec1(xe))
+        xd = self.relu(self.ln_dec1(xe))
         xd = torch.reshape(xd, (linear_to_conv_shape[0], linear_to_conv_shape[1], linear_to_conv_shape[2], linear_to_conv_shape[3]))
-        xd = relu(self.conv_dec1(xd))
+        xd = self.relu(self.conv_dec1(xd))
         # xd = F.upsample(xd,30)
         return sigmoid(self.conv_dec2(xd))
 
@@ -134,7 +136,7 @@ class SAE_CIFAR_TEST(SAE_CIFAR):
         xe, conv_to_linear_shape = self.forward_encoder_hidden(
             x, 
         )
-        xe = relu(self.ln_enc2(xe))
+        xe = self.relu(self.ln_enc2(xe))
         xe_latent_pre_relu = self.forward_encoder_class(xe)
         return xe_latent_pre_relu, conv_to_linear_shape
 
@@ -143,9 +145,9 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1, with_reconstruction=with_reconstruction)
 
     def forward_encoder(self, x):
-        xe = GaussAL(self.conv_enc1(x), 0.1)
+        xe = gaussA(self.conv_enc1(x))
         #print(torch.mean(torch.abs(xe), dim=(1, 2, 3)))
-        xe = GaussAL(self.conv_enc2(xe), 0.1)
+        xe = gaussA(self.conv_enc2(xe))
         #print(torch.mean(torch.abs(xe), dim=(1, 2, 3)))
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
@@ -163,7 +165,7 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         #print(torch.exp(-0.001 * tmp * tmp).item())
         #r = torch.sigmoid(r)
         #xe = relu(r)
-        xe = GaussAL(r, 30)
+        xe = gaussA(r, 30)
         #print(torch.mean(xe))
         #print(torch.sum(xe).item(), torch.min(xe).item(), torch.max(xe).item(), torch.mean(xe).item(), xe[0][0].item())
         #print(xe.shape, torch.linalg.norm(xe, dim=1))
@@ -173,10 +175,10 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         return xe_latent_pre_relu, shp
 
     def forward_decoder(self, xe, shp):
-        xd = GaussAL(self.ln_decode_cl(xe))
-        xd = GaussAL(self.ln_dec1(xd))
+        xd = gaussA(self.ln_decode_cl(xe))
+        xd = gaussA(self.ln_dec1(xd))
         xd = torch.reshape(xd, (shp[0], shp[1], shp[2], shp[3]))
-        xd = GaussAL(self.conv_dec1(xd))
+        xd = gaussA(self.conv_dec1(xd))
         return sigmoid(self.conv_dec2(xd))
 
 class SAE_CIFAR_CONJ(SAE_CIFAR_GAUSS):
@@ -186,13 +188,13 @@ class SAE_CIFAR_CONJ(SAE_CIFAR_GAUSS):
         self.ln_encode_cl = nn.Linear(in_features=math.ceil(ln_hidden1 / 2), out_features=num_classes)
 
     def forward_encoder(self, x):
-        xe = GaussAL(self.conv_enc1(x))
-        xe = GaussAL(self.conv_enc2(xe))
+        xe = gaussA(self.conv_enc1(x))
+        xe = gaussA(self.conv_enc2(xe))
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
         xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
         t = self.ln_enc1(xe)
-        xe = Conjuction(t)
+        xe = conjunction(t)
         xe_latent_pre_relu = self.ln_encode_cl(xe)
 
         return xe_latent_pre_relu, shp

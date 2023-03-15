@@ -29,6 +29,7 @@ import torch
 import datetime, glob
 
 from config.default import default_export_path, model_to_save_file_type
+from model.statistics import base as layer_stat_framework
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -67,9 +68,10 @@ class CLLoop(Loop):
         save_trained_model:bool=False,
         save_model_name:str=None,
         load_model:str=None,
-        dream_at_beginning:bool=False,
         save_dreams:str=None,
         load_dreams:str=None,
+        generate_dreams_at_start:bool=False,
+        use_layer_loss_at:int=None,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -106,9 +108,11 @@ class CLLoop(Loop):
         self.enable_checkpoint = enable_checkpoint
         self.save_trained_model = save_trained_model
         self.load_model = load_model
-        self.dream_at_beginning = dream_at_beginning
         self.save_dreams = save_dreams
         self.load_dreams = load_dreams
+        self.generate_dreams_at_start = generate_dreams_at_start
+        self.model_stats = None
+        self.use_layer_loss_at = use_layer_loss_at
 
         if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
@@ -166,9 +170,39 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         self._update_data_passer()
         self._try_load_dreams()
 
+    def _check_use_layer_loss_at(self) -> bool:
+        return bool(
+            self.use_layer_loss_at is not None and (self.use_layer_loss_at == self.current_loop or 
+            (self.use_layer_loss_at < 0 and self.num_loops - self.use_layer_loss_at == self.current_loop))
+        )
+
+    def _try_gather_model_layer_stats(self):
+        if self._check_use_layer_loss_at():
+            print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
+            dataloader = self.trainer.train_dataloader
+            dataloader.reset()
+            loader = dataloader.loaders.get('normal')
+            if(loader is None):
+                raise Exception("Tried to use normal dataloader but normal dataloader is not present. Check options and flags.")
+            self.model_stats, _ = layer_stat_framework.collect_model_layer_stats(
+                model=self.trainer.lightning_module.model,
+                dataloader=loader,
+            )
+
     def _try_generate_dream(self):
-        if (self.current_loop > 0 and self.enable_dreams_gen) or (self.dream_at_beginning and self.enable_dreams_gen):
-            print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
+        if self.enable_dreams_gen and (\
+                (self.generate_dreams_at_start and self.current_loop == 0) \
+                or self.current_loop > 0
+            ):
+
+            if(self._check_use_layer_loss_at()):
+                print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                layer_loss = layer_stat_framework.LayerLoss()
+                layer_stat_framework.hook_model_stats(model=self.trainer.lightning_module.model, stats=self.model_stats, fun=layer_loss.hook_fun)
+            
+            print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop},\n\treason: \
+enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\n\
+\t\tgenerate_dreams_at_start --- {self.enable_dreams_gen and self.generate_dreams_at_start and self.current_loop == 0}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 self.trainer.lightning_module, self.current_task
@@ -217,6 +251,8 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         if(self.load_dreams is not None):
             find_path = self.export_path / self.load_dreams
             path = glob.glob(str(find_path), recursive=True)
+            if('dreams.' not in self.load_dreams):
+                raise Exception(f'Unknown filename to load dreams. May be the wrong filetype. File: {find_path}')
             if(len(path) != 1):
                 raise Exception(f'Cannot load dreams - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
             path = path[0]
@@ -228,6 +264,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
 
         if(self.swap_datasets):
             self.trainer.datamodule.clear_dreams_dataset()
+        self._try_gather_model_layer_stats()
         self._try_generate_dream()
         self._update_data_passer()
         print(f"STARTING TASK {self.current_task}, loop {self.current_loop} -- classes in task {self.trainer.datamodule.get_task_classes(self.current_task)}")
@@ -268,15 +305,15 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             path = glob.glob(str(find_path), recursive=True)
             if(len(path) != 1):
                 raise Exception(f'Cannot load model - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
-            path = path[0]
-            if('checkpoint' in self.load_model):
+            path = Path(path[0])
+            if('checkpoint.' in path.name):
                 pass
-            elif('trained' in self.load_model):
+            elif('trained.' in path.name):
                 checkpoint = torch.load(path)
                 self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
                 print(f'INFO: Loaded model "{path}"')
             else:
-                raise Exception(f'Unknown filename to load model. File: {self.load_model}')
+                raise Exception(f'Unknown filename to load model. May be the wrong filetype. File: {find_path}')
 
     def advance(self, *args: Any, **kwargs: Any) -> None:
         """Used to the run a fitting and testing on the current hold."""

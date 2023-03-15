@@ -105,8 +105,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
 
-        self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) else (fast_dev_run_dream_threshold, )
-        self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) else (dream_threshold, )
+        self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) or isinstance(fast_dev_run_dream_threshold, list) else (fast_dev_run_dream_threshold, )
+        self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) or isinstance(dream_threshold, list) else (dream_threshold, )
         self.fast_dev_run = fast_dev_run
         self.optimizer = optimizer
         self.logger = logger
@@ -293,7 +293,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     model=model,
                     objective_f=objective,
                     param_f=self.param_f,
-                    fixed_image_size=self.image_size,
                     custom_f_steps=self.custom_f_steps,
                     custom_f=self.custom_f,
                     show_image=False,
@@ -498,6 +497,9 @@ class CLDataModule(DreamDataModule):
             dream_tasks_classes = self._get_all_prev_dream_classes()
             print(f"Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}")
 
+            if(len(self.dreams_dataset) == 0):
+                raise Exception("Empty dream dataset. Run dream generation or load dreams from file.")
+
             dream_loader = DataLoader(
                 self.dreams_dataset, # give full dataset, var classes is used to select classes
                 batch_size=self.batch_size if self.datasampler is None else 1, 
@@ -652,7 +654,7 @@ class CLDataModule(DreamDataModule):
                 inputs = inputs.to(model.device)
                 targets = targets.to(model.device)
                 outputs = model(inputs)
-                if isinstance(outputs, tuple):
+                if isinstance(outputs, tuple) or isinstance(outputs, list):
                     outputs = outputs[0]
                 
                 if output_dim is None:

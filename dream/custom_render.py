@@ -44,7 +44,6 @@ def render_vis(
     save_image=False,
     image_name=None,
     show_inline=False,
-    fixed_image_size=None,
     disable_transforms=False,
     progress_bar=None,
     refresh_fequency=50,
@@ -57,7 +56,7 @@ def render_vis(
     params, image_f = param_f()
 
     if optimizer is None:
-        optimizer = lambda params: torch.optim.Adam(params, lr=5e-2)
+        optimizer = lambda params: torch.optim.Adam(params, lr=1e-3)
     optimizer = optimizer(params)
 
     if transforms is None:
@@ -72,19 +71,6 @@ def render_vis(
             # Assume we use normalization for torchvision.models
             # See https://pytorch.org/docs/stable/torchvision/models.html
             transforms.append(transform.normalize())
-
-    # Upsample images smaller than 224
-    image_shape = image_f().shape
-    if fixed_image_size is not None:
-        new_size = fixed_image_size
-    elif image_shape[2] < 224 or image_shape[3] < 224:
-        new_size = 224
-    else:
-        new_size = None
-    if new_size:
-        transforms.append(
-            torch.nn.Upsample(size=new_size, mode="bilinear", align_corners=True)
-        )
 
     if(disable_transforms):
         transform_f = lambda x: x
@@ -119,7 +105,6 @@ def render_vis(
                     )
             loss = objective_f(hook)
             loss.backward()
-            #progress_bar.update_dreaming(2)
             return loss
             
         optimizer.step(closure)
@@ -132,14 +117,10 @@ def render_vis(
                 if show_inline:
                     show(image)
             images.append(image)
-        progress_bar.update_dreaming(2)
+
+        progress_bar.update_iteration()
         if i % refresh_fequency == 0:
             progress_bar.refresh()
-    #except KeyboardInterrupt:
-    #    print("Interrupted optimization at step {:d}.".format(i))
-    #    if verbose:
-    #        print("Loss at step {}: {:.3f}".format(i, objective_f(hook)))
-    #    images.append(tensor_to_img_array(image_f()))
 
     if save_image:
         export(image_f(), image_name)

@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from torch.nn.functional import relu
 import math
+from torch import Tensor
+
 
 class GaussALC(nn.Module):
     def __init__(self, sigma):
@@ -17,7 +19,7 @@ class GaussALC(nn.Module):
         #print(self.sigma, self.mi)
         return torch.exp(-(1/self.sigma)**2 * x*x)
 
-def GaussAL(x, sigma=0.5):
+def gaussA(x, sigma=0.1):
     #print(torch.sum(x))
     #print(torch.sum(-0.5 * x*x))
     r = torch.exp(-(1/sigma)**2 * x*x)
@@ -31,8 +33,18 @@ def GaussAL(x, sigma=0.5):
     #exit()
     return r
 
+class GaussA(torch.nn.Module):
+    def __init__(self, sigma) -> None:
+        self.sigma = sigma
 
-def Conjuction(x: torch.TensorType, dim=-1):
+    def forward(self, input: Tensor) -> Tensor:
+        return gaussA(input, sigma=self.sigma)
+
+    def extra_repr(self) -> str:
+        return f'sigma={self.sigma}'
+
+
+def conjunction(x: torch.TensorType, dim=-1):
     dimSize = x.shape[dim]
     isEven = (dimSize % 2 == 1)
     rangeEven = torch.arange(0, dimSize - isEven, step=2, device=x.device, dtype=torch.int)
