@@ -30,6 +30,7 @@ import datetime, glob
 
 from config.default import default_export_path, model_to_save_file_type
 from model.statistics import base as layer_stat_framework
+from pytorch_lightning.trainer.supporters import CombinedLoader
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -66,12 +67,15 @@ class CLLoop(Loop):
         weight_reset_sanity_check=False,
         enable_checkpoint:bool=False,
         save_trained_model:bool=False,
-        save_model_name:str=None,
+        save_model_inner_path:str=None,
         load_model:str=None,
         save_dreams:str=None,
         load_dreams:str=None,
         generate_dreams_at_start:bool=False,
+        gather_layer_loss_at:int=None,
         use_layer_loss_at:int=None,
+        layer_dataloader=None,
+        data_module=None,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -88,9 +92,11 @@ class CLLoop(Loop):
         self.epochs_per_task = epochs_per_task
         self.current_task: int = 0
         self.current_loop: int = 0
+        self.previous_task:int = 0
+        self.previous_loop:int = 0
         self.export_path = Path(export_path) if export_path is not None else Path(default_export_path)
         Path.mkdir(self.export_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
-        self.save_model_name = save_model_name if save_model_name is not None else ""
+        self.save_model_inner_path = save_model_inner_path if save_model_inner_path is not None else ""
 
         
         self.reload_model_after_loop = reload_model_after_loop
@@ -112,7 +118,10 @@ class CLLoop(Loop):
         self.load_dreams = load_dreams
         self.generate_dreams_at_start = generate_dreams_at_start
         self.model_stats = None
+        self.gather_layer_loss_at = gather_layer_loss_at
+        self.layer_dataloader = layer_dataloader
         self.use_layer_loss_at = use_layer_loss_at
+        self.data_module = data_module
 
         if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
@@ -170,24 +179,42 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         self._update_data_passer()
         self._try_load_dreams()
 
-    def _check_use_layer_loss_at(self) -> bool:
+    def _check_layer_loss_at(self, at) -> bool:
+        print(at, at is not None, at == self.current_loop, at < 0 and self.num_loops + at == self.current_loop)
         return bool(
-            self.use_layer_loss_at is not None and (self.use_layer_loss_at == self.current_loop or 
-            (self.use_layer_loss_at < 0 and self.num_loops - self.use_layer_loss_at == self.current_loop))
+            at is not None and 
+                (at == self.current_loop or 
+                    (at < 0 and self.num_loops + at == self.current_loop)
+                )
         )
 
-    def _try_gather_model_layer_stats(self):
-        if self._check_use_layer_loss_at():
+    def _gather_model_layer_stats_run(self, *args: Any, **kwargs: Any):
+        def inner():
+            #if self.skip:
+            #    return self.on_skip()
             print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
-            dataloader = self.trainer.train_dataloader
-            dataloader.reset()
-            loader = dataloader.loaders.get('normal')
-            if(loader is None):
-                raise Exception("Tried to use normal dataloader but normal dataloader is not present. Check options and flags.")
+            #if(self.trainer.train_dataloader is None):
+            #    raise Exception("Tried to use normal dataloader but trainer normal dataloader is not present (is None). Check options and flags.")
+            #self.reset()
+            #self.on_run_start(*args, **kwargs)
+            #self.on_advance_start(*args, **kwargs)
+            #self.advance(*args, **kwargs)
+            train_dataloader = self.data_module.train_dataloader()
+            if(isinstance(train_dataloader, CombinedLoader)):
+                train_dataloader = train_dataloader.loaders
+            dataloader = train_dataloader.get('normal')
+            if(dataloader is None):
+                dataloader = train_dataloader.get('hidden_normal')
             self.model_stats, _ = layer_stat_framework.collect_model_layer_stats(
-                model=self.trainer.lightning_module.model,
-                dataloader=loader,
+                model=self.trainer.lightning_module,
+                single_dataloader=dataloader,
             )
+            #self.on_advance_end()
+            #self._restarting = False
+
+            #output = self.on_run_end()
+            #return output
+        return inner
 
     def _try_generate_dream(self):
         if self.enable_dreams_gen and (\
@@ -195,7 +222,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
                 or self.current_loop > 0
             ):
 
-            if(self._check_use_layer_loss_at()):
+            if(self._check_layer_loss_at(self.use_layer_loss_at)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 layer_loss = layer_stat_framework.LayerLoss()
                 layer_stat_framework.hook_model_stats(model=self.trainer.lightning_module.model, stats=self.model_stats, fun=layer_loss.hook_fun)
@@ -236,13 +263,20 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
         self.replace(
             fit_loop=FitLoop(max_epochs=max_epochs)
         )
-        self.custom_advance_f = self.fit_loop.run if not self.run_without_training else lambda: print("INFO: SKIPPING TRAINING")
+        if(self._check_layer_loss_at(self.gather_layer_loss_at)):
+            print("INFO: HOOKING UP LOOP TO GATHER STATISTICS")
+            self.custom_advance_f = self._gather_model_layer_stats_run() # run custon data gathering loop
+        elif(not self.run_without_training):
+            print("INFO: HOOKING UP NORMAL LOOP")
+            self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
+        else:
+            self.custom_advance_f = lambda: print("INFO: SKIPPING TRAINING")
 
     def _try_save_dreams(self):
-        if(self.save_dreams is not None):
+        if(self.save_dreams is not None and not self.fast_dev_run):
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
             time = datetime.datetime.now().strftime("%H:%M:%S")
-            filepath = self.export_path / f"{self.save_model_name}" / f'{self.save_dreams}'/ f"{folder}" 
+            filepath = self.export_path / f"{self.save_model_inner_path}" / f'{self.save_dreams}'/ f"{folder}" 
             filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             Path.mkdir(filepath, parents=True, exist_ok=True, mode=model_to_save_file_type)
             self.trainer.datamodule.save_dream_dataset(filepath / filename)
@@ -264,7 +298,6 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
 
         if(self.swap_datasets):
             self.trainer.datamodule.clear_dreams_dataset()
-        self._try_gather_model_layer_stats()
         self._try_generate_dream()
         self._update_data_passer()
         print(f"STARTING TASK {self.current_task}, loop {self.current_loop} -- classes in task {self.trainer.datamodule.get_task_classes(self.current_task)}")
@@ -278,24 +311,26 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
             self.trainer.lightning_module.on_task_start()
 
     def _next(self) -> None:
+        self.previous_task = self.current_task
+        self.previous_loop = self.current_loop
         self.current_task += 1 if self.current_task < self.num_tasks - 1 else 0
         self.current_loop += 1
         self._update_data_passer()
 
     def _try_export_model_checkpoint(self):
-        if self.enable_checkpoint:
+        if self.enable_checkpoint and not self.fast_dev_run:
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
             time = datetime.datetime.now().strftime("%H:%M:%S")
             self.trainer.save_checkpoint(
-                self.export_path / f"{self.save_model_name}" / f"{folder}" / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
+                self.export_path / f"{self.save_model_inner_path}" / f"{folder}" / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             )
 
     def _try_save_trained_model(self):
-        if(self.save_trained_model):
+        if(self.save_trained_model and not self.fast_dev_run):
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
             time = datetime.datetime.now().strftime("%H:%M:%S")
             self.trainer.save_checkpoint(
-                self.export_path / f"{self.save_model_name}" / f"{folder}" / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
+                self.export_path / f"{self.save_model_inner_path}" / f"{folder}" / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
                 weights_only=True
             )
 
@@ -318,7 +353,7 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
     def advance(self, *args: Any, **kwargs: Any) -> None:
         """Used to the run a fitting and testing on the current hold."""
         self._reset_fitting()  # requires to reset the tracking stage.
-        self.custom_advance_f()
+        self.custom_advance_f(*args, **kwargs)
 
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule

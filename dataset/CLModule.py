@@ -345,6 +345,7 @@ class CLDataModule(DreamDataModule):
         datasampler=None,
         root="data",
         swap_datasets=False,
+        use_dreams_at_start=False,
         **kwargs
     ):
         """
@@ -380,13 +381,14 @@ class CLDataModule(DreamDataModule):
         self.dream_batch_size = dream_batch_size
 
         self.train_task = None
-        self.dream_dataset_current_task = None
+        self.dream_dataset_for_current_task = None
         self.current_task_index = None
         self.current_loop_index = None
         # TODO
         self.dataset_class = dataset_class
         self.data_transform = data_transform
         self.swap_datasets = swap_datasets
+        self.use_dreams_at_start = use_dreams_at_start
 
         print(f"Validation task split: {self.val_tasks_split}")
         if(self.swap_datasets):
@@ -424,11 +426,11 @@ class CLDataModule(DreamDataModule):
 
     def __setup_dream_dataset(self):
         if self.dreams_dataset is not None and not self.dreams_dataset.empty():
-            self.dream_dataset_current_task = self.dreams_dataset 
+            self.dream_dataset_for_current_task = self.dreams_dataset 
         else: 
-            self.dream_dataset_current_task = None
+            self.dream_dataset_for_current_task = None
 
-    def setup_task_index(self, task_index: int, loop_index: int) -> None:
+    def setup_task_index(self, task_index: int=0, loop_index: int=0) -> None:
         """
             Choose the index of the task that will be used during training.
         """
@@ -481,16 +483,29 @@ class CLDataModule(DreamDataModule):
             return ret
         return class_list[index]
 
+    def _check_dream_dataset_setup(self) -> bool:
+        inner_check = bool(
+            (self.swap_datasets and self.current_loop_index % 2 == 1) 
+            or (self.train_only_dream_batch and self.current_loop_index > 0) 
+            or (self.use_dreams_at_start and self.current_loop_index == 0)
+        )
+        if(self.dream_dataset_for_current_task is None and inner_check):
+            raise Exception("Dream dataset not properly set. Try call before 'generate_synthetic_data' or 'next' or 'setup_task_index'")
+        return bool(
+            self.dream_dataset_for_current_task is not None and inner_check
+        )
+
     def train_dataloader(self):
         """
             Returns the dictionary of :
             - "normal": normal_loader
             - "dream": dream_loader [Optional position]
+            - "hidden_normal": optional normal_loader if option train_only_dream_batch is set.
         """
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
-        if self.dream_dataset_current_task and not (self.swap_datasets and self.current_loop_index % 2 == 0) or self.train_only_dream_batch:
+        if self._check_dream_dataset_setup():
             # first loop is always False. After accumulating dreams this dataloader will be used.
             shuffle = self.dream_shuffle if self.datasampler is None else False
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
@@ -534,7 +549,7 @@ class CLDataModule(DreamDataModule):
         normal_key = "normal"
         # need new label to not use this dataset but still keep CombinedLoader functionality
         if(self.train_only_dream_batch):
-            normal_key = 'dull'
+            normal_key = 'hidden_normal'
         else:
             print(f"Selected classes for normal dataloader: {normal_classes}")
 

@@ -353,6 +353,7 @@ def logic(args, log_args_to_wandb=True):
         dream_num_workers=args.dream_num_workers,
         test_val_num_workers=args.test_val_num_workers,
         train_only_dream_batch=args.train_only_dream_batch,
+        use_dreams_at_start=args.use_dreams_at_start,
     )
     
 
@@ -388,14 +389,16 @@ def logic(args, log_args_to_wandb=True):
         reinit_model_after_loop=args.reinit_model_after_loop,
         weight_reset_sanity_check=args.weight_reset_sanity_check,
         enable_checkpoint=args.enable_checkpoint,
-        save_model_name=args.save_model_name,
+        save_model_inner_path=args.save_model_inner_path,
         save_trained_model=args.save_trained_model,
         load_model=args.load_model,
         export_path=args.export_path,
         save_dreams=args.save_dreams,
         load_dreams=args.load_dreams,
         generate_dreams_at_start=args.generate_dreams_at_start,
+        gather_layer_loss_at=args.gather_layer_loss_at,
         use_layer_loss_at=args.use_layer_loss_at,
+        data_module=cl_data_module,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)

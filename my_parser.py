@@ -39,7 +39,7 @@ buffer used in island overlay for model.')
     parser.add_argument("--dream_num_workers", type=int, default=0, help='Number of dream dataloader workers.')
     parser.add_argument("--test_val_num_workers", type=int, default=4, help='Number of test and validation dataloader workers.')
     parser.add_argument("--save_trained_model", action="store_true", help='') ##**
-    parser.add_argument("--save_model_name", type=str, help='') ##**
+    parser.add_argument("--save_model_inner_path", type=str, help='') ##**
     parser.add_argument("--load_model", type=str, help='') ##**
     parser.add_argument("--enable_checkpoint", action="store_true", help='')
     parser.add_argument("--optimizer_type", type=str, default='adam', help='')
@@ -47,7 +47,7 @@ buffer used in island overlay for model.')
 to choose epoch at which to call it.')
     parser.add_argument("--reset_optim_type", type=str, default='default', help='')
     parser.add_argument("--export_path", type=str, help='')
-    parser.add_argument("--save_dreams", type=str, help='') ##**
+    parser.add_argument("--save_dreams", type=str, default='', help='') ##**
     parser.add_argument("--load_dreams", type=str, help='') ##**
     
     ######################################
@@ -72,7 +72,7 @@ If less than in dataset then model will be trained and validated only using this
     #####     dream parameters      ######
     ######################################
     parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
-    parser.add_argument("--dreams_per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"')
+    parser.add_argument("--dreams_per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
     parser.add_argument("--dreaming_batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
     parser.add_argument("--dream_lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
@@ -91,7 +91,8 @@ tranforms on dreamed images used in lucid framework in main function.') ##**
     parser.add_argument("--train_only_dream_batch", action="store_true", help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.') ##**
     parser.add_argument("--generate_dreams_at_start", action="store_true", help='Start generating dreams from the start of\
-the first epoch. This can be used with flag "run_without_training" to only generate dreams from loaded model.')
+the first epoch. This can be used with flag "run_without_training" to only generate dreams from loaded model.') ##**
+    parser.add_argument("--use_dreams_at_start", action="store_true", help='Use dreams at the first fit loop.') ##**
 
 
     ######################################
@@ -138,9 +139,12 @@ It ') ##**
     ######################################
     #####     hooking to model      ######
     ######################################
+    parser.add_argument("--gather_layer_loss_at", type=int, help='Gather layer statistics \
+at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
+means it will be used just like the python indexing for negative numbers.') ##**
     parser.add_argument("--use_layer_loss_at", type=int, help='Use layer loss function \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
-means it will be used just like the python indexing for negative numbers.')
+means it will be used just like the python indexing for negative numbers.') ##**
 
 
     ######################################
@@ -218,7 +222,7 @@ def export_config(args: Namespace) -> None:
         del tmp_args['load_dreams']  
         del tmp_args['save_dreams']  
         del tmp_args['export_path'] 
-        del tmp_args['save_model_name'] 
+        del tmp_args['save_model_inner_path'] 
         del tmp_args['load_model'] 
         del tmp_args['save_trained_model'] 
         del tmp_args['enable_checkpoint'] 

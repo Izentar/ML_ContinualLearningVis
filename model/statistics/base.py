@@ -12,16 +12,16 @@ def hook_model(model:torch.nn.Module, fun, tree_name:str=None, handles=None) -> 
         handles = []
     if(tree_name is None):
         tree_name = ""
-    for name, layer in model.named_children():
+    for name, module in model.named_children():
         handles.append(
             (
                 name,
                 tree_name,
-                layer.register_forward_hook(fun(layer, name, tree_name))
+                module.register_forward_hook(fun(module, name, tree_name))
             )
         )
         tree_name = f"{tree_name}.{name}"
-        hook_model(model=model, fun=fun, tree_name=tree_name, handles=handles)
+        hook_model(model=module, fun=fun, tree_name=tree_name, handles=handles)
     return handles
 
 class ModuleStatConstData():
@@ -118,10 +118,11 @@ class ModuleStat():
 
 class ModelLayerStatistics():
     def __init__(self, model:torch.nn.Module) -> None:
-        f = lambda layer, name, tree_name: self._set_statistics_f(layer=layer, name=name, tree_name=tree_name)
-        self.handles = hook_model(model=model, fun=f)
         self.deleted = False
         self.layers = dict()
+
+        f = lambda layer, name, tree_name: self._set_statistics_f(layer=layer, name=name, tree_name=tree_name)
+        self.handles = hook_model(model=model, fun=f)
 
     def _set_statistics_f(self, layer, name, tree_name):
         stat = ModuleStat()
@@ -188,14 +189,14 @@ def hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str=None
         handles = []
     if(tree_name is None):
         tree_name = ""
-    for name, layer in model.named_children():
+    for name, module in model.named_children():
         tree_name = f"{tree_name}.{name}"
         layer_stat_data = stats[tree_name].get_const_data()
-        handles.append(layer.register_forward_hook(
+        handles.append(module.register_forward_hook(
             lambda module, input, output: fun(module, input, output, layer_stat_data)
         ))
         
-        hook_model_stats(model=model, stats=stats, fun=fun, tree_name=tree_name, handles=handles)
+        hook_model_stats(model=module, stats=stats, fun=fun, tree_name=tree_name, handles=handles)
     return handles
 
 class LayerLoss():
