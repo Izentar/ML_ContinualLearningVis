@@ -28,6 +28,7 @@ class CustomRichProgressBar(RichProgressBar, BaseProgress):
         self.dreaming_progress = None
         self.repeat_progress = None
         self.iteration_progress = None
+        self.other_progress = dict()
 
     def _find_task(self, tid) -> Task:
         for t in self.progress.tasks:
@@ -57,6 +58,21 @@ class CustomRichProgressBar(RichProgressBar, BaseProgress):
         self.repeat_progress = self.progress.add_task(
             f"[bright_red]Repeat for class: {target}", total=iterations
         )
+
+    def clear(self, key):
+        if(self.other_progress.get(key) is not None):
+            self.progress.remove_task(self.other_progress[key])
+            self.other_progress[key] = None
+
+    def setup_progress_bar(self, key, text:str, iterations):
+        self.clear(key)
+        self.other_progress[key] = self.progress.add_task(
+            f"{text}\n", total=iterations
+        )
+
+    def update(self, key, advance_by=1):
+        if(self.other_progress.get(key) is not None):
+            self.progress.update(self.other_progress[key], advance=advance_by)
 
     def setup_iteration(self, iterations):
         self._clear_iteration()

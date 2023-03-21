@@ -93,6 +93,8 @@ after first epoch when dream batch is created.') ##**
     parser.add_argument("--generate_dreams_at_start", action="store_true", help='Start generating dreams from the start of\
 the first epoch. This can be used with flag "run_without_training" to only generate dreams from loaded model.') ##**
     parser.add_argument("--use_dreams_at_start", action="store_true", help='Use dreams at the first fit loop.') ##**
+    parser.add_argument("--standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
+Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
 
 
     ######################################

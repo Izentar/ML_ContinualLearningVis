@@ -25,9 +25,26 @@ import torch
 from lucent.optvis import objectives, transform, param
 from lucent.misc.io import show
 
+def _check_img_size(transform_f, image_f, standard_image_size):
+    if(standard_image_size is None):
+        return
+    trans_size = list(transform_f(image_f()).shape)
+    if(len(trans_size) != len(standard_image_size) + 1):
+        raise Exception(f'standard_image_size size {len(standard_image_size)}#{standard_image_size} is not equal \
+image size of {len(trans_size)}#{trans_size[1:]} after transforms.')
+
+    new_standard_image_size = [0] + list(standard_image_size) # add dummy batch size
+    for idx, (created, standard) in enumerate(zip(trans_size, new_standard_image_size)):
+        if idx == 0:
+            continue
+        if(created != standard):
+            raise Exception(f'At {idx} bad image size. Should be {standard}#{standard_image_size} but is {created}#{trans_size[1:]}.')
 
 def empty_f():
     return
+
+def empty_loss_f(loss):
+    return loss
 
 def render_vis(
     model,
@@ -38,6 +55,7 @@ def render_vis(
     thresholds=(512,),
     custom_f_steps=(0,),
     custom_f=empty_f,
+    custom_loss_gather_f=empty_loss_f,
     verbose=False,
     preprocess=True,
     show_image=True,
@@ -47,7 +65,11 @@ def render_vis(
     disable_transforms=False,
     progress_bar=None,
     refresh_fequency=50,
+    standard_image_size=None,
 ):
+    """
+        standard_image_size - what image size should be after applying transforms. Raise exception if check fails.
+    """
     if param_f is None:
         param_f = lambda: param.image(128)
     # param_f is a function that should return two things
@@ -77,33 +99,25 @@ def render_vis(
     else:
         transform_f = transform.compose(transforms)
 
+    _check_img_size(transform_f=transform_f, image_f=image_f, standard_image_size=standard_image_size)
+
+    model.eval()
     hook = hook_model(model, image_f)
     objective_f = objectives.as_objective(objective_f)
 
     if verbose:
         model(transform_f(image_f()))
         print("Initial loss: {:.3f}".format(objective_f(hook)))
-
+    
     images = []
     iterations = max(thresholds)
     progress_bar.setup_iteration(iterations=iterations)
     for i in range(1, iterations + 1):
         def closure():
             optimizer.zero_grad()
-            try:
-                model(transform_f(image_f()))
-            except RuntimeError as ex:
-                if i == 1:
-                    # Only display the warning message
-                    # on the first iteration, no need to do that
-                    # every iteration
-                    warnings.warn(
-                        "Some layers could not be computed because the size of the "
-                        "image is not big enough. It is fine, as long as the non"
-                        "computed layers are not used in the objective function"
-                        f"(exception details: '{ex}')"
-                    )
+            model(transform_f(image_f()))
             loss = objective_f(hook)
+            loss = custom_loss_gather_f(loss)
             loss.backward()
             return loss
             
@@ -201,7 +215,9 @@ def hook_model(model, image_f):
         else:
             assert layer in features, f"Invalid layer {layer}. Retrieve the list of layers with `lucent.modelzoo.util.get_model_layers(model)`."
             out = features[layer].features
-        assert out is not None, "There are no saved feature maps. Make sure to put the model in eval mode, like so: `model.to(device).eval()`. See README for example."
+        assert out is not None, "Hook was not set properly. Model output during forward pass was not saved. May be because of error during forward pass. \
+Check first traceback. \
+There are no saved feature maps. Make sure to put the model in eval mode, like so: `model.to(device).eval()`. See README for example."
         return out
 
     return hook

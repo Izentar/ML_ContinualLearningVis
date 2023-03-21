@@ -48,7 +48,7 @@ class BaseCLDataModule(LightningDataModule, ABC):
         """
         pass
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_loss_obj=None) -> None:
         """
             Generate new dreams from the tasks.
         """
@@ -79,6 +79,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         disable_dream_transforms:bool=False,
         train_only_dream_batch:bool=False,
         richbar_refresh_fequency:int=50,
+        standard_image_size=None,
     ):
         """
         Args:
@@ -119,6 +120,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.custom_f = custom_f
         self.train_only_dream_batch = train_only_dream_batch
         self.richbar_refresh_fequency = richbar_refresh_fequency
+        self.standard_image_size = standard_image_size
 
         print(f"Train task split: {self.train_tasks_split}")
 
@@ -155,7 +157,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if not (self.wandb_flushed):
             print('WARNING:\tdreaming images were not flushed by wandb.')
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_loss_obj=None) -> None:
         """Generate new dreams."""
         primal_dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
         #dream_targets = self.transform_targets(model=model, dream_targets=primal_dream_targets, task_index=task_index)
@@ -171,6 +173,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             dream_targets=dream_targets, 
             iterations=iterations,
             task_index=task_index,
+            layer_loss_obj=layer_loss_obj,
         )
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
@@ -185,7 +188,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, dream_targets, iterations, task_index):
+    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_loss_obj):
         new_dreams = []
         new_targets = []
 
@@ -198,6 +201,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 new_dreams=new_dreams, 
                 new_targets=new_targets, 
                 progress=self.progress_bar,
+                layer_loss_obj=layer_loss_obj,
             )
             self.progress_bar.clear_dreaming()
         else:
@@ -216,20 +220,24 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     new_dreams=new_dreams, 
                     new_targets=new_targets, 
                     progress=progress,
+                    layer_loss_obj=layer_loss_obj,
                 )
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
-    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress):
+    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_loss_obj):
         progress.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
+            if(layer_loss_obj is not None):
+                layer_loss_obj.set_current_class(target)
             target_dreams = self._generate_dreams_for_target(
                 model=model, 
                 target=target, 
                 iterations=iterations, 
                 progress_bar=progress,
-                task_index=task_index
+                task_index=task_index,
+                layer_loss_obj=layer_loss_obj
             )
             new_targets.extend([target] * target_dreams.shape[0])
             new_dreams.append(target_dreams)
@@ -273,7 +281,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def _generate_dreams_for_target(self, model, target, iterations, progress_bar, task_index):
+    def _generate_dreams_for_target(self, model, target, iterations, progress_bar, task_index, layer_loss_obj):
         dreams = []
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         progress_bar.setup_repeat(target=target, iterations=iterations)
@@ -307,6 +315,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     disable_transforms=self.disable_dream_transforms,
                     progress_bar=progress_bar,
                     refresh_fequency=self.richbar_refresh_fequency,
+                    standard_image_size=self.standard_image_size,
+                    custom_loss_gather_f=layer_loss_obj.gather_loss
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
@@ -461,13 +471,12 @@ class CLDataModule(DreamDataModule):
         if(self.train_task is None or len(self.train_task) <= 0):
             raise Exception(f"Train task dataset not set properly. Used index '{self.current_task_index}' from '{len(self.train_datasets)}'")
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int) -> None:
-        super().generate_synthetic_data(model=model, task_index=task_index)
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_loss_obj=None) -> None:
+        super().generate_synthetic_data(model=model, task_index=task_index, layer_loss_obj=layer_loss_obj)
         self.__setup_dream_dataset()
 
     def _get_all_prev_dream_classes(self) -> list:
         to_range = self.current_task_index if len(self.train_tasks_split) >= self.current_task_index else len(self.train_tasks_split)
-        print(to_range, self.current_task_index, self.train_tasks_split)
         dream_tasks_classes = set()
         for i in range(to_range + 1): # i < to_range
             dream_tasks_classes = dream_tasks_classes.union(self.train_tasks_split[i])

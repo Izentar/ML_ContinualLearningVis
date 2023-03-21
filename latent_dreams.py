@@ -185,6 +185,11 @@ def logic(args, log_args_to_wandb=True):
             g['lr'] = args.lr
 
 
+    layer_stats_hook_to:list[str]|None=['model.ln_enc1', 'model.ln_encode_cl']
+    layer_stats_verbose=False
+    layer_stats_flush_to_disk=False
+    layer_stats_loss_device='cuda:0'
+    layer_stats_collect_device='cuda:0'
     
 
     nrows = 4
@@ -354,6 +359,7 @@ def logic(args, log_args_to_wandb=True):
         test_val_num_workers=args.test_val_num_workers,
         train_only_dream_batch=args.train_only_dream_batch,
         use_dreams_at_start=args.use_dreams_at_start,
+        standard_image_size=args.standard_image_size,
     )
     
 
@@ -399,6 +405,12 @@ def logic(args, log_args_to_wandb=True):
         gather_layer_loss_at=args.gather_layer_loss_at,
         use_layer_loss_at=args.use_layer_loss_at,
         data_module=cl_data_module,
+        progress_bar=progress_bar,
+        layer_stats_hook_to=layer_stats_hook_to,
+        layer_stats_verbose=layer_stats_verbose,
+        layer_stats_flush_to_disk=layer_stats_flush_to_disk,
+        layer_stats_loss_device=layer_stats_loss_device,
+        layer_stats_collect_device=layer_stats_collect_device,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)

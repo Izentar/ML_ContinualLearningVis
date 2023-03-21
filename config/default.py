@@ -4,6 +4,7 @@ from robustness.datasets import (
     CIFAR100 as CIFAR100_robust
 )
 import itertools
+from pathlib import Path
 
 fast_dev_run_config = {
     "num_tasks": 1,
@@ -158,9 +159,12 @@ datasets_map = {
 default_export_path = './model_save/'
 model_to_save_file_type = 770
 robust_data_path = "./data"
+tmp_stat_folder = 'tmp/stats/'
 
 
 colors_list = ('r', 'g', 'b', 'c', 'k', 'm', 'y', 'indianred', 'salmon', 'darkkhaki', 'violet')
 markers_list = ('>', '+', '.', 'o', '*')
 markers = itertools.cycle(markers_list)
 colors = itertools.cycle(colors_list)
+
+Path(tmp_stat_folder).mkdir(exist_ok=True, parents=True)

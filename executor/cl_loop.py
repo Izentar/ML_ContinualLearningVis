@@ -76,6 +76,12 @@ class CLLoop(Loop):
         use_layer_loss_at:int=None,
         layer_dataloader=None,
         data_module=None,
+        progress_bar=None,
+        layer_stats_hook_to:list[str]|None=False,
+        layer_stats_verbose=False,
+        layer_stats_flush_to_disk=False,
+        layer_stats_loss_device='cuda:0',
+        layer_stats_collect_device='cuda:0',
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -122,6 +128,7 @@ class CLLoop(Loop):
         self.layer_dataloader = layer_dataloader
         self.use_layer_loss_at = use_layer_loss_at
         self.data_module = data_module
+        self.progress_bar = progress_bar
 
         if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
@@ -133,6 +140,12 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
 
         if(self.swap_datasets):
             print(f"INFO: CLLoop in swap_datasets mode.")
+
+        self.layer_stats_hook_to = layer_stats_hook_to
+        self.layer_stats_verbose = layer_stats_verbose
+        self.layer_stats_flush_to_disk = layer_stats_flush_to_disk
+        self.layer_stats_loss_device = layer_stats_loss_device
+        self.layer_stats_collect_device = layer_stats_collect_device
 
     @property
     def done(self) -> bool:
@@ -188,7 +201,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
                 )
         )
 
-    def _gather_model_layer_stats_run(self, *args: Any, **kwargs: Any):
+    def _gather_model_layer_stats_advance(self, *args: Any, **kwargs: Any):
         def inner():
             #if self.skip:
             #    return self.on_skip()
@@ -208,6 +221,11 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             self.model_stats, _ = layer_stat_framework.collect_model_layer_stats(
                 model=self.trainer.lightning_module,
                 single_dataloader=dataloader,
+                device=self.layer_stats_collect_device,
+                hook_verbose=self.layer_stats_verbose,
+                progress_bar=self.progress_bar,
+                flush_to_disk=self.layer_stats_flush_to_disk,
+                hook_to=self.layer_stats_hook_to
             )
             #self.on_advance_end()
             #self._restarting = False
@@ -222,17 +240,25 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
                 or self.current_loop > 0
             ):
 
+            layer_loss = None
             if(self._check_layer_loss_at(self.use_layer_loss_at)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
-                layer_loss = layer_stat_framework.LayerLoss()
-                layer_stat_framework.hook_model_stats(model=self.trainer.lightning_module.model, stats=self.model_stats, fun=layer_loss.hook_fun)
+                layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device,)
+                layer_stat_framework.hook_model_stats(
+                    model=self.trainer.lightning_module, 
+                    stats=self.model_stats, 
+                    fun=layer_loss.hook_fun, 
+                    hook_to=self.layer_stats_hook_to
+                )
             
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop},\n\treason: \
 enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\n\
 \t\tgenerate_dreams_at_start --- {self.enable_dreams_gen and self.generate_dreams_at_start and self.current_loop == 0}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
-                self.trainer.lightning_module, self.current_task
+                model=self.trainer.lightning_module, 
+                task_index=self.current_task, 
+                layer_loss_obj=layer_loss,
             )
 
     def _model_weigth_sanity_check(self):
@@ -265,7 +291,7 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
         )
         if(self._check_layer_loss_at(self.gather_layer_loss_at)):
             print("INFO: HOOKING UP LOOP TO GATHER STATISTICS")
-            self.custom_advance_f = self._gather_model_layer_stats_run() # run custon data gathering loop
+            self.custom_advance_f = self._gather_model_layer_stats_advance() # run custon data gathering loop
         elif(not self.run_without_training):
             print("INFO: HOOKING UP NORMAL LOOP")
             self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
