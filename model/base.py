@@ -54,12 +54,12 @@ class CLBase(LightningModule):
         if(scheduler_steps is not None and scheduler_construct_type is None):
             print('WARNIGN: Using "scheduler_steps" but scheduler is not selected.')
 
-        self.train_acc = torchmetrics.Accuracy()
-        self.train_acc_dream = torchmetrics.Accuracy()
+        self.train_acc = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
+        self.train_acc_dream = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
         self.valid_accs = nn.ModuleList(
-            [torchmetrics.Accuracy() for _ in range(num_tasks)]
+            [torchmetrics.Accuracy(task='multiclass', num_classes=num_classes) for _ in range(num_tasks)]
         )
-        self.test_acc = torchmetrics.Accuracy()
+        self.test_acc = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
         self.num_classes = num_classes
         self.num_tasks = num_tasks
 
