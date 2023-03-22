@@ -31,6 +31,7 @@ import datetime, glob
 from config.default import default_export_path, model_to_save_file_type
 from model.statistics import base as layer_stat_framework
 from pytorch_lightning.trainer.supporters import CombinedLoader
+from utils import utils
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -56,12 +57,12 @@ class CLLoop(Loop):
         reload_model_after_loop: bool = False,
         reinit_model_after_loop: bool = False,
         export_path: Optional[str] = None,
-        enable_dreams_gen=True,
+        enable_dreams_gen_at:int=None,
         fast_dev_run_epochs=None,
         fast_dev_run=False,
         data_passer=None,
         num_loops=None,
-        run_without_training=False,
+        run_training_at=False,
         early_finish_at=-1,
         swap_datasets=False,
         weight_reset_sanity_check=False,
@@ -82,6 +83,7 @@ class CLLoop(Loop):
         layer_stats_flush_to_disk=False,
         layer_stats_loss_device='cuda:0',
         layer_stats_collect_device='cuda:0',
+        advance_clear_dreams=False,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -103,17 +105,13 @@ class CLLoop(Loop):
         self.export_path = Path(export_path) if export_path is not None else Path(default_export_path)
         Path.mkdir(self.export_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
         self.save_model_inner_path = save_model_inner_path if save_model_inner_path is not None else ""
-
         
         self.reload_model_after_loop = reload_model_after_loop
         self.reinit_model_after_loop = reinit_model_after_loop
-        self.enable_dreams_gen = enable_dreams_gen
+        self.enable_dreams_gen_at = enable_dreams_gen_at
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
-        self.enable_data_parser = data_passer is not None
-        self.data_passer = data_passer if data_passer is not None else {}
-        self.run_without_training = run_without_training
-        self.custom_advance_f = None
+        self.run_training_at = run_training_at
         self.early_finish_at = early_finish_at
         self.swap_datasets = swap_datasets
         self.weight_reset_sanity_check = weight_reset_sanity_check
@@ -123,12 +121,17 @@ class CLLoop(Loop):
         self.save_dreams = save_dreams
         self.load_dreams = load_dreams
         self.generate_dreams_at_start = generate_dreams_at_start
-        self.model_stats = None
         self.gather_layer_loss_at = gather_layer_loss_at
         self.layer_dataloader = layer_dataloader
         self.use_layer_loss_at = use_layer_loss_at
         self.data_module = data_module
         self.progress_bar = progress_bar
+        self.advance_clear_dreams = advance_clear_dreams
+
+        self.enable_data_parser = data_passer is not None
+        self.data_passer = data_passer if data_passer is not None else {}
+        self.custom_advance_f = None
+        self.model_stats = None
 
         if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
@@ -163,15 +166,15 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         #    self.num_tasks = fast_dev_run_config["num_tasks"]
 
     def _update_data_passer(self):
+        self.data_passer['current_task'] = self.current_task
+        self.data_passer['current_loop'] = self.current_loop
+        self.data_passer['num_tasks'] = self.num_tasks
+        self.data_passer['num_loops'] = self.num_loops
         if(self.enable_data_parser):
-            self.data_passer['current_task'] = self.current_task
-            self.data_passer['current_loop'] = self.current_loop
             self.data_passer['model_train_end_f'] = None
             if (self.early_finish_at >= 0 and self.data_passer['current_loop'] >= self.early_finish_at):
                 self.data_passer['model_train_end_f'] = -1
         else:
-            self.data_passer['current_task'] = -1
-            self.data_passer['current_loop'] = -1
             self.data_passer['model_train_end_f'] = None
         self.data_passer['epoch_per_task'] = self.epochs_per_task[self.current_task]
 
@@ -192,56 +195,33 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         self._update_data_passer()
         self._try_load_dreams()
 
-    def _check_layer_loss_at(self, at) -> bool:
-        print(at, at is not None, at == self.current_loop, at < 0 and self.num_loops + at == self.current_loop)
-        return bool(
-            at is not None and 
-                (at == self.current_loop or 
-                    (at < 0 and self.num_loops + at == self.current_loop)
-                )
+    def _gather_model_layer_stats_advance_f(self):
+        print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
+
+        train_dataloader = self.data_module.train_dataloader()
+        if(isinstance(train_dataloader, CombinedLoader)):
+            train_dataloader = train_dataloader.loaders
+        dataloader = train_dataloader.get('normal')
+        if(dataloader is None):
+            dataloader = train_dataloader.get('hidden_normal')
+        self.model_stats, _ = layer_stat_framework.collect_model_layer_stats(
+            model=self.trainer.lightning_module,
+            single_dataloader=dataloader,
+            device=self.layer_stats_collect_device,
+            hook_verbose=self.layer_stats_verbose,
+            progress_bar=self.progress_bar,
+            flush_to_disk=self.layer_stats_flush_to_disk,
+            hook_to=self.layer_stats_hook_to
         )
 
-    def _gather_model_layer_stats_advance(self, *args: Any, **kwargs: Any):
-        def inner():
-            #if self.skip:
-            #    return self.on_skip()
-            print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
-            #if(self.trainer.train_dataloader is None):
-            #    raise Exception("Tried to use normal dataloader but trainer normal dataloader is not present (is None). Check options and flags.")
-            #self.reset()
-            #self.on_run_start(*args, **kwargs)
-            #self.on_advance_start(*args, **kwargs)
-            #self.advance(*args, **kwargs)
-            train_dataloader = self.data_module.train_dataloader()
-            if(isinstance(train_dataloader, CombinedLoader)):
-                train_dataloader = train_dataloader.loaders
-            dataloader = train_dataloader.get('normal')
-            if(dataloader is None):
-                dataloader = train_dataloader.get('hidden_normal')
-            self.model_stats, _ = layer_stat_framework.collect_model_layer_stats(
-                model=self.trainer.lightning_module,
-                single_dataloader=dataloader,
-                device=self.layer_stats_collect_device,
-                hook_verbose=self.layer_stats_verbose,
-                progress_bar=self.progress_bar,
-                flush_to_disk=self.layer_stats_flush_to_disk,
-                hook_to=self.layer_stats_hook_to
-            )
-            #self.on_advance_end()
-            #self._restarting = False
-
-            #output = self.on_run_end()
-            #return output
-        return inner
-
     def _try_generate_dream(self):
-        if self.enable_dreams_gen and (\
-                (self.generate_dreams_at_start and self.current_loop == 0) \
-                or self.current_loop > 0
+        main_enable = utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop)
+        if main_enable and (
+                (self.generate_dreams_at_start and self.current_loop == 0) or self.current_loop > 0
             ):
 
             layer_loss = None
-            if(self._check_layer_loss_at(self.use_layer_loss_at)):
+            if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device,)
                 layer_stat_framework.hook_model_stats(
@@ -252,8 +232,8 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
                 )
             
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop},\n\treason: \
-enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\n\
-\t\tgenerate_dreams_at_start --- {self.enable_dreams_gen and self.generate_dreams_at_start and self.current_loop == 0}")
+enable_dreams_gen_at --- {main_enable}\n\
+\t\tgenerate_dreams_at_start --- {main_enable and self.generate_dreams_at_start and self.current_loop == 0}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 model=self.trainer.lightning_module, 
@@ -289,10 +269,10 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
         self.replace(
             fit_loop=FitLoop(max_epochs=max_epochs)
         )
-        if(self._check_layer_loss_at(self.gather_layer_loss_at)):
+        if(utils.check_python_index(self.gather_layer_loss_at, self.num_loops, self.current_loop)):
             print("INFO: HOOKING UP LOOP TO GATHER STATISTICS")
-            self.custom_advance_f = self._gather_model_layer_stats_advance() # run custon data gathering loop
-        elif(not self.run_without_training):
+            self.custom_advance_f = self._gather_model_layer_stats_advance_f # run custon data gathering loop
+        elif(utils.check_python_index(self.run_training_at, self.num_loops, self.current_loop)):
             print("INFO: HOOKING UP NORMAL LOOP")
             self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
         else:
@@ -322,7 +302,7 @@ enable_dreams_gen_loop>0 --- {self.enable_dreams_gen and self.current_loop > 0}\
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
 
-        if(self.swap_datasets):
+        if(self.advance_clear_dreams or self.swap_datasets):
             self.trainer.datamodule.clear_dreams_dataset()
         self._try_generate_dream()
         self._update_data_passer()

@@ -23,6 +23,7 @@ from abc import ABC, abstractmethod
 
 from utils.data_manipulation import get_target_from_dataset
 from model import base
+from utils import utils
 
 
 class BaseCLDataModule(LightningDataModule, ABC):
@@ -77,9 +78,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         custom_f_steps=(0,),
         custom_f=lambda *args: None,
         disable_dream_transforms:bool=False,
-        train_only_dream_batch:bool=False,
+        train_only_dream_batch_at:bool=False,
         richbar_refresh_fequency:int=50,
         standard_image_size=None,
+        data_passer=None,
     ):
         """
         Args:
@@ -118,9 +120,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dataset_class_labels = dataset_class_labels
         self.custom_f_steps = custom_f_steps
         self.custom_f = custom_f
-        self.train_only_dream_batch = train_only_dream_batch
+        self.train_only_dream_batch_at = train_only_dream_batch_at
         self.richbar_refresh_fequency = richbar_refresh_fequency
         self.standard_image_size = standard_image_size
+        self.data_passer = data_passer
 
         print(f"Train task split: {self.train_tasks_split}")
 
@@ -495,7 +498,7 @@ class CLDataModule(DreamDataModule):
     def _check_dream_dataset_setup(self) -> bool:
         inner_check = bool(
             (self.swap_datasets and self.current_loop_index % 2 == 1) 
-            or (self.train_only_dream_batch and self.current_loop_index > 0) 
+            or utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop']) 
             or (self.use_dreams_at_start and self.current_loop_index == 0)
         )
         if(self.dream_dataset_for_current_task is None and inner_check):
@@ -509,7 +512,7 @@ class CLDataModule(DreamDataModule):
             Returns the dictionary of :
             - "normal": normal_loader
             - "dream": dream_loader [Optional position]
-            - "hidden_normal": optional normal_loader if option train_only_dream_batch is set.
+            - "hidden_normal": optional normal_loader if option train_only_dream_batch_at is set.
         """
         if self.train_task is None: # check
             raise Exception("No task index set for training")
@@ -557,7 +560,7 @@ class CLDataModule(DreamDataModule):
 
         normal_key = "normal"
         # need new label to not use this dataset but still keep CombinedLoader functionality
-        if(self.train_only_dream_batch):
+        if(utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop'])):
             normal_key = 'hidden_normal'
         else:
             print(f"Selected classes for normal dataloader: {normal_classes}")

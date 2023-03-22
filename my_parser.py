@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import glob
 import os
+from utils import utils
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -13,7 +14,10 @@ epilog="""
 Validation dataset uses data from test dataset but divided into appropriate tasks.
 Test dataset uses test data with only the classes used in previous tasks. 
 """)
-    
+
+
+    parser.add_argument("--run_training_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
+If True, run on all loops, if False, do not run. If "gather_layer_loss_at" is set, then it takes precedence.') ##**
     parser.add_argument("--config", action="append", help='The config file(s) that should be used. The config file \
 takes precedence over command line arguments. Config files will be applied in order of the declaration.')
     parser.add_argument("--config_export", type=str, help='File where to export current config.')
@@ -24,8 +28,6 @@ takes precedence over command line arguments. Config files will be applied in or
     parser.add_argument("--early_finish_at", type=int, default=-1, help='Finish training loop at desired epoch. Default "-1"')
     parser.add_argument("--with_reconstruction", action="store_true", help='If exist use the model with reconstruction \
 of the original image during training and use additional comparison loss of the original and reconstructed image.')
-    parser.add_argument("--run_without_training", action="store_true", help='Run framework without invoking training call. \
-All other functionalities still work the same. Running with "disable_dreams_gen" will run only test.') ##**
     parser.add_argument("--disable_shuffle", action="store_false", help='Flag to shuffle train normal and dream datasets. If \
 flag "disable_dream_shuffle" is set then it takes precedence over this flag.')
     parser.add_argument("--datasampler_type", type=str, default='none', help='''Select datasampler type.
@@ -71,6 +73,9 @@ If less than in dataset then model will be trained and validated only using this
     ######################################
     #####     dream parameters      ######
     ######################################
+    parser.add_argument("--enable_dreams_gen_at", nargs='+', type=str, default='True', help='At which loop or loops enable dreaming where framework \
+should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
+Without running this and running "run_training_at" will run only test. Use this with "train_only_dream_batch_at" to train only on dream batch.') ##**
     parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
     parser.add_argument("--dreams_per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
     parser.add_argument("--dreaming_batch_size", type=int, default=128, help='How many images \
@@ -81,20 +86,20 @@ be used to generate an output image during dreaming, using only max value. Value
 images from the batch will be additionaly saved.')
     parser.add_argument("--dream_frequency", type=int, default=1, help='How often dream images should be used during \
 training. The bigger value the lesser frequency.')
-    parser.add_argument("--disable_dreams_gen", action="store_false", help='If framework should produce dreams and use them \
-during training. Running with "run_without_training" will run only test.') ##**
     parser.add_argument("--enable_dream_transforms", action="store_false", help='Enable and add all default \
 tranforms on dreamed images used in lucid framework in main function.') ##**
     parser.add_argument("--disable_dream_shuffle", action="store_false", help='Flag to shuffle only train dream dataset')
     parser.add_argument("--param_image", type=str, default='image', help='Type of image. Default \
 "image"-normal image  "cppn"-cppn image (does not use "dreaming_batch_size")')
-    parser.add_argument("--train_only_dream_batch", action="store_true", help='Use this flag to train only on dream batch \
+    parser.add_argument("--train_only_dream_batch_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.') ##**
     parser.add_argument("--generate_dreams_at_start", action="store_true", help='Start generating dreams from the start of\
-the first epoch. This can be used with flag "run_without_training" to only generate dreams from loaded model.') ##**
+the first epoch. This can be used with flag "run_training_at" to only generate dreams from loaded model.') ##**
     parser.add_argument("--use_dreams_at_start", action="store_true", help='Use dreams at the first fit loop.') ##**
     parser.add_argument("--standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
 Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
+    parser.add_argument("--advance_clear_dreams", action="store_true", help='If the dreams at the beginning of the advance loop should be cleared.')
+
 
 
     ######################################
@@ -102,7 +107,7 @@ Checks if the output image has the provided shape. Do not include batch here. De
     ######################################
     parser.add_argument("--swap_datasets", action="store_true", help='Do training once, generate dream dataset and then\
 run training on a newly initialized model using only dream dataset. Not compatible with "dream_frequency", \
-"train_only_dream_batch". Odd task number will indicate normal training and even task number will indicate dream training.') ##**
+"train_only_dream_batch_at". Odd task number will indicate normal training and even task number will indicate dream training.') ##**
     parser.add_argument("--reload_model_after_loop", action="store_true", help='Reload model weights after each main loop.\
 Reloading means any weights that model had before training will be reloaded.') ##**
     parser.add_argument("--reinit_model_after_loop", action="store_true", help='Reset model after each main loop.\
@@ -160,8 +165,26 @@ means it will be used just like the python indexing for negative numbers.') ##**
 
     args = load_config(args, parser)
     export_config(args)
+
+    args = convert_args_str_to_list_int(args)
     
     return args, parser
+
+def convert_args_str_to_list_int(args: Namespace):
+    to_check = ['run_training_at', 'enable_dreams_gen_at', 'train_only_dream_batch_at']
+    for k in to_check:
+        v = args.__dict__[k]
+        if(isinstance(v, str)):
+            b = utils.str_is_true(v)
+            if(b is not None):
+                v = b
+        elif(isinstance(v, list)):
+            new_list = []
+            for vv in v:
+                new_list.append(int(vv))
+            v = new_list
+        args.__dict__[k] = v
+    return args
 
 def attack_args_to_kwargs(args):
     if(args.enable_robust):

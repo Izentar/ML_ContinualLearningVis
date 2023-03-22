@@ -313,7 +313,6 @@ def logic(args, log_args_to_wandb=True):
             cyclic_latent_buffer_size_per_class=args.cyclic_latent_buffer_size_per_class,
             loss_f=clModel_default_loss_f,
             data_passer=data_passer,
-            train_only_dream_batch=args.train_only_dream_batch,
             optimizer_construct_type=args.optimizer_type,
             scheduler_construct_type=args.scheduler_type,
             scheduler_steps=args.train_scheduler_steps,
@@ -357,9 +356,10 @@ def logic(args, log_args_to_wandb=True):
         num_workers=args.num_workers,
         dream_num_workers=args.dream_num_workers,
         test_val_num_workers=args.test_val_num_workers,
-        train_only_dream_batch=args.train_only_dream_batch,
+        train_only_dream_batch_at=args.train_only_dream_batch_at,
         use_dreams_at_start=args.use_dreams_at_start,
         standard_image_size=args.standard_image_size,
+        data_passer=data_passer,
     )
     
 
@@ -383,12 +383,12 @@ def logic(args, log_args_to_wandb=True):
     internal_fit_loop = trainer.fit_loop
     trainer.fit_loop = CLLoop(
         [args.epochs_per_task] * args.num_tasks, 
-        enable_dreams_gen=args.disable_dreams_gen,
+        enable_dreams_gen_at=args.enable_dreams_gen_at,
         fast_dev_run_epochs=args.fast_dev_run_epochs,
         fast_dev_run=args.fast_dev_run,
         data_passer=data_passer,
         num_loops=args.num_loops,
-        run_without_training=args.run_without_training,
+        run_training_at=args.run_training_at,
         early_finish_at=args.early_finish_at,
         reload_model_after_loop=args.reload_model_after_loop,
         swap_datasets=args.swap_datasets,
@@ -411,6 +411,7 @@ def logic(args, log_args_to_wandb=True):
         layer_stats_flush_to_disk=layer_stats_flush_to_disk,
         layer_stats_loss_device=layer_stats_loss_device,
         layer_stats_collect_device=layer_stats_collect_device,
+        advance_clear_dreams=args.advance_clear_dreams,
     )
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)

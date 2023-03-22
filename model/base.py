@@ -17,7 +17,6 @@ class CLBase(LightningModule):
         load_model:str=None,
         dream_frequency:Union[int,list[int]]=1, 
         data_passer:dict=None, 
-        train_only_dream_batch:bool=False,
         optimizer_construct_type:str=None,
         scheduler_construct_type:str=None,
         optimizer_restart_params_type:str=None,
@@ -67,7 +66,6 @@ class CLBase(LightningModule):
         self.dream_frequency = dream_frequency if dream_frequency >= 1 else 1
         print(f"Set dream frequency to: {self.dream_frequency}")
         self.data_passer = data_passer
-        self.train_only_dream_batch = train_only_dream_batch
         self.optimizer_construct_f = self.optim_manager.get_optimizer(**optimizer_params)
         self.scheduler_construct_f = self.optim_manager.get_scheduler(**optimizer_params)
         self.optimizer_restart_params_f = self.optim_manager.get_reset_optimizer_f(**optimizer_params)
@@ -84,7 +82,7 @@ class CLBase(LightningModule):
     def _inner_training_step(self, batch, batch_idx):
         if "dream" not in batch:
             return self.training_step_normal(batch["normal"])
-        if self.train_only_dream_batch:
+        if 'normal' not in batch:
             return self.training_step_dream(batch["dream"])
 
         loss_normal = self.training_step_normal(batch["normal"])
