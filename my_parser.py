@@ -6,6 +6,7 @@ from pathlib import Path
 import glob
 import os
 from utils import utils
+from config.default import model_to_save_file_type
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -252,7 +253,7 @@ def export_config(args: Namespace) -> None:
         del tmp_args['save_trained_model'] 
         del tmp_args['enable_checkpoint'] 
         path = Path(args.run_config_folder) / args.config_export
-        Path.mkdir(path.parent, parents=True, exist_ok=True)
+        Path.mkdir(path.parent, parents=True, exist_ok=True, mode=model_to_save_file_type)
         dump = json.dumps(tmp_args,  indent=4, sort_keys=True)
         with open(path, 'w') as f:
             f.write(dump)

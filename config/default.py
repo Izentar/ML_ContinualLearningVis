@@ -157,7 +157,7 @@ datasets_map = {
 }
 
 default_export_path = './model_save/'
-model_to_save_file_type = 770
+model_to_save_file_type = 775
 robust_data_path = "./data"
 tmp_stat_folder = 'tmp/stats/'
 
@@ -167,4 +167,4 @@ markers_list = ('>', '+', '.', 'o', '*')
 markers = itertools.cycle(markers_list)
 colors = itertools.cycle(colors_list)
 
-Path(tmp_stat_folder).mkdir(exist_ok=True, parents=True)
+Path(tmp_stat_folder).mkdir(exist_ok=True, parents=True, mode=model_to_save_file_type)

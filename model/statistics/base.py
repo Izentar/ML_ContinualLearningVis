@@ -3,7 +3,7 @@ from utils.data_manipulation import select_class_indices_tensor
 from torch.utils.data import DataLoader
 from config.default import tmp_stat_folder
 from pathlib import Path
-import gc
+from config.default import model_to_save_file_type
 
 
 
@@ -133,7 +133,7 @@ class ModuleStat():
 
         self.tmp_full_path = tmp_stat_folder if flush_to_disk is None or (isinstance(flush_to_disk, bool) and flush_to_disk) else flush_to_disk
         if self.flush_to_disk_flag:
-            Path(self.tmp_full_path).mkdir(parents=True, exist_ok=True)
+            Path(self.tmp_full_path).mkdir(parents=True, exist_ok=True, mode=model_to_save_file_type)
             self.tmp_full_path = Path(self.tmp_full_path) / full_name
 
         for u in to_update:
@@ -553,3 +553,13 @@ def collect_model_layer_stats(
     model_layer_stats_obj.unhook()
 
     return model_stats, target_list
+
+class DisplayStats():
+    def __init__(self, data:ModuleStatData, main_folder:str) -> None:
+        self.data = data
+        self.main_folder = main_folder
+
+    def pca(self, save_to_file=True):
+        cov = self.data.cov
+        for k, v in cov.items():
+            out = torch.pca_lowrank(v)
