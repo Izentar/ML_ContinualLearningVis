@@ -7,7 +7,7 @@ from model.overlay import CLModel
 def try_load(export_path:str, load_model:str|None):
     model = None
     export_path = Path(export_path) if export_path is not None else Path(default_export_path)
-    Path.mkdir(export_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
+    export_path.mkdir(parents=True, exist_ok=True)
     if(load_model is not None):
         find_path = export_path / load_model
         path = glob.glob(str(find_path), recursive=True)

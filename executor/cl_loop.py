@@ -103,7 +103,7 @@ class CLLoop(Loop):
         self.previous_task:int = 0
         self.previous_loop:int = 0
         self.export_path = Path(export_path) if export_path is not None else Path(default_export_path)
-        Path.mkdir(self.export_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
+        self.export_path.mkdir(parents=True, exist_ok=True)
         self.save_model_inner_path = save_model_inner_path if save_model_inner_path is not None else ""
         
         self.reload_model_after_loop = reload_model_after_loop
@@ -338,7 +338,7 @@ enable_dreams_gen_at --- {main_enable}\n\
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
             time = datetime.datetime.now().strftime("%H-%M-%S")
             full_path = self.export_path / f"{self.save_model_inner_path}" / f"{folder}"
-            Path.mkdir(full_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
+            full_path.mkdir(parents=True, exist_ok=True)
             self.trainer.save_checkpoint(
                 full_path / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
                 weights_only=True
