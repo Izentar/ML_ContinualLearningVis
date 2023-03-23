@@ -109,9 +109,9 @@ Checks if the output image has the provided shape. Do not include batch here. De
     parser.add_argument("--swap_datasets", action="store_true", help='Do training once, generate dream dataset and then\
 run training on a newly initialized model using only dream dataset. Not compatible with "dream_frequency", \
 "train_only_dream_batch_at". Odd task number will indicate normal training and even task number will indicate dream training.') ##**
-    parser.add_argument("--reload_model_after_loop", action="store_true", help='Reload model weights after each main loop.\
+    parser.add_argument("--reload_model_after_loop_at", nargs='+', type=str, help='Reload model weights after each main loop.\
 Reloading means any weights that model had before training will be reloaded.') ##**
-    parser.add_argument("--reinit_model_after_loop", action="store_true", help='Reset model after each main loop.\
+    parser.add_argument("--reinit_model_after_loop_at", nargs='+', type=str, help='Reset model after each main loop.\
 Model will have newly initialized weights after each main loop.') ##**
     parser.add_argument("--weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
 
@@ -172,9 +172,11 @@ means it will be used just like the python indexing for negative numbers.') ##**
     return args, parser
 
 def convert_args_str_to_list_int(args: Namespace):
-    to_check = ['run_training_at', 'enable_dreams_gen_at', 'train_only_dream_batch_at']
+    to_check = ['run_training_at', 'enable_dreams_gen_at', 'train_only_dream_batch_at', 'reload_model_after_loop_at', 'reinit_model_after_loop_at']
     for k in to_check:
         v = args.__dict__[k]
+        if(v is None):
+            continue
         if(isinstance(v, str)):
             b = utils.str_is_true(v)
             if(b is not None):

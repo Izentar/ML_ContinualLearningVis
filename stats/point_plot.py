@@ -7,6 +7,7 @@ import itertools
 import json
 import os
 import pathlib
+from pathlib import Path
 import sys
 from config.default import markers, colors, colors_list
 from utils.data_manipulation import select_class_indices_tensor
@@ -305,8 +306,9 @@ class Statistics():
         return output
 
 class PointPlot():
-    def __init__(self):
-        pass
+    def __init__(self, root='plots'):
+        self.root = Path(root)
+        self.root.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def inverse_dict(d):
@@ -646,6 +648,38 @@ class PointPlot():
 
         self.flush(fig, ax, name, show, idx=len(average_point_dist_from_means_dict), ftype=ftype)
 
+    def plot_bar(
+        self, 
+        data:dict, 
+        name='bar_plot', 
+        show=False, 
+        ftype='png',
+        size_x=15.4,
+        size_y=10.8,
+        nrows=1,
+        ncols=1,
+    ):
+        name = self.root / name
+        plotter = ServePlot(nrows=nrows, ncols=ncols, figsize=(size_x,size_y))
+        val = data.values()
+        #height = torch.max(torch.stack(list(data.values()))).to('cpu').numpy()
+        height = 5
+        legend_label = dict()
+        for cl, x in data.items():
+            x:np.ndarray = x.to('cpu').numpy()
+            fig, ax = plotter.get_next()
+            #print(range(len(x)), x, height)
+            plot = ax.bar(range(len(x)), x)
+            #ax.set_title(f'Class {cl}')
+            plotter.schedule_flush(self, name, show, cl, ftype)
+
+            legend_label[cl] = {
+                'label': [f'Class {cl}'], 
+                'plot': [plot],
+            }
+            legend_fix(legend_label, ax, fig)
+        
+        plotter.force_flush(self, name, show, len(data.items()) + 1, ftype)
 
     def saveBuffer(self, buffer, name):
         tryCreatePath(name)

@@ -26,6 +26,7 @@ from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_par
 
 from utils.load import try_load
 from config.default import robust_data_path
+from model.statistics.base import pca
 
 def data_transform():
     return transforms.Compose(
@@ -380,8 +381,9 @@ def logic(args, log_args_to_wandb=True):
 
     print(f"Fast dev run is {args.fast_dev_run}")
 
+    
     internal_fit_loop = trainer.fit_loop
-    trainer.fit_loop = CLLoop(
+    custom_loop = CLLoop(
         [args.epochs_per_task] * args.num_tasks, 
         enable_dreams_gen_at=args.enable_dreams_gen_at,
         fast_dev_run_epochs=args.fast_dev_run_epochs,
@@ -390,9 +392,9 @@ def logic(args, log_args_to_wandb=True):
         num_loops=args.num_loops,
         run_training_at=args.run_training_at,
         early_finish_at=args.early_finish_at,
-        reload_model_after_loop=args.reload_model_after_loop,
+        reload_model_after_loop_at=args.reload_model_after_loop_at,
         swap_datasets=args.swap_datasets,
-        reinit_model_after_loop=args.reinit_model_after_loop,
+        reinit_model_after_loop_at=args.reinit_model_after_loop_at,
         weight_reset_sanity_check=args.weight_reset_sanity_check,
         enable_checkpoint=args.enable_checkpoint,
         save_model_inner_path=args.save_model_inner_path,
@@ -413,13 +415,14 @@ def logic(args, log_args_to_wandb=True):
         layer_stats_collect_device=layer_stats_collect_device,
         advance_clear_dreams=args.advance_clear_dreams,
     )
+    trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
 
     trainer.test(model, datamodule=cl_data_module)
     cl_data_module.flush_wandb()
 
-
+    plot_pca_graph(custom_loop.model_stats)
 
     # 
     # TODO
@@ -472,6 +475,13 @@ def logic(args, log_args_to_wandb=True):
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
+
+def plot_pca_graph(model_stats:dict):
+
+    out = pca(model_stats)
+    plotter = PointPlot()
+    for k, v in out.items():
+        plotter.plot_bar(v, name=f'pca_plot_{k}',nrows=int(np.sqrt(len(v))), ncols=int(np.sqrt(len(v))) + 1)
 
 def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, nrows=1, ncols=1, logger=None):
     stats = Statistics()

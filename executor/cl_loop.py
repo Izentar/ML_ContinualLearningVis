@@ -54,8 +54,8 @@ class CLLoop(Loop):
     def __init__(
         self,
         epochs_per_task: List[int],
-        reload_model_after_loop: bool = False,
-        reinit_model_after_loop: bool = False,
+        reload_model_after_loop_at: bool = False,
+        reinit_model_after_loop_at: bool = False,
         export_path: Optional[str] = None,
         enable_dreams_gen_at:int=None,
         fast_dev_run_epochs=None,
@@ -84,6 +84,7 @@ class CLLoop(Loop):
         layer_stats_loss_device='cuda:0',
         layer_stats_collect_device='cuda:0',
         advance_clear_dreams=False,
+        layer_loss_del_cov_after=False,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -106,8 +107,8 @@ class CLLoop(Loop):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.save_model_inner_path = save_model_inner_path if save_model_inner_path is not None else ""
         
-        self.reload_model_after_loop = reload_model_after_loop
-        self.reinit_model_after_loop = reinit_model_after_loop
+        self.reload_model_after_loop_at = reload_model_after_loop_at
+        self.reinit_model_after_loop_at = reinit_model_after_loop_at
         self.enable_dreams_gen_at = enable_dreams_gen_at
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
@@ -132,14 +133,15 @@ class CLLoop(Loop):
         self.data_passer = data_passer if data_passer is not None else {}
         self.custom_advance_f = None
         self.model_stats = None
+        self.layer_loss_del_cov_after = layer_loss_del_cov_after
 
-        if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop == False)):
+        if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_after_loop_at == False)):
             raise Exception(f'Wrong variables set for "swap_datasets" flag. \
---num_tasks:"{self.num_tasks}" --num_loops:"{self.num_loops}" --reload_model_after_loop:"{self.reload_model_after_loop}"\n\
-Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"')
+--num_tasks:"{self.num_tasks}" --num_loops:"{self.num_loops}" --reload_model_after_loop_at:"{self.reload_model_after_loop_at}"\n\
+Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop_at:"True"')
 
-        if(self.reinit_model_after_loop and self.reload_model_after_loop):
-            raise Exception("ERROR: reinit_model_after_loop and reload_model_after_loop cannot be both true")
+        if utils.check_python_enabled(self.reinit_model_after_loop_at) and utils.check_python_enabled(self.reload_model_after_loop_at):
+            raise Exception("ERROR: reinit_model_after_loop_at and reload_model_after_loop_at cannot be both true")
 
         if(self.swap_datasets):
             print(f"INFO: CLLoop in swap_datasets mode.")
@@ -184,12 +186,12 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
         self._try_load_model()
         self.trainer.datamodule.setup_tasks()
-        if(self.reload_model_after_loop):
+        if(utils.check_python_enabled(self.reload_model_after_loop_at)):
             # need deepcopy, because state_dict reference the tensor, not its copy
             self.lightning_module_state_dict = deepcopy(self.trainer.lightning_module.state_dict())
             if(self.weight_reset_sanity_check):
                 self.state_dict_sanity_check_val = self.trainer.lightning_module.model.get_objective_layer().weight.cpu()  
-        if(self.reinit_model_after_loop):
+        if(utils.check_python_enabled(self.reinit_model_after_loop_at)):
             if(self.weight_reset_sanity_check):
                 self.state_dict_sanity_check_val = self.trainer.lightning_module.model.get_objective_layer().weight.cpu() 
         self._update_data_passer()
@@ -211,7 +213,8 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             hook_verbose=self.layer_stats_verbose,
             progress_bar=self.progress_bar,
             flush_to_disk=self.layer_stats_flush_to_disk,
-            hook_to=self.layer_stats_hook_to
+            hook_to=self.layer_stats_hook_to,
+            fast_dev_run=self.fast_dev_run,
         )
 
     def _try_generate_dream(self):
@@ -223,7 +226,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop:"True"
             layer_loss = None
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
-                layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device,)
+                layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after)
                 layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
@@ -253,13 +256,13 @@ enable_dreams_gen_at --- {main_enable}\n\
 
     def _try_reset_model(self):
         # restore the original weights + optimizers and schedulers.
-        if(self.reload_model_after_loop and self.current_loop > 0):
+        if utils.check_python_index(self.reload_model_after_loop_at, self.num_loops, self.current_loop):
             self.trainer.lightning_module.load_state_dict(
                 self.lightning_module_state_dict, strict=True
             )
             self.trainer.strategy.setup_optimizers(self.trainer)
             self._model_weigth_sanity_check()
-        if(self.reinit_model_after_loop and self.current_loop > 0):
+        if utils.check_python_index(self.reinit_model_after_loop_at, self.num_loops, self.current_loop):
             self.trainer.lightning_module.init_weights()
             self._model_weigth_sanity_check()
 

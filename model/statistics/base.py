@@ -459,13 +459,14 @@ class LayerLossData():
             return torch.zeros(1, dtype=output.dtype, requires_grad=output.requires_grad, device=output.device)
 
 class LayerLoss():
-    def __init__(self, device) -> None:
+    def __init__(self, device, del_cov_after=False) -> None:
         self.loss_list = []
         self.current_batch_classes:torch.Tensor = None
         self.archived_batch_classes = None
         self.scaling = torch.tensor(2, dtype=torch.float32)
         self.losses_data = dict()
         self.device = device
+        self.del_cov_after = del_cov_after
 
     def _set_archived(self, classes:torch.Tensor):
         if(self.archived_batch_classes is None):
@@ -496,7 +497,7 @@ class LayerLoss():
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             data:ModuleStatData = layer_stat_data
             mean = data.mean[self.current_cl].to(self.device)
-            cov_inverse = data.cov_inverse(del_cov_after=True)[self.current_cl].to(self.device)
+            cov_inverse = data.cov_inverse(del_cov_after=self.del_cov_after)[self.current_cl].to(self.device)
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
@@ -521,7 +522,9 @@ def collect_model_layer_stats(
     hook_verbose:bool=False, 
     progress_bar=None, 
     flush_to_disk=None, 
-    hook_to:list[str]=None
+    hook_to:list[str]=None,
+    fast_dev_run:bool=False,
+    fast_dev_run_max_batches:int=30,
 ) -> dict|torch.Tensor:
     """
         Collect model stats and return tuple 
@@ -536,9 +539,11 @@ def collect_model_layer_stats(
     model.eval()
     #model = model.to('cpu')
 
-    progress_bar.setup_progress_bar(key='stats', text="[bright_red]Collect stats...", iterations=len(single_dataloader))
+    progress_bar.setup_progress_bar(key='stats', text="[bright_red]Collect stats...", iterations=len(single_dataloader) if fast_dev_run else fast_dev_run_max_batches)
     with torch.no_grad():
         for idx, (input, target) in enumerate(single_dataloader):
+            if(fast_dev_run and idx == fast_dev_run_max_batches):
+                break
             input = input.to(model.device)
             model_layer_stats_obj.register_batched_class_list(target)
             target = target.to(model.device)
@@ -554,12 +559,13 @@ def collect_model_layer_stats(
 
     return model_stats, target_list
 
-class DisplayStats():
-    def __init__(self, data:ModuleStatData, main_folder:str) -> None:
-        self.data = data
-        self.main_folder = main_folder
 
-    def pca(self, save_to_file=True):
-        cov = self.data.cov
+def pca(data:dict[ModuleStatData]):
+    out_by_layer_class = dict()
+    for k_layer, v_layer in data.items():
+        cov = v_layer.get_const_data().cov
+        out_by_layer_class[k_layer] = dict()
         for k, v in cov.items():
-            out = torch.pca_lowrank(v)
+            _, out, _ = torch.pca_lowrank(v)
+            out_by_layer_class[k_layer][k] = out
+    return out_by_layer_class

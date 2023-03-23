@@ -38,6 +38,17 @@ def check_python_index(index:list[int]|int|None|bool, size:int, current_val:int,
         return is_good
     return _check(index=index, size=size, current_val=current_val)
 
+def check_python_enabled(index:list[int]|int|None|bool, is_none_good=False) -> bool:         
+    if(index is None):
+        return is_none_good
+    if(isinstance(index, bool)):
+        return index
+    if(isinstance(index, list)):
+        if(len(index) == 0):
+            return False
+        return True
+    return True
+
 def str_is_true(val:str) -> bool|None:
     if(val == 'true' or val == 't' or val == 'True' or val == 'y' or val == 'Y'):
         return True
