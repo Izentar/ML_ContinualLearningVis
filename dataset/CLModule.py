@@ -319,7 +319,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     progress_bar=progress_bar,
                     refresh_fequency=self.richbar_refresh_fequency,
                     standard_image_size=self.standard_image_size,
-                    custom_loss_gather_f=layer_loss_obj.gather_loss
+                    custom_loss_gather_f=layer_loss_obj.gather_loss if layer_loss_obj is not None else None
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))

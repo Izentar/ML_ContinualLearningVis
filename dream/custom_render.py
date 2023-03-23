@@ -54,8 +54,8 @@ def render_vis(
     transforms=None,
     thresholds=(512,),
     custom_f_steps=(0,),
-    custom_f=empty_f,
-    custom_loss_gather_f=empty_loss_f,
+    custom_f=None,
+    custom_loss_gather_f=None,
     verbose=False,
     preprocess=True,
     show_image=True,
@@ -76,6 +76,12 @@ def render_vis(
     # params - parameters to update, which we pass to the optimizer
     # image_f - a function that returns an image as a tensor
     params, image_f = param_f()
+
+    if(custom_loss_gather_f is None):
+        custom_loss_gather_f = empty_loss_f
+    
+    if(custom_f is None):
+        custom_f = empty_f
 
     if optimizer is None:
         optimizer = lambda params: torch.optim.Adam(params, lr=1e-3)
