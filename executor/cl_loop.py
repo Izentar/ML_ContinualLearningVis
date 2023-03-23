@@ -281,7 +281,7 @@ enable_dreams_gen_at --- {main_enable}\n\
     def _try_save_dreams(self):
         if(self.save_dreams is not None and not self.fast_dev_run):
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
-            time = datetime.datetime.now().strftime("%H:%M:%S")
+            time = datetime.datetime.now().strftime("%H-%M-%S")
             filepath = self.export_path / f"{self.save_model_inner_path}" / f'{self.save_dreams}'/ f"{folder}" 
             filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             Path.mkdir(filepath, parents=True, exist_ok=True, mode=model_to_save_file_type)
@@ -326,7 +326,7 @@ enable_dreams_gen_at --- {main_enable}\n\
     def _try_export_model_checkpoint(self):
         if self.enable_checkpoint and not self.fast_dev_run:
             folder = datetime.datetime.now().strftime("%d-%m-%Y")
-            time = datetime.datetime.now().strftime("%H:%M:%S")
+            time = datetime.datetime.now().strftime("%H-%M-%S")
             full_path = self.export_path / f"{self.save_model_inner_path}" / f"{folder}"
             Path.mkdir(full_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
             self.trainer.save_checkpoint(
