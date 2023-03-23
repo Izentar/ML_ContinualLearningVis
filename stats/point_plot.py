@@ -311,6 +311,12 @@ class PointPlot():
         self.root.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
+    def _try_create_dir(path_with_filename):
+        if(not isinstance(path_with_filename, Path)):
+            path_with_filename = Path(path_with_filename)
+        path_with_filename.parent.mkdir(exist_ok=True, parents=True)
+
+    @staticmethod
     def inverse_dict(d):
         newd = {}
         for k, val in d.items():
@@ -327,8 +333,8 @@ class PointPlot():
             data_y_target[t] = []
             data_dims[t] = []
         return data_x_target, data_y_target, data_dims
-
-    def flush(self, fig, ax, name, show, idx=None, ftype='svg'):
+        
+    def flush(self, fig, ax, name, show, idx=None, ftype='png'):
         tryCreatePath(name)
         ax.legend()
         ax.grid(True)
@@ -337,8 +343,9 @@ class PointPlot():
             if(idx is None):
                 n = f"{name}.{ftype}"
             else:
-                print(f"INFO: Plot {name}_{idx}")
-                n = f"{name}_{idx}.{ftype}"
+                full_name = f'{name}_idx{idx}'
+                print(f"INFO: Plot {full_name}")
+                n = f"{full_name}.{ftype}"
             fig.savefig(n)
             wandb.log({f"stat_plots/{n}": wandb.Image(fig)})
         if(show):
@@ -660,17 +667,13 @@ class PointPlot():
         ncols=1,
     ):
         name = self.root / name
+        self._try_create_dir(name)
         plotter = ServePlot(nrows=nrows, ncols=ncols, figsize=(size_x,size_y))
-        val = data.values()
-        #height = torch.max(torch.stack(list(data.values()))).to('cpu').numpy()
-        height = 5
         legend_label = dict()
         for cl, x in data.items():
             x:np.ndarray = x.to('cpu').numpy()
             fig, ax = plotter.get_next()
-            #print(range(len(x)), x, height)
             plot = ax.bar(range(len(x)), x)
-            #ax.set_title(f'Class {cl}')
             plotter.schedule_flush(self, name, show, cl, ftype)
 
             legend_label[cl] = {

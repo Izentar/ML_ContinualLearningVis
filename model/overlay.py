@@ -78,6 +78,8 @@ class SAE_standalone(base.CLBase):
     def forward(self, *args):
         return self.model(*args)
 
+    def name(self):
+        return str(self.model.__class__.__name__)
 
 class CLModel(base.CLBase):
     def __init__(
@@ -106,6 +108,7 @@ class CLModel(base.CLBase):
         self.robust_data_path = robust_data_path
         self.robust_dataset_name = robust_dataset_name
         self.resume_path = resume_path
+        self._robust_model_set = False
         if(enable_robust):
             robust_dataset = self._get_dataset_list(robust_dataset_name)[1](data_path=robust_data_path)
             if(robust_dataset_name is not None and robust_data_path is not None and
@@ -113,6 +116,7 @@ class CLModel(base.CLBase):
                 self.model = model_utils.make_and_restore_model(
                     arch=model, dataset=robust_dataset, resume_path=resume_path
                 )[0]
+                self._robust_model_set = True
             else:
                 raise Exception('Robust selected but robust_dataset or attack_kwargs not provided.')
         else:
@@ -260,6 +264,9 @@ class CLModel(base.CLBase):
 
     def get_obj_str_type(self) -> str:
         return 'CLModel_' + type(self.model).__qualname__
+
+    def name(self):
+        return str(self.model.__class__.__name__)
 
 class CLModelIslandsTest(CLModel):
     def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, size_per_class=40, **kwargs):
