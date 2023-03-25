@@ -33,6 +33,7 @@ from model.statistics import base as layer_stat_framework
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
 from model.statistics.base import ModelLayerStatistics
+from colorama import Fore, Back, Style
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -288,7 +289,7 @@ enable_dreams_gen_at --- {main_enable}\n\
             print("INFO: HOOKING UP NORMAL LOOP")
             self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
         else:
-            self.custom_advance_f = lambda: print("INFO: SKIPPING TRAINING")
+            self.custom_advance_f = lambda: print(f"{Fore.RED}INFO: SKIPPING ANY TRAINING{Style.RESET_ALL}")
 
     def _gen_folder_name_by_time(self, dtype:str=None):
         folder = datetime.datetime.now().strftime("%d-%m-%Y")
@@ -303,7 +304,7 @@ enable_dreams_gen_at --- {main_enable}\n\
         if(self.save_dreams is not None and not self.fast_dev_run):
             filepath, time = self._gen_folder_name_by_time(self.save_dreams)
             filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
-            Path.mkdir(filepath, parents=True, exist_ok=True, mode=model_to_save_file_type)
+            Path.mkdir(filepath, parents=True, exist_ok=True)
             self.trainer.datamodule.save_dream_dataset(filepath / filename)
 
     def _try_load_dreams(self):
