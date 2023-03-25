@@ -277,7 +277,7 @@ class FunConfigSetPredefined(FunConfigSet):
         )
 
     def __str__(self):
-        s = f"SELECT TASK:{self.predef_select_task_type}; TARGET PROCESSING:{self.predef_target_processing_type}; \
-TASK SPLIT:{self.predef_task_split_type}; DREAM OBJECTIVE:{self.predef_dream_obj_type}; \
-MODEL TYPE:{self.predef_mtype}; OVERLAY TYPE:{self.predef_otype}"
+        s = f"\tSELECT TASK: {self.predef_select_task_type}\n\tTARGET PROCESSING: {self.predef_target_processing_type}\
+\n\tTASK SPLIT: {self.predef_task_split_type}\n\tDREAM OBJECTIVE: {self.predef_dream_obj_type}\
+\n\tMODEL TYPE: {self.predef_mtype}\n\tOVERLAY TYPE: {self.predef_otype}"
         return s

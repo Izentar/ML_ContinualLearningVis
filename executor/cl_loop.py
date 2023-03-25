@@ -204,7 +204,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop_at:"Tr
 
     def _gather_model_layer_stats_advance_f(self):
         print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
-        
+
         train_dataloader = self.data_module.train_dataloader()
         if(isinstance(train_dataloader, CombinedLoader)):
             train_dataloader = train_dataloader.loaders
@@ -288,11 +288,18 @@ enable_dreams_gen_at --- {main_enable}\n\
         else:
             self.custom_advance_f = lambda: print("INFO: SKIPPING TRAINING")
 
+    def _gen_folder_name_by_time(self, dtype:str=None):
+        folder = datetime.datetime.now().strftime("%d-%m-%Y")
+        time = datetime.datetime.now().strftime("%H-%M-%S")
+        if(dtype is None):
+            dtype = ""
+        ret = self.export_path / f"{self.save_model_inner_path}" / dtype / folder
+        ret.mkdir(parents=True, exist_ok=True)
+        return ret, time
+
     def _try_save_dreams(self):
         if(self.save_dreams is not None and not self.fast_dev_run):
-            folder = datetime.datetime.now().strftime("%d-%m-%Y")
-            time = datetime.datetime.now().strftime("%H-%M-%S")
-            filepath = self.export_path / f"{self.save_model_inner_path}" / f'{self.save_dreams}'/ f"{folder}" 
+            filepath, time = self._gen_folder_name_by_time(self.save_dreams)
             filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             Path.mkdir(filepath, parents=True, exist_ok=True, mode=model_to_save_file_type)
             self.trainer.datamodule.save_dream_dataset(filepath / filename)
@@ -335,22 +342,16 @@ enable_dreams_gen_at --- {main_enable}\n\
 
     def _try_export_model_checkpoint(self):
         if self.enable_checkpoint and not self.fast_dev_run:
-            folder = datetime.datetime.now().strftime("%d-%m-%Y")
-            time = datetime.datetime.now().strftime("%H-%M-%S")
-            full_path = self.export_path / f"{self.save_model_inner_path}" / f"{folder}"
-            Path.mkdir(full_path, parents=True, exist_ok=True, mode=model_to_save_file_type)
+            filepath, time = self._gen_folder_name_by_time()
             self.trainer.save_checkpoint(
-                full_path / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
+                filepath / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             )
 
     def _try_save_trained_model(self):
         if(self.save_trained_model and not self.fast_dev_run):
-            folder = datetime.datetime.now().strftime("%d-%m-%Y")
-            time = datetime.datetime.now().strftime("%H-%M-%S")
-            full_path = self.export_path / f"{self.save_model_inner_path}" / f"{folder}"
-            full_path.mkdir(parents=True, exist_ok=True)
+            filepath, time = self._gen_folder_name_by_time()
             self.trainer.save_checkpoint(
-                full_path / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
+                filepath / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
                 weights_only=True
             )
 
@@ -420,12 +421,13 @@ enable_dreams_gen_at --- {main_enable}\n\
         return self.__dict__[key]
 
     def _try_save_model_layer_stats(self):
-        if(self.model_stats is not None and self.save_layer_stats is not None):
+        if(self.model_stats is not None and self.save_layer_stats is not None and not self.fast_dev_run):
             stripped_dict = {}
             for k, v in self.model_stats.items():
                 stripped_dict[k] = v.get_const_data()
             Path(self.save_layer_stats).parent.mkdir(parents=True, exist_ok=True)
-            torch.save(stripped_dict, f=self.save_layer_stats) 
+            filepath, time = self._gen_folder_name_by_time()
+            torch.save(stripped_dict, f=filepath / f'layer_stats.loop_{self.current_loop}.{self.save_layer_stats}.{time}.ls') 
     
     def _try_load_model_layer_stats(self, strict=True):
         if(self.load_layer_stats is not None):
