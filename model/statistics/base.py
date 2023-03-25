@@ -133,7 +133,7 @@ class ModuleStat():
 
         self.tmp_full_path = tmp_stat_folder if flush_to_disk is None or (isinstance(flush_to_disk, bool) and flush_to_disk) else flush_to_disk
         if self.flush_to_disk_flag:
-            Path(self.tmp_full_path).mkdir(parents=True, exist_ok=True, mode=model_to_save_file_type)
+            Path(self.tmp_full_path).mkdir(parents=True, exist_ok=True)
             self.tmp_full_path = Path(self.tmp_full_path) / full_name
 
         for u in to_update:

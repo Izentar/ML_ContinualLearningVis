@@ -167,4 +167,4 @@ markers_list = ('>', '+', '.', 'o', '*')
 markers = itertools.cycle(markers_list)
 colors = itertools.cycle(colors_list)
 
-Path(tmp_stat_folder).mkdir(exist_ok=True, parents=True, mode=model_to_save_file_type)
+Path(tmp_stat_folder).mkdir(exist_ok=True, parents=True)

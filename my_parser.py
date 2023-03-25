@@ -264,7 +264,7 @@ def export_config(args: Namespace) -> None:
         del tmp_args['save_trained_model'] 
         del tmp_args['enable_checkpoint'] 
         path = Path(args.run_config_folder) / args.config_export
-        Path.mkdir(path.parent, parents=True, exist_ok=True, mode=model_to_save_file_type)
+        Path.mkdir(path.parent, parents=True, exist_ok=True)
         dump = json.dumps(tmp_args,  indent=4, sort_keys=True)
         with open(path, 'w') as f:
             f.write(dump)
