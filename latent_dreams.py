@@ -414,6 +414,8 @@ def logic(args, log_args_to_wandb=True):
         layer_stats_loss_device=layer_stats_loss_device,
         layer_stats_collect_device=layer_stats_collect_device,
         advance_clear_dreams=args.advance_clear_dreams,
+        save_layer_stats=args.save_layer_stats,
+        load_layer_stats=args.load_layer_stats,
     )
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)

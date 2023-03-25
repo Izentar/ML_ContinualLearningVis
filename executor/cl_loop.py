@@ -32,6 +32,7 @@ from config.default import default_export_path, model_to_save_file_type
 from model.statistics import base as layer_stat_framework
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
+from model.statistics.base import ModelLayerStatistics
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -85,6 +86,8 @@ class CLLoop(Loop):
         layer_stats_collect_device='cuda:0',
         advance_clear_dreams=False,
         layer_loss_del_cov_after=False,
+        save_layer_stats=None,
+        load_layer_stats=None,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -151,6 +154,8 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop_at:"Tr
         self.layer_stats_flush_to_disk = layer_stats_flush_to_disk
         self.layer_stats_loss_device = layer_stats_loss_device
         self.layer_stats_collect_device = layer_stats_collect_device
+        self.load_layer_stats = load_layer_stats
+        self.save_layer_stats = save_layer_stats
 
     @property
     def done(self) -> bool:
@@ -199,7 +204,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop_at:"Tr
 
     def _gather_model_layer_stats_advance_f(self):
         print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
-
+        
         train_dataloader = self.data_module.train_dataloader()
         if(isinstance(train_dataloader, CombinedLoader)):
             train_dataloader = train_dataloader.loaders
@@ -216,6 +221,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop_at:"Tr
             hook_to=self.layer_stats_hook_to,
             fast_dev_run=self.fast_dev_run,
         )
+        self._try_save_model_layer_stats()
 
     def _try_generate_dream(self):
         main_enable = utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop)
@@ -226,6 +232,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_after_loop_at:"Tr
             layer_loss = None
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                self._try_load_model_layer_stats()
                 layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after)
                 layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
@@ -411,3 +418,27 @@ enable_dreams_gen_at --- {main_enable}\n\
         if key not in self.__dict__:
             return getattr(self.fit_loop, key)
         return self.__dict__[key]
+
+    def _try_save_model_layer_stats(self):
+        if(self.model_stats is not None and self.save_layer_stats is not None):
+            stripped_dict = {}
+            for k, v in self.model_stats.items():
+                stripped_dict[k] = v.get_const_data()
+            Path(self.save_layer_stats).parent.mkdir(parents=True, exist_ok=True)
+            torch.save(stripped_dict, f=self.save_layer_stats) 
+    
+    def _try_load_model_layer_stats(self, strict=True):
+        if(self.load_layer_stats is not None):
+            if(self.model_stats is None):
+                self.model_stats = ModelLayerStatistics(
+                    model=self.trainer.lightning_module,
+                    device=self.layer_stats_collect_device,
+                    hook_verbose=self.layer_stats_verbose,
+                    flush_to_disk=self.layer_stats_flush_to_disk,
+                    hook_to=self.layer_stats_hook_to,
+                )
+                self.model_stats.unhook()
+            loaded = torch.load(self.load_layer_stats)
+            self.model_stats.set_layer_stats_from(loaded)
+            self.model_stats = self.model_stats.get_stats()
+            

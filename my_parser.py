@@ -145,7 +145,7 @@ It ') ##**
     parser.add_argument("--attack_make_adv", action="store_true", help='') # required
 
     ######################################
-    #####     hooking to model      ######
+    #####     layer statistics      ######
     ######################################
     parser.add_argument("--gather_layer_loss_at", type=int, help='Gather layer statistics \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
@@ -153,7 +153,8 @@ means it will be used just like the python indexing for negative numbers.') ##**
     parser.add_argument("--use_layer_loss_at", type=int, help='Use layer loss function \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-
+    parser.add_argument("--save_layer_stats", type=str, help='Path where to save layer_stats.') ##**
+    parser.add_argument("--load_layer_stats", type=str, help='Path from where to load layer_stats.') ##**
 
     ######################################
     ######          other           ######
@@ -172,7 +173,13 @@ means it will be used just like the python indexing for negative numbers.') ##**
     return args, parser
 
 def convert_args_str_to_list_int(args: Namespace):
-    to_check = ['run_training_at', 'enable_dreams_gen_at', 'train_only_dream_batch_at', 'reload_model_after_loop_at', 'reinit_model_after_loop_at']
+    to_check = [
+        'run_training_at', 
+        'enable_dreams_gen_at', 
+        'train_only_dream_batch_at', 
+        'reload_model_after_loop_at', 
+        'reinit_model_after_loop_at',
+    ]
     for k in to_check:
         v = args.__dict__[k]
         if(v is None):
@@ -224,14 +231,16 @@ def log_to_wandb(args):
     print(wandb.config)
 
 def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
+    """
+        Load config file as defaults arguments. Arguments from command line have priority. 
+    """
     if args.config is not None:
         for conf_fname in args.config:
             folder = Path(args.run_config_folder)
             file = folder / conf_fname
-            print(file)
             file = glob.glob(str(file), recursive=True)
             if(len(file) != 1):
-                raise Exception(f'Cannot load dreams - no or too many matching filenames. From "{conf_fname}" found only these paths: {file}')
+                raise Exception(f'Cannot load config - no or too many matching filenames. From "{conf_fname}" found only these paths: {file}')
             file = file[0]
             with open(file, 'r') as f:
                 parser.set_defaults(**json.load(f))

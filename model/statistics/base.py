@@ -157,14 +157,18 @@ class ModuleStat():
         if(self.flush_to_disk_flag):
             self.file_handler.close()
 
-    def _flush_to_file(self):
-        self.file_handler.seek(0, 0)
-        torch.save(self.data, f=self.file_handler)
+    def _flush_to_file(self, handler=None):
+        if(handler is None):
+            handler = self.file_handler
+        handler.seek(0, 0)
+        torch.save(self.data, f=handler)
         del self.data
 
-    def _restore_from_file(self):
-        self.file_handler.seek(0, 0)
-        self.data = torch.load(f=self.file_handler)
+    def _restore_from_file(self, handler=None):
+        if(handler is None):
+            handler = self.file_handler
+        handler.seek(0, 0)
+        self.data = torch.load(f=handler)
     
     def _update(self, output:torch.Tensor):
         self._restore_from_file_caller()
@@ -185,18 +189,6 @@ class ModuleStat():
 
     def register_batched_class_list(self, target_list:torch.Tensor):
         self.shared_ref['target'] = target_list.to(self.device) # pass by reference
-
-    #def _set_new_output(self):
-    #    if(self._new_output_list is None or self._new_output_list.shape[0] != len(self.output_list)):
-    #        self._new_output_list = torch.cat(self.output_list)
-
-    #def _should_recalc(self, to_check, index) -> bool:
-    #    if(len(self.target_list) != len(self.output_list)):
-    #        raise Exception(f"Class list size '{len(self.target_list)}' do not match output list size '{len(self.output_list)}'")
-    #    if(to_check[0].get(index) is not None and to_check[0][index] != len(self.output_list)):
-    #        to_check[0][index] = len(self.output_list)
-    #        return True
-    #    return False
 
     def _split_by_target(self, torch_data) -> dict:
         ret = dict()
@@ -234,16 +226,6 @@ class ModuleStat():
 
     def calc_mean(self) -> dict:
         return self.data.mean
-        #self._set_new_output()
-        #output_by_class = self._split_by_target(self._new_output_list)
-        #ret = dict()
-        #for k, v in output_by_class.items():
-        #    if(self._should_recalc(self.mean, k)):
-        #        ret[k())()] = torch.mean(v, dim=(0, ))
-        #        self.mean[1][k] = ret.detach().cpu()
-        #    else:
-        #        ret[k] = self.mean[1][k].clone()
-        #return ret
 
     ################################
     #####         STD          #####
@@ -268,23 +250,6 @@ class ModuleStat():
 
     def calc_std(self) -> dict:
         return self.data.std
-        # unbiased version
-        #if(self.data._M2n is None):
-        #    return None
-        #ret = dict()
-        #for k, v in self.data._M2n.items():
-        #    ret[k] = torch.sqrt(torch.div(v, self._counter_update - 1))
-        #return ret
-        #self._set_new_output()
-        #output_by_class = self._split_by_target(self._new_output_list)
-        #ret = dict()
-        #for k, v in output_by_class.items():
-        #    if(self._should_recalc(self.std, k)):
-        #        ret[k] = torch.std(v, dim=(0, ))
-        #        self.std[1][k] = ret.detach().cpu()
-        #    else:
-        #        ret[k] = self.std[1][k].clone()
-        #return ret
 
     ################################
     #####         COV          #####
@@ -317,28 +282,35 @@ class ModuleStat():
             Returns covariance matrix 2D, where diagonal contains the variance of each variable.
         """
         return self.data.cov
-        #self._set_new_output()
-        #output_by_class = self._split_by_target(self._new_output_list)
-        #ret = dict()
-        #for k, v in output_by_class.items():
-        #    if(self._should_recalc(self.cov, k)):
-        #        shape = v.shape
-        #        x = v.view(shape[0], -1)
-#
-        #        # transpose needed
-        #        # https://pytorch.org/docs/stable/generated/torch.cov.html
-        #        ret[k] = torch.cov(x.T)
-        #        self.cov[1][k] = ret.detach().cpu()
-        #    else:
-        #        ret[k] = self.cov[1][k].clone()
-        #return ret
         
     def get_const_data(self) -> ModuleStatData:
         self._restore_from_file_caller()
         return self.data
 
-class ModelLayerStatistics():
+    def save(self, path_filename:str|Path):
+        if(not isinstance(path_filename, Path)):
+            path_filename = Path(path_filename)
+        path_filename.parent.mkdir(parents=True, exist_ok=True)
+
+        self._flush_to_file(handler=path_filename)
+
+    def restore(self, path_filename:str|Path) -> None:
+        if(not isinstance(path_filename, Path)):
+            path_filename = Path(path_filename)
+        if(not path_filename.parent.exists()):
+            raise Exception(f'Path {path_filename.parent} does not exist. Cannot load file {path_filename.name}')
+
+        self._restore_from_file(handler=path_filename)
+
+    def load(self, path_filename:str|Path) -> None:
+        """
+            The same as self.restore(path_filename) - alias.
+        """
+        self.restore(path_filename=path_filename)
+
+class ModelLayerStatistics(torch.nn.Module):
     def __init__(self, model:torch.nn.Module, device, hook_verbose:bool=False, flush_to_disk=None, hook_to:list[str]=None) -> None:
+        super().__init__()
         self.deleted = False
         self.layers = dict()
         self.device = device
@@ -372,25 +344,25 @@ class ModelLayerStatistics():
 
             Returns ModuleStat reference objects in dictionary {tree.name: obj}
         """
-        if(names is not None):
-            for n in names:
-                match n:
-                    case 'cov':
-                        for v in self.layers.values():
-                            v.calc_cov()
-                    case 'mean':
-                        for v in self.layers.values():
-                            v.calc_mean()
-                    case 'std':
-                        for v in self.layers.values():
-                            v.calc_std()
-                    case _:
-                        raise Exception(f'Unknow name: {n}')
-        elif(prepare):
-            for v in self.layers.values():
-                v.calc_cov()
-                v.calc_mean()
-                v.calc_std()
+        #if(names is not None):
+        #    for n in names:
+        #        match n:
+        #            case 'cov':
+        #                for v in self.layers.values():
+        #                    v.calc_cov()
+        #            case 'mean':
+        #                for v in self.layers.values():
+        #                    v.calc_mean()
+        #            case 'std':
+        #                for v in self.layers.values():
+        #                    v.calc_std()
+        #            case _:
+        #                raise Exception(f'Unknow name: {n}')
+        #elif(prepare):
+        #    for v in self.layers.values():
+        #        v.calc_cov()
+        #        v.calc_mean()
+        #        v.calc_std()
         return self.layers
 
     def unhook(self):
@@ -417,6 +389,18 @@ class ModelLayerStatistics():
         self.shared_ref['target'] = target_list.to(self.device) # pass by reference
         self.shared_ref['indices_by_target'] = self._indices_by_target()
 
+    def set_layer_stats_from(self, loaded:dict, strict=True):
+        for k in self.layers.keys():  
+            tmp = loaded.get(k)
+            if(tmp is not None):
+                self.layers[k].data = tmp
+            elif(strict):
+                raise Exception(f'Could not find key {k} in model {self.trainer.lightning_module.name()}. Used "strict" flag.')
+
+    #def __setstate__(self, state):
+    #    super().__setstate__(state)
+    #    self.__dict__['layers'] = state['layers']
+    #    self.__dict__['shared_ref'] = state['shared_ref']
 
 def hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str=None, handles=None, hook_to:list[str]=None):
     """
@@ -558,7 +542,6 @@ def collect_model_layer_stats(
     model_layer_stats_obj.unhook()
 
     return model_stats, target_list
-
 
 def pca(data:dict[ModuleStatData]):
     out_by_layer_class = dict()
