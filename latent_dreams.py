@@ -424,7 +424,8 @@ def logic(args, log_args_to_wandb=True):
     trainer.test(model, datamodule=cl_data_module)
     cl_data_module.flush_wandb()
 
-    plot_pca_graph(custom_loop.model_stats, model=model)
+    if(args.gather_layer_loss_at is not None):
+        plot_pca_graph(custom_loop.model_stats, model=model)
 
     # 
     # TODO

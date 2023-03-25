@@ -268,6 +268,10 @@ class CLModel(base.CLBase):
     def name(self):
         return str(self.model.__class__.__name__)
 
+    def init_weights(self):
+        if(not self._robust_model_set):
+            self.model._initialize_weights()
+
 class CLModelIslandsTest(CLModel):
     def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, size_per_class=40, **kwargs):
         kwargs.pop('loss_f', None)
