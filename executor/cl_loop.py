@@ -74,7 +74,6 @@ class CLLoop(Loop):
         load_model:str=None,
         save_dreams:str=None,
         load_dreams:str=None,
-        generate_dreams_at_start:bool=False,
         gather_layer_loss_at:int=None,
         use_layer_loss_at:int=None,
         layer_dataloader=None,
@@ -125,7 +124,6 @@ class CLLoop(Loop):
         self.load_model = load_model
         self.save_dreams = save_dreams
         self.load_dreams = load_dreams
-        self.generate_dreams_at_start = generate_dreams_at_start
         self.gather_layer_loss_at = gather_layer_loss_at
         self.layer_dataloader = layer_dataloader
         self.use_layer_loss_at = use_layer_loss_at
@@ -226,10 +224,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
 
     def _try_generate_dream(self):
         main_enable = utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop)
-        if main_enable and (
-                (self.generate_dreams_at_start and self.current_loop == 0) or self.current_loop > 0
-            ):
-
+        if main_enable:
             layer_loss = None
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
@@ -242,9 +237,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
                     hook_to=self.layer_stats_hook_to
                 )
             
-            print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop},\n\treason: \
-enable_dreams_gen_at --- {main_enable}\n\
-\t\tgenerate_dreams_at_start --- {main_enable and self.generate_dreams_at_start and self.current_loop == 0}")
+            print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 model=self.trainer.lightning_module, 

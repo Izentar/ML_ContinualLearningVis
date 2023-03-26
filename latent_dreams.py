@@ -413,7 +413,6 @@ def logic(args, log_args_to_wandb=True):
         export_path=args.export_path,
         save_dreams=args.save_dreams,
         load_dreams=args.load_dreams,
-        generate_dreams_at_start=args.generate_dreams_at_start,
         gather_layer_loss_at=args.gather_layer_loss_at,
         use_layer_loss_at=args.use_layer_loss_at,
         data_module=cl_data_module,

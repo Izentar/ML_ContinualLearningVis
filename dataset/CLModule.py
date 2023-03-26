@@ -169,6 +169,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.eval()
 
+        self.render_vis_display_additional_info = True
+
         iterations = ceil(self.dreams_per_target / self.dreaming_batch_size)
         new_dreams, new_targets = self._generate_dreams(
             model=model,
@@ -319,9 +321,11 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     refresh_fequency=self.richbar_refresh_fequency,
                     standard_image_size=self.standard_image_size,
                     custom_loss_gather_f=layer_loss_obj.gather_loss if layer_loss_obj is not None else None,
+                    display_additional_info=self.render_vis_display_additional_info,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
+            self.render_vis_display_additional_info = False
 
             dreams.append(numpy_render)
             progress_bar.update_dreaming(1)

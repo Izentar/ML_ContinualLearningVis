@@ -68,6 +68,7 @@ def render_vis(
     progress_bar=None,
     refresh_fequency=50,
     standard_image_size=None,
+    display_additional_info=True,
 ):
     """
         standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
@@ -113,10 +114,12 @@ def render_vis(
         )
 
     if(disable_transforms):
-        print(f"{Fore.RED}INFO: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
+        if(display_additional_info):
+            print(f"{Fore.RED}INFO: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
         transform_f = lambda x: x
     else:
-        print("INFO: ENABLE DREAM TRANSFORMS")
+        if(display_additional_info):
+            print("INFO: ENABLE DREAM TRANSFORMS")
         transform_f = transform.compose(transforms)
 
     model.eval()
