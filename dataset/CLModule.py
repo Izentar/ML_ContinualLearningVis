@@ -68,7 +68,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         max_logged_dreams_per_target=8, 
         fast_dev_run:bool=False,
         fast_dev_run_dream_threshold=None,
-        image_size = 32,
+        image_size = (3, 32, 32),
         progress_bar = None,
         empty_dream_dataset=None,
         optimizer=None,
@@ -99,7 +99,6 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.target_processing_f = target_processing_f
         self.dreams_per_target = dreams_per_target
         self.dreaming_batch_size = dreaming_batch_size
-        self.image_size = image_size
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams_per_target = max_logged_dreams_per_target
         self.progress_bar = progress_bar
@@ -122,7 +121,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.custom_f = custom_f
         self.train_only_dream_batch_at = train_only_dream_batch_at
         self.richbar_refresh_fequency = richbar_refresh_fequency
-        self.standard_image_size = standard_image_size
+        self.standard_image_size = standard_image_size if standard_image_size is not None else image_size
         self.data_passer = data_passer
 
         print(f"Train task split: {self.train_tasks_split}")
@@ -319,7 +318,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     progress_bar=progress_bar,
                     refresh_fequency=self.richbar_refresh_fequency,
                     standard_image_size=self.standard_image_size,
-                    custom_loss_gather_f=layer_loss_obj.gather_loss if layer_loss_obj is not None else None
+                    custom_loss_gather_f=layer_loss_obj.gather_loss if layer_loss_obj is not None else None,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))

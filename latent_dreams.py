@@ -27,6 +27,8 @@ from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_par
 from utils.load import try_load
 from config.default import robust_data_path
 from model.statistics.base import pca
+from collections.abc import Sequence
+from utils.utils import parse_image_size
 
 def data_transform():
     return transforms.Compose(
@@ -109,11 +111,12 @@ def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
 def param_f_create(ptype, decorrelate=True):
 
     def param_f_image(image_size, dreaming_batch_size, **kwargs):
+        channels, w, h = parse_image_size(image_size)
         def param_f():
             # uses 2D Fourier coefficients
             # sd - scale of the random numbers [0, 1)
             return param.image(
-                image_size, batch=dreaming_batch_size, sd=0.4, 
+                w=w, h=h, channels=channels, batch=dreaming_batch_size, sd=0.4, 
                 fft=decorrelate, decorrelate=decorrelate
             )
         return param_f
@@ -216,16 +219,23 @@ def logic(args, log_args_to_wandb=True):
     #    tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
     #    tr.jitter(2),
     #]
-    JITTER = 4
+    JITTER = 2
     ROTATE = 5
-    SCALE = 1.2
+    SCALE = 1.1
     render_transforms = [
         tr.pad(JITTER), # int
         tr.jitter(JITTER), # > 1
         tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
         tr.random_rotate(range(-ROTATE, ROTATE+1)),
-        tr.jitter(int(JITTER / 2))
+        tr.jitter(int(JITTER))
     ]
+
+    #render_transforms = [
+    #    tr.pad(2*JITTER),
+    #    tr.jitter(JITTER),
+    #    tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+    #    tr.random_rotate(range(-ROTATE, ROTATE+1))
+    #]
 
     data_passer = {}
 

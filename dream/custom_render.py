@@ -24,6 +24,8 @@ import torch
 
 from lucent.optvis import objectives, transform, param
 from lucent.misc.io import show
+from colorama import Fore, Back, Style
+from utils.utils import parse_image_size
 
 def _check_img_size(transform_f, image_f, standard_image_size):
     if(standard_image_size is None):
@@ -68,7 +70,7 @@ def render_vis(
     standard_image_size=None,
 ):
     """
-        standard_image_size - what image size should be after applying transforms. Raise exception if check fails.
+        standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
     """
     if param_f is None:
         param_f = lambda: param.image(128)
@@ -100,12 +102,22 @@ def render_vis(
             # See https://pytorch.org/docs/stable/torchvision/models.html
             transforms.append(transform.normalize())
 
+    if standard_image_size is not None:
+        new_size = standard_image_size
+    else:
+        new_size = None
+    if new_size:
+        _, w, h = parse_image_size(new_size)
+        transforms.append(
+            torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
+        )
+
     if(disable_transforms):
+        print(f"{Fore.RED}INFO: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
         transform_f = lambda x: x
     else:
+        print("INFO: ENABLE DREAM TRANSFORMS")
         transform_f = transform.compose(transforms)
-
-    _check_img_size(transform_f=transform_f, image_f=image_f, standard_image_size=standard_image_size)
 
     model.eval()
     hook = hook_model(model, image_f)

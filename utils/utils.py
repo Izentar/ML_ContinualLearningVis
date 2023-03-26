@@ -1,4 +1,5 @@
 import torch
+from collections.abc import Sequence
 
 def replace_layer(module:torch.nn.Module, name:str, classToReplace, replaceWithClass_f):
     """
@@ -55,3 +56,25 @@ def str_is_true(val:str) -> bool|None:
     if(val == 'false' or val == 'f' or val == 'False' or val == 'n' or val == 'N'):
         return False
     return None
+
+def parse_image_size(image_size):
+    if(isinstance(image_size, Sequence)):
+        if(len(image_size) == 3):
+            channels = image_size[0]
+            w = image_size[1]
+            h = image_size[2]
+        elif(len(image_size) == 2):
+            channels = None
+            w = image_size[0]
+            h = image_size[1]
+        elif(len(image_size) == 1):
+            channels = None
+            w = image_size[0]
+            h = image_size[0]
+        else:
+            raise Exception(f'Wrong image size {image_size}')
+    else:
+        channels = None
+        w = image_size
+        h = image_size
+    return channels, w, h
