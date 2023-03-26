@@ -21,7 +21,8 @@ def replace_layer(module:torch.nn.Module, name:str, classToReplace, replaceWithC
 
 def check_python_index(index:list[int]|int|None|bool, size:int, current_val:int, is_none_good=False) -> bool:
     def _check(index:str|bool|int, size, current_val):
-        index = str_to_bool_int(index)
+        if(isinstance(index, str)):
+            index = str_to_bool_int(index)
         if(isinstance(index, bool)):
             return index
         return bool(
