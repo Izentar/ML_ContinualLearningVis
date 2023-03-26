@@ -282,7 +282,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
             print("INFO: HOOKING UP NORMAL LOOP")
             self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
         else:
-            self.custom_advance_f = lambda: print(f"{Fore.RED}INFO: SKIPPING ANY TRAINING{Style.RESET_ALL}")
+            self.custom_advance_f = lambda: print(f"{Fore.RED}INFO: SKIPPING ANY TRAINING at loop {self.current_loop}{Style.RESET_ALL}")
 
     def _gen_folder_name_by_time(self, dtype:str=None):
         folder = datetime.datetime.now().strftime("%d-%m-%Y")

@@ -74,7 +74,7 @@ If less than in dataset then model will be trained and validated only using this
     ######################################
     #####     dream parameters      ######
     ######################################
-    parser.add_argument("--enable_dreams_gen_at", nargs='+', type=str, default='True', help='At which loop or loops enable dreaming where framework \
+    parser.add_argument("--enable_dreams_gen_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
 Without running this and running "run_training_at" will run only test. Use this with "train_only_dream_batch_at" to train only on dream batch.') ##**
     parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
@@ -189,7 +189,9 @@ def convert_args_str_to_list_int(args: Namespace):
         elif(isinstance(v, list)):
             new_list = []
             for vv in v:
-                new_list.append(int(vv))
+                b = utils.str_to_bool_int(vv)
+                if(b is not None):
+                    new_list.append(b)
             v = new_list
         args.__dict__[k] = v
     return args

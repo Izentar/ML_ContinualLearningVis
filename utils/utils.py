@@ -20,8 +20,10 @@ def replace_layer(module:torch.nn.Module, name:str, classToReplace, replaceWithC
         replace_layer(childModule, f"{name}.{childName}", classToReplace, replaceWithClass_f) 
 
 def check_python_index(index:list[int]|int|None|bool, size:int, current_val:int, is_none_good=False) -> bool:
-    def _check(index:str|bool, size, current_val):
-        index = int(index)
+    def _check(index:str|bool|int, size, current_val):
+        index = str_to_bool_int(index)
+        if(isinstance(index, bool)):
+            return index
         return bool(
             index == current_val or (index < 0 and size + index == current_val)
         )
@@ -30,7 +32,7 @@ def check_python_index(index:list[int]|int|None|bool, size:int, current_val:int,
         return is_none_good
     if(isinstance(index, bool)):
         return index
-    if(isinstance(index, list)):
+    if(isinstance(index, Sequence)):
         is_good = False
         if(len(index) == 0):
             return False
@@ -49,6 +51,26 @@ def check_python_enabled(index:list[int]|int|None|bool, is_none_good=False) -> b
             return False
         return True
     return True
+
+def str_to_bool_int(val:list[str]|str):
+    def inner(string:str):
+        if(isinstance(string, str)):
+            b = str_is_true(string)
+            if(b is not None):
+                return b
+            return int(string)
+    
+    if(isinstance(val, str)):
+        return inner(val)
+    elif(isinstance(val, Sequence)):
+        ret = []
+        for v in val:
+            ret.append(inner(v))
+        return ret
+    elif(isinstance(val, bool)):
+        return val
+    else:
+        raise Exception(f'Not int or bool: {val}')
 
 def str_is_true(val:str) -> bool|None:
     if(val == 'true' or val == 't' or val == 'True' or val == 'y' or val == 'Y'):
