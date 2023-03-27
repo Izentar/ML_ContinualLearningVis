@@ -30,6 +30,7 @@ from model.statistics.base import pca
 from collections.abc import Sequence
 from utils.utils import parse_image_size
 import wandb
+from dream.image import Image
 
 def data_transform():
     return transforms.Compose(
@@ -109,18 +110,14 @@ def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
             9: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 1]) * one_hot_scale,
         }
     
-def param_f_create(ptype, decorrelate=True):
+def param_f_create(ptype, decorrelate=False):
 
     def param_f_image(image_size, dreaming_batch_size, **kwargs):
         channels, w, h = parse_image_size(image_size)
-        def param_f():
-            # uses 2D Fourier coefficients
-            # sd - scale of the random numbers [0, 1)
-            return param.image(
-                w=w, h=h, channels=channels, batch=dreaming_batch_size, sd=0.4, 
-                fft=decorrelate, decorrelate=decorrelate
-            )
-        return param_f
+        # uses 2D Fourier coefficients
+        # sd - scale of the random numbers [0, 1)
+        return Image(w=w, h=h, channels=channels, batch=dreaming_batch_size,
+            sd=0.4, decorrelate=decorrelate)
         
     def param_f_cppn(image_size, **kwargs):
         def param_f():
@@ -211,25 +208,25 @@ def logic(args, log_args_to_wandb=True):
 
     one_hot_means = get_one_hots(mytype='diagonal', size=args.number_of_classes)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
-    param_f = param_f_create(ptype=args.param_image)
+    dream_image_f = param_f_create(ptype=args.param_image)
     render_transforms = None
-    #render_transforms = [
-    #    tr.pad(4), 
-    #    tr.jitter(2), 
-    #    tr.random_scale([n/100. for n in range(80, 120)]),
-    #    tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
-    #    tr.jitter(2),
-    #]
+    render_transforms = [
+        tr.pad(4), 
+        tr.jitter(2), 
+        tr.random_scale([n/100. for n in range(80, 120)]),
+        tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
+        tr.jitter(2),
+    ]
     JITTER = 2
     ROTATE = 5
     SCALE = 1.1
-    render_transforms = [
-        tr.pad(JITTER), # int
-        tr.jitter(JITTER), # > 1
-        tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-        tr.random_rotate(range(-ROTATE, ROTATE+1)),
-        tr.jitter(int(JITTER))
-    ]
+    #render_transforms = [
+    #    tr.pad(JITTER), # int
+    #    tr.jitter(JITTER), # > 1
+    #    tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+    #    tr.random_rotate(range(-ROTATE, ROTATE+1)),
+    #    tr.jitter(int(JITTER))
+    #]
 
     #render_transforms = [
     #    tr.pad(2*JITTER),
@@ -346,7 +343,7 @@ def logic(args, log_args_to_wandb=True):
         dreams_per_target=args.dreams_per_target,
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
-        param_f=param_f,
+        dream_image_f=dream_image_f,
         render_transforms=render_transforms,
         fast_dev_run=args.fast_dev_run,
         fast_dev_run_dream_threshold=args.fast_dev_run_dream_threshold,

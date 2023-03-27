@@ -62,7 +62,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dream_objective_f,
         dreams_per_target,
         dream_threshold,
-        param_f,
+        dream_image_f,
         target_processing_f,
         dreaming_batch_size=8,
         max_logged_dreams_per_target=8, 
@@ -114,7 +114,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.logger = logger
         self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if dataset_class_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
         self.render_transforms = render_transforms
-        self.param_f = param_f(image_size=image_size, dreaming_batch_size=dreaming_batch_size)
+        self.dream_image = dream_image_f(image_size=image_size, dreaming_batch_size=dreaming_batch_size)
         
         self.dataset_class_labels = dataset_class_labels
         self.custom_f_steps = custom_f_steps
@@ -304,7 +304,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 render_vis(
                     model=model,
                     objective_f=objective,
-                    param_f=self.param_f,
+                    optim_image=self.dream_image,
                     custom_f_steps=self.custom_f_steps,
                     custom_f=self.custom_f,
                     show_image=False,

@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import, division, print_function
-
 import warnings
 from collections import OrderedDict
 import numpy as np
@@ -54,7 +52,7 @@ def empty_loss_f(loss):
 def render_vis(
     model,
     objective_f,
-    param_f=None,
+    optim_image,
     optimizer=None,
     transforms=None,
     thresholds=(512,),
@@ -76,12 +74,8 @@ def render_vis(
     """
         standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
     """
-    if param_f is None:
-        param_f = lambda: param.image(128)
-    # param_f is a function that should return two things
-    # params - parameters to update, which we pass to the optimizer
-    # image_f - a function that returns an image as a tensor
-    params, image_f = param_f()
+    optim_image.to(model.device)
+    params = optim_image.param()
 
     if(custom_loss_gather_f is None):
         custom_loss_gather_f = empty_loss_f
@@ -116,7 +110,7 @@ def render_vis(
             torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
         )
 
-    if(disable_transforms or True):
+    if(disable_transforms):
         if(display_additional_info):
             print(f"{Fore.RED}INFO: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
         transform_f = lambda x: x
@@ -125,12 +119,11 @@ def render_vis(
             print("INFO: ENABLE DREAM TRANSFORMS")
         transform_f = transform.compose(transforms)
 
-    #model.eval()
-    hook = hook_model(model, image_f)
+    hook = hook_model(model, optim_image)
     objective_f = objectives.as_objective(objective_f)
 
     if verbose:
-        model(transform_f(image_f()))
+        model(transform_f(optim_image.image()))
         print("Initial loss: {:.3f}".format(objective_f(hook)))
     
     images = []
@@ -140,7 +133,7 @@ def render_vis(
         #print(torch.sum(torch.abs(transform_f(image_f()))))
         def closure():
             optimizer.zero_grad()
-            model(transform_f(image_f()))
+            model(transform_f(optim_image.image()))
             loss = objective_f(hook)
             #loss = custom_loss_gather_f(loss)
             global dream_current_step
@@ -153,7 +146,7 @@ def render_vis(
         if i in custom_f_steps:
             custom_f()
         if i in thresholds:
-            image = tensor_to_img_array(image_f())
+            image = tensor_to_img_array(optim_image.image())
             if verbose:
                 print("Loss at step {}: {:.3f}".format(i, objective_f(hook)))
                 if show_inline:
@@ -165,11 +158,11 @@ def render_vis(
             progress_bar.refresh()
 
     if save_image:
-        export(image_f(), image_name)
+        export(optim_image.image(), image_name)
     if show_inline:
-        show(tensor_to_img_array(image_f()))
+        show(tensor_to_img_array(optim_image.image()))
     elif show_image:
-        view(image_f())
+        view(optim_image.image())
     return images
 
 
@@ -220,7 +213,7 @@ class ModuleHook:
         self.hook.remove()
 
 
-def hook_model(model, image_f):
+def hook_model(model, optim_image):
     features = OrderedDict()
 
     # recursive hooking function
@@ -237,7 +230,7 @@ def hook_model(model, image_f):
 
     def hook(layer):
         if layer == "input":
-            out = image_f()
+            out = optim_image.image()
         elif layer == "labels":
             out = list(features.values())[-1].features
         else:
