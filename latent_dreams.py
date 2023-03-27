@@ -29,6 +29,7 @@ from config.default import robust_data_path
 from model.statistics.base import pca
 from collections.abc import Sequence
 from utils.utils import parse_image_size
+import wandb
 
 def data_transform():
     return transforms.Compose(
@@ -435,6 +436,14 @@ def logic(args, log_args_to_wandb=True):
 
     if(args.gather_layer_loss_at is not None):
         plot_pca_graph(custom_loop.model_stats, model=model)
+
+        for k, v in custom_loop.model_stats.items():
+            for cl, vv in v.get_const_data().std.items():
+                wandb.log({
+                    f'stats/{k}/min/cl{cl}': torch.min(vv),
+                    f'stats/{k}/max/cl{cl}': torch.max(vv),
+                    f'stats/{k}/avg/cl{cl}': torch.mean(vv),
+                })
 
     # 
     # TODO

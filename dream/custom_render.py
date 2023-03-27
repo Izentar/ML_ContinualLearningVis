@@ -26,6 +26,9 @@ from lucent.optvis import objectives, transform, param
 from lucent.misc.io import show
 from colorama import Fore, Back, Style
 from utils.utils import parse_image_size
+import wandb
+
+dream_current_step = 0
 
 def _check_img_size(transform_f, image_f, standard_image_size):
     if(standard_image_size is None):
@@ -113,7 +116,7 @@ def render_vis(
             torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
         )
 
-    if(disable_transforms):
+    if(disable_transforms or True):
         if(display_additional_info):
             print(f"{Fore.RED}INFO: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
         transform_f = lambda x: x
@@ -122,7 +125,7 @@ def render_vis(
             print("INFO: ENABLE DREAM TRANSFORMS")
         transform_f = transform.compose(transforms)
 
-    model.eval()
+    #model.eval()
     hook = hook_model(model, image_f)
     objective_f = objectives.as_objective(objective_f)
 
@@ -134,11 +137,15 @@ def render_vis(
     iterations = max(thresholds)
     progress_bar.setup_iteration(iterations=iterations)
     for i in range(1, iterations + 1):
+        #print(torch.sum(torch.abs(transform_f(image_f()))))
         def closure():
             optimizer.zero_grad()
             model(transform_f(image_f()))
             loss = objective_f(hook)
-            loss = custom_loss_gather_f(loss)
+            #loss = custom_loss_gather_f(loss)
+            global dream_current_step
+            wandb.log({'loss_during_dreaming': loss.item()}, step=dream_current_step)
+            dream_current_step += 1
             loss.backward()
             return loss
             

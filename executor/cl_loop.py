@@ -244,6 +244,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
                 task_index=self.current_task, 
                 layer_loss_obj=layer_loss,
             )
+            print("DREAMING END")
 
     def _model_weigth_sanity_check(self):
         if(self.weight_reset_sanity_check):
