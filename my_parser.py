@@ -50,7 +50,7 @@ buffer used in island overlay for model.')
 to choose epoch at which to call it.')
     parser.add_argument("--reset_optim_type", type=str, default='default', help='')
     parser.add_argument("--export_path", type=str, help='')
-    parser.add_argument("--save_dreams", type=str, default='', help='') ##**
+    parser.add_argument("--save_dreams", type=str, help='') ##**
     parser.add_argument("--load_dreams", type=str, help='') ##**
     
     ######################################

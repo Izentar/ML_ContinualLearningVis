@@ -116,8 +116,8 @@ def param_f_create(ptype, decorrelate=False):
         channels, w, h = parse_image_size(image_size)
         # uses 2D Fourier coefficients
         # sd - scale of the random numbers [0, 1)
-        return Image(w=w, h=h, channels=channels, batch=dreaming_batch_size,
-            sd=0.4, decorrelate=decorrelate)
+        return Image(dtype='fft', w=w, h=h, channels=channels, batch=dreaming_batch_size,
+            decorrelate=decorrelate)
         
     def param_f_cppn(image_size, **kwargs):
         def param_f():

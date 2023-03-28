@@ -1,7 +1,6 @@
 import torch
 import numpy as np
-
-TORCH_VERSION = torch.__version__
+import torch.fft
 
 color_correlation_svd_sqrt = np.asarray([[0.26, 0.09, 0.02],
                                          [0.27, 0.00, -0.05],
@@ -13,7 +12,7 @@ color_correlation_normalized = color_correlation_svd_sqrt / max_norm_svd_sqrt
 
 color_mean = [0.48, 0.46, 0.41]
 
-class Image():
+class _Image():
     def __init__(
             self, 
             w,
@@ -21,7 +20,6 @@ class Image():
             sd=None, 
             batch=None, 
             decorrelate=False,
-            fft:bool=True, 
             channels:int=None,
             decay_power=1,
             device=None,
@@ -34,68 +32,17 @@ class Image():
 
         self.decorrelate = decorrelate
         self.sd = sd if sd is not None else 0.01
-        self.fft = fft
         self.decay_power = decay_power
         self.device = 'cpu' if device is None else device
 
-        self.scale = None
-        if(self.fft):
-            self._param_tensor, self.scale = self._create_fft_image()
-            self._image_f = self._ftt_image()
-        else:
-            self._param_tensor = self._create_pixel_image()
-            self._image_f = self._pixel_image()
+        self._param_tensor = None
+        self._image_f = None
+        self._color = self._to_valid_rgb
 
     def to(self, device):
         self.device = device
         self._param_tensor = self._param_tensor.detach().to(device).requires_grad_(True)
-        if(self.scale is not None):
-            self.scale = self.scale.to(device)
         return self
-
-    def _create_fft_image(self) -> torch.Tensor | torch.Tensor:
-        """
-            Return param tensor and scale
-        """
-        batch, channels, h, w = self.shape
-        freqs = Image.rfft2d_freqs(h, w)
-        init_val_size = (batch, channels) + freqs.shape + (2,) # 2 for imaginary and real components
-
-        spectrum_real_imag_t = (torch.randn(*init_val_size) * self.sd).to(self.device).requires_grad_(True)
-
-        scale = 1.0 / np.maximum(freqs, 1.0 / max(w, h)) ** self.decay_power
-        scale = torch.tensor(scale).float()[None, None, ..., None].to(self.device)
-        return spectrum_real_imag_t, scale
-
-    def _create_pixel_image(self):
-        tensor = (torch.randn(*self.shape) * self.sd).to(self.device).requires_grad_(True)
-        return tensor
-
-    def _pixel_image(self):
-        def inner():
-            return self._param_tensor
-        return inner
-
-    def _ftt_image(self):
-        """
-            Call this each loop to recalculate image.
-        """
-        def inner():
-            batch, channels, h, w = self.shape
-            scaled_spectrum_t = self.scale * self._param_tensor
-            if TORCH_VERSION >= "1.7.0":
-                import torch.fft
-                if type(scaled_spectrum_t) is not torch.complex64:
-                    scaled_spectrum_t = torch.view_as_complex(scaled_spectrum_t)
-                image = torch.fft.irfftn(scaled_spectrum_t, s=(h, w), norm='ortho')
-            else:
-                import torch
-                image = torch.irfft(scaled_spectrum_t, 2, normalized=True, signal_sizes=(h, w))
-            image = image[:batch, :channels, :h, :w]
-            magic = 4.0 # Magic constant from Lucid library; increasing this seems to reduce saturation
-            image = image / magic
-            return image
-        return inner
 
     def _linear_decorrelate_color(self, tensor):
         t_permute = tensor.permute(0, 2, 3, 1)
@@ -107,10 +54,60 @@ class Image():
         if self.decorrelate:
             image = self._linear_decorrelate_color(image)
         return torch.sigmoid(image)
+    
+    def param(self):
+        return [self._param_tensor]
 
-    # From https://github.com/tensorflow/lucid/blob/master/lucid/optvis/param/spatial.py
+    def image(self):
+        return self._color(self._image_f())
+
+    def param_image(self):
+        return self.params(), self.image()
+
+class FTTImage(_Image):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self._create_fft_image()
+        self._image_f = self._ftt_image_f
+
+    def _create_fft_image(self) -> torch.Tensor | torch.Tensor:
+        """
+            Return param tensor and scale
+        """
+        batch, channels, h, w = self.shape
+        freqs = FTTImage.rfft2d_freqs(h, w)
+        init_val_size = (batch, channels) + freqs.shape + (2,) # 2 for imaginary and real components
+
+        self._param_tensor = (torch.randn(*init_val_size) * self.sd).to(self.device).requires_grad_(True)
+
+        scale = 1.0 / np.maximum(freqs, 1.0 / max(w, h)) ** self.decay_power
+        self.scale = torch.tensor(scale).float()[None, None, ..., None].to(self.device)
+
+    def _ftt_image_f(self):
+        """
+            Call this each loop to recalculate image.
+        """
+        batch, channels, h, w = self.shape
+        scaled_spectrum_t = self.scale * self._param_tensor
+        if type(scaled_spectrum_t) is not torch.complex64:
+            scaled_spectrum_t = torch.view_as_complex(scaled_spectrum_t)
+        image = torch.fft.irfftn(scaled_spectrum_t, s=(h, w), norm='ortho')
+        image = image[:batch, :channels, :h, :w]
+        magic = 4.0 # Magic constant from Lucid library; increasing this seems to reduce saturation
+        image = image / magic
+        return image
+
+    def to(self, device):
+        if(self.scale is not None):
+            self.scale = self.scale.to(device)
+        return super().to(device)
+
     def rfft2d_freqs(h, w):
+        # From https://github.com/tensorflow/lucid/blob/master/lucid/optvis/param/spatial.py
+
         """Computes 2D spectrum frequencies."""
+        
         fy = np.fft.fftfreq(h)[:, None]
         # when we have an odd input dimension we need to keep one additional
         # frequency and later cut off 1 pixel
@@ -120,15 +117,42 @@ class Image():
             fx = np.fft.fftfreq(w)[: w // 2 + 1]
         return np.sqrt(fx * fx + fy * fy)
 
-    def param(self):
-        return [self._param_tensor]
+class PixelImage(_Image):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def image(self):
-        return self._to_valid_rgb(self._image_f())
+        self._create_pixel_image()
+        self._image_f = self._pixel_image_f
+    
+    def _create_pixel_image(self):
+        tensor = (torch.randn(*self.shape) * self.sd).to(self.device).requires_grad_(True)
+        self._param_tensor = tensor
 
-    def param_image(self):
-        return self.params(), self.image()
+    def _pixel_image_f(self):
+        return self._param_tensor
 
+class Image():
+    def __new__(
+        self, 
+        dtype:str,
+        w,
+        h=None, 
+        sd=None, 
+        batch=None, 
+        decorrelate=False,
+        channels:int=None,
+        decay_power=1,
+        device=None,
+    ) -> None:
+        """
+            dtype - fft; pixel;
+        """
+        if(dtype == 'fft'):
+            return FTTImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
+        elif(dtype == 'pixel'):
+            return PixelImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
+        else:
+            raise Exception(f'Unknown type "{dtype}"')
 
 '''
 def image(w, h=None, sd=None, batch=None, decorrelate=True,

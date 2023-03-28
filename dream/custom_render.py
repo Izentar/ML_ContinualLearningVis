@@ -106,17 +106,20 @@ def render_vis(
         new_size = None
     if new_size:
         _, w, h = parse_image_size(new_size)
+        tmp = transform.compose(transforms)
+        if(display_additional_info):
+            print(f"VIS: Image size before (up/down)sample - {tmp(optim_image.image()).shape}")
         transforms.append(
             torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
         )
 
     if(disable_transforms):
         if(display_additional_info):
-            print(f"{Fore.RED}INFO: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
+            print(f"{Fore.RED}VIS: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
         transform_f = lambda x: x
     else:
         if(display_additional_info):
-            print("INFO: ENABLE DREAM TRANSFORMS")
+            print("VIS: ENABLE DREAM TRANSFORMS")
         transform_f = transform.compose(transforms)
 
     hook = hook_model(model, optim_image)
