@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.fft
+from abc import abstractmethod
 
 color_correlation_svd_sqrt = np.asarray([[0.26, 0.09, 0.02],
                                          [0.27, 0.00, -0.05],
@@ -37,9 +38,23 @@ class _Image():
         self._image_f = None
         self._color = self._to_valid_rgb
 
+    @property
+    def param_tensor(self):
+        if(self._param_tensor is None):
+            raise Exception('Parameter tensor was not initialized. Call reinit().')
+        return self._param_tensor
+    @param_tensor.setter
+    def param_tensor(self, val):
+        self._param_tensor = val
+
+    @abstractmethod
+    def reinit(self):
+        pass
+
     def to(self, device):
         self.device = device
-        self._param_tensor = self._param_tensor.detach().to(device).requires_grad_(True)
+        if(self._param_tensor is not None):
+            self._param_tensor = self._param_tensor.detach().to(device).requires_grad_(True)
         return self
 
     def _linear_decorrelate_color(self, tensor):
@@ -54,7 +69,7 @@ class _Image():
         return torch.sigmoid(image)
     
     def param(self):
-        return [self._param_tensor]
+        return [self.param_tensor]
 
     def image(self):
         return self._color(self._image_f())
@@ -68,8 +83,11 @@ class FFTImage(_Image):
 
         self.decay_power = decay_power
 
-        self._create_fft_image()
+        #self._create_fft_image()
         self._image_f = self._ftt_image_f
+
+    def reinit(self):
+        self._create_fft_image()
 
     def _create_fft_image(self) -> torch.Tensor | torch.Tensor:
         """
@@ -79,7 +97,7 @@ class FFTImage(_Image):
         freqs = FFTImage.rfft2d_freqs(h, w)
         init_val_size = (batch, channels) + freqs.shape + (2,) # 2 for imaginary and real components
 
-        self._param_tensor = (torch.randn(*init_val_size) * self.sd).to(self.device).requires_grad_(True)
+        self.param_tensor = (torch.randn(*init_val_size) * self.sd).to(self.device).requires_grad_(True)
 
         scale = 1.0 / np.maximum(freqs, 1.0 / max(w, h)) ** self.decay_power
         self.scale = torch.tensor(scale).float()[None, None, ..., None].to(self.device)
@@ -89,7 +107,7 @@ class FFTImage(_Image):
             Call this each loop to recalculate image.
         """
         batch, channels, h, w = self.shape
-        scaled_spectrum_t = self.scale * self._param_tensor
+        scaled_spectrum_t = self.scale * self.param_tensor
         if type(scaled_spectrum_t) is not torch.complex64:
             scaled_spectrum_t = torch.view_as_complex(scaled_spectrum_t)
         image = torch.fft.irfftn(scaled_spectrum_t, s=(h, w), norm='ortho')
@@ -99,7 +117,7 @@ class FFTImage(_Image):
         return image
 
     def to(self, device):
-        if(self.scale is not None):
+        if(hasattr(self, 'scale') and self.scale is not None):
             self.scale = self.scale.to(device)
         return super().to(device)
 
@@ -121,15 +139,18 @@ class PixelImage(_Image):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._create_pixel_image()
+        #self._create_pixel_image()
         self._image_f = self._pixel_image_f
     
+    def reinit(self):
+        self._create_pixel_image()
+
     def _create_pixel_image(self):
         tensor = (torch.randn(*self.shape) * self.sd).to(self.device).requires_grad_(True)
-        self._param_tensor = tensor
+        self.param_tensor = tensor
 
     def _pixel_image_f(self):
-        return self._param_tensor
+        return self.param_tensor
 
 class Image():
     def __new__(

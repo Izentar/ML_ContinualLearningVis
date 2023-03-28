@@ -123,13 +123,20 @@ class RenderVisState():
 
         self._set_device(device)
         self._set_optim_image(optim_image)
+        self.optim_image.reinit()
+        self._initval_optimizer = optimizer
         self._set_optimizer(optimizer)
         self._set_model(model)
+        self._initval_transform_f = transforms.copy()
         self._set_transform_f(transforms)
         self._set_hook(hook)
 
     def unhook(self):
         self.hook.unhook()
+
+    def reinit_optim_image(self):
+        self.optim_image.reinit()
+        self._set_optimizer(self._initval_optimizer)
 
     @property
     def model(self):
@@ -223,9 +230,9 @@ class RenderVisState():
         return self._optimizer
     @optimizer.setter
     def optimizer(self, value):
+        self._initval_optimizer = value
         self._set_optimizer(value=value)
     def _set_optimizer(self, value):
-        self._initval_optimizer = value
         if(value is None):
             self._optimizer = torch.optim.Adam(self.optim_image.param(), lr=1e-3)
         else:
@@ -271,9 +278,9 @@ class RenderVisState():
         return self._transform_f
     @transform_f.setter
     def transform_f(self, value):
+        self._initval_transform_f = value.copy()
         self._set_transform_f(value=value)
     def _set_transform_f(self, value):
-        self._initval_transform_f = value.copy()
         if value is None:
             value = transform.standard_transforms
         value = [tr.Lambda(lambda x: x.to(self.device))] + value.copy()
@@ -322,6 +329,7 @@ def render_vis(
         standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
     """
     rd:RenderVisState = render_dataclass
+    rd.reinit_optim_image()
 
     if verbose:
         rd.model(rd.transform_f(rd.optim_image.image()))
@@ -364,7 +372,6 @@ def render_vis(
         show(tensor_to_img_array(rd.optim_image.image()))
     elif show_image:
         view(rd.optim_image.image())
-    #rd.hook.unhook()
     return images
 
 def tensor_to_img_array(tensor):
