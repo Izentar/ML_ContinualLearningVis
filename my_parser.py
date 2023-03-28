@@ -98,6 +98,7 @@ after first epoch when dream batch is created.') ##**
     parser.add_argument("--standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
 Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
     parser.add_argument("--advance_clear_dreams", action="store_true", help='If the dreams at the beginning of the advance loop should be cleared.')
+    parser.add_argument("--decorrelate", action="store_true", help='If the dreams should be decorrelated.')
 
 
 

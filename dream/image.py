@@ -21,7 +21,6 @@ class _Image():
             batch=None, 
             decorrelate=False,
             channels:int=None,
-            decay_power=1,
             device=None,
         ):
         h = h if h is not None else w
@@ -32,7 +31,6 @@ class _Image():
 
         self.decorrelate = decorrelate
         self.sd = sd if sd is not None else 0.01
-        self.decay_power = decay_power
         self.device = 'cpu' if device is None else device
 
         self._param_tensor = None
@@ -64,9 +62,11 @@ class _Image():
     def param_image(self):
         return self.params(), self.image()
 
-class FTTImage(_Image):
-    def __init__(self, *args, **kwargs) -> None:
+class FFTImage(_Image):
+    def __init__(self, decay_power=1, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+        self.decay_power = decay_power
 
         self._create_fft_image()
         self._image_f = self._ftt_image_f
@@ -76,7 +76,7 @@ class FTTImage(_Image):
             Return param tensor and scale
         """
         batch, channels, h, w = self.shape
-        freqs = FTTImage.rfft2d_freqs(h, w)
+        freqs = FFTImage.rfft2d_freqs(h, w)
         init_val_size = (batch, channels) + freqs.shape + (2,) # 2 for imaginary and real components
 
         self._param_tensor = (torch.randn(*init_val_size) * self.sd).to(self.device).requires_grad_(True)
@@ -148,9 +148,9 @@ class Image():
             dtype - fft; pixel;
         """
         if(dtype == 'fft'):
-            return FTTImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
+            return FFTImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
         elif(dtype == 'pixel'):
-            return PixelImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
+            return PixelImage(w=w, h=h, sd=sd, batch=batch, channels=channels, decay_power=decay_power, device=device)
         else:
             raise Exception(f'Unknown type "{dtype}"')
 

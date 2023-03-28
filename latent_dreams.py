@@ -110,9 +110,9 @@ def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
             9: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 1]) * one_hot_scale,
         }
     
-def param_f_create(ptype, decorrelate=False):
+def param_f_create(ptype):
 
-    def param_f_image(image_size, dreaming_batch_size, **kwargs):
+    def param_f_image(image_size, dreaming_batch_size, decorrelate, **kwargs):
         channels, w, h = parse_image_size(image_size)
         # uses 2D Fourier coefficients
         # sd - scale of the random numbers [0, 1)
@@ -369,6 +369,7 @@ def logic(args, log_args_to_wandb=True):
         use_dreams_at_start=args.use_dreams_at_start,
         standard_image_size=args.standard_image_size,
         data_passer=data_passer,
+        dream_decorrelate=args.decorrelate,
     )
     
 

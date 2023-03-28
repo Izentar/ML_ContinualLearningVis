@@ -82,6 +82,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         richbar_refresh_fequency:int=50,
         standard_image_size=None,
         data_passer=None,
+        dream_decorrelate=True,
     ):
         """
         Args:
@@ -106,6 +107,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
+        self.dream_decorrelate = dream_decorrelate
 
         self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) or isinstance(fast_dev_run_dream_threshold, list) else (fast_dev_run_dream_threshold, )
         self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) or isinstance(dream_threshold, list) else (dream_threshold, )
@@ -114,7 +116,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.logger = logger
         self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if dataset_class_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
         self.render_transforms = render_transforms
-        self.dream_image = dream_image_f(image_size=image_size, dreaming_batch_size=dreaming_batch_size)
+        self.dream_image = dream_image_f(image_size=image_size, dreaming_batch_size=dreaming_batch_size, decorrelate=dream_decorrelate)
         
         self.dataset_class_labels = dataset_class_labels
         self.custom_f_steps = custom_f_steps
@@ -360,6 +362,7 @@ class CLDataModule(DreamDataModule):
         root="data",
         swap_datasets=False,
         use_dreams_at_start=False,
+        dream_decorrelate=True,
         **kwargs
     ):
         """
