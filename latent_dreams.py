@@ -10,7 +10,7 @@ from config.default import datasets, datasets_map
 from dataset import dream_sets
 
 from lucent.optvis import param
-from lucent.optvis import transform as tr
+from dream import transform as dream_tr
 
 from dataset.CLModule import CLDataModule
 from dataset.pairing import PairingBatchSampler, PairingBatchSamplerV2
@@ -211,28 +211,28 @@ def logic(args, log_args_to_wandb=True):
     dream_image_f = param_f_create(ptype=args.param_image)
     render_transforms = None
     render_transforms = [
-        tr.pad(4), 
-        tr.jitter(2), 
-        tr.random_scale([n/100. for n in range(80, 120)]),
-        tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
-        tr.jitter(2),
+        dream_tr.pad(4), 
+        dream_tr.jitter(2), 
+        dream_tr.random_scale([n/100. for n in range(80, 120)]),
+        dream_tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
+        dream_tr.jitter(2),
     ]
     JITTER = 2
     ROTATE = 5
     SCALE = 1.1
     #render_transforms = [
-    #    tr.pad(JITTER), # int
-    #    tr.jitter(JITTER), # > 1
-    #    tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-    #    tr.random_rotate(range(-ROTATE, ROTATE+1)),
-    #    tr.jitter(int(JITTER))
+    #    dream_tr.pad(JITTER), # int
+    #    dream_tr.jitter(JITTER), # > 1
+    #    dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+    #    dream_tr.random_rotate(range(-ROTATE, ROTATE+1)),
+    #    dream_tr.jitter(int(JITTER))
     #]
 
     #render_transforms = [
-    #    tr.pad(2*JITTER),
-    #    tr.jitter(JITTER),
-    #    tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-    #    tr.random_rotate(range(-ROTATE, ROTATE+1))
+    #    dream_tr.pad(2*JITTER),
+    #    dream_tr.jitter(JITTER),
+    #    dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+    #    dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
     #]
 
     data_passer = {}

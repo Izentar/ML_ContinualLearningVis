@@ -14,7 +14,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 #from lucent.optvis import param, render
-from dream.custom_render import param, render_vis
+from dream.custom_render import RenderVisState, render_vis
 import wandb
 
 import numpy as np
@@ -169,7 +169,23 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.eval()
 
+        thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         self.render_vis_display_additional_info = True
+        rendervis_state = RenderVisState(
+                model=model,
+                optim_image=self.dream_image,
+                custom_f_steps=self.custom_f_steps,
+                custom_f=self.custom_f,
+                optimizer=self.optimizer,
+                transforms=self.render_transforms,
+                thresholds=thresholds,
+                disable_transforms=self.disable_dream_transforms,
+                standard_image_size=self.standard_image_size,
+                custom_loss_gather_f=layer_loss_obj.gather_loss if hasattr(layer_loss_obj, 'gather_loss') else None,
+                display_additional_info=self.render_vis_display_additional_info,
+                preprocess=False,
+                device=model.device,
+            )
 
         iterations = ceil(self.dreams_per_target / self.dreaming_batch_size)
         new_dreams, new_targets = self._generate_dreams(
@@ -178,6 +194,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             iterations=iterations,
             task_index=task_index,
             layer_loss_obj=layer_loss_obj,
+            rendervis_state=rendervis_state,
         )
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
@@ -186,13 +203,15 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.train()
 
+        rendervis_state.unhook()
+
     def save_dream_dataset(self, location):
         self.dreams_dataset.save(location)
     
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_loss_obj):
+    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_loss_obj, rendervis_state):
         new_dreams = []
         new_targets = []
 
@@ -206,6 +225,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 new_targets=new_targets, 
                 progress=self.progress_bar,
                 layer_loss_obj=layer_loss_obj,
+                rendervis_state=rendervis_state,
             )
             self.progress_bar.clear_dreaming()
         else:
@@ -225,12 +245,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     new_targets=new_targets, 
                     progress=progress,
                     layer_loss_obj=layer_loss_obj,
+                    rendervis_state=rendervis_state,
                 )
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
-    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_loss_obj):
+    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_loss_obj, rendervis_state):
         progress.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
             if(layer_loss_obj is not None):
@@ -241,7 +262,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 iterations=iterations, 
                 progress_bar=progress,
                 task_index=task_index,
-                layer_loss_obj=layer_loss_obj
+                rendervis_state=rendervis_state,
             )
             new_targets.extend([target] * target_dreams.shape[0])
             new_dreams.append(target_dreams)
@@ -285,43 +306,20 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def _generate_dreams_for_target(self, model, target, iterations, progress_bar, task_index, layer_loss_obj):
+    def _generate_dreams_for_target(self, model, target, iterations, progress_bar, task_index, rendervis_state):
         dreams = []
-        thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         progress_bar.setup_repeat(target=target, iterations=iterations)
         for _ in range(iterations):
             target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
             objective = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
+            rendervis_state.objective_f = objective
 
-            # python3.10/site-packages/lucent/optvis/param/spatial.py
-            # Here we use 'cuda:0' on the tensors. In multigpu env this may be troublesome.
-            # The image is saved into spectrum_real_imag_t which changes after optim.step()
-            # Optimizer will update only the input layer because of the only specified layer 'param' passed to it.
-            # By default it will do 512 iterations
-            # In objective_f we specify the layers which will be used to compute loss. In ChiLoss 
-            #   we only need the last layer loss plus minor diversity on some convolutional layers.
             numpy_render = torch.from_numpy(
                 render_vis(
-                    model=model,
-                    objective_f=objective,
-                    optim_image=self.dream_image,
-                    custom_f_steps=self.custom_f_steps,
-                    custom_f=self.custom_f,
+                    render_dataclass=rendervis_state,
                     show_image=False,
-                    optimizer=self.optimizer,
-                    transforms=self.render_transforms,
-                    #TODO - maybe use other params
-                    #transforms=None, # default use standard transforms on the image that is generating.
-                    #optimizer=None, # default Adam
-                    #preprocess=True, # simple ImageNet normalization that will be used on the image that is generating.
-                    thresholds=thresholds, # max() - how many iterations is used to generate an input image. Also
-                                        # for the rest of the numbers, save the image during the i-th iteration
-                    disable_transforms=self.disable_dream_transforms,
                     progress_bar=progress_bar,
                     refresh_fequency=self.richbar_refresh_fequency,
-                    standard_image_size=self.standard_image_size,
-                    custom_loss_gather_f=layer_loss_obj.gather_loss if layer_loss_obj is not None else None,
-                    display_additional_info=self.render_vis_display_additional_info,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))

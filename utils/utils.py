@@ -101,3 +101,29 @@ def parse_image_size(image_size):
         w = image_size
         h = image_size
     return channels, w, h
+
+def hook_model(model:torch.nn.Module, fun, tree_name:str=None, handles=None, hook_to:list[str]|bool=False, verbose:bool=False) -> list:   
+    """
+        fun - fun with signature fun(layer, name, tree_name) that returns
+            new fun with signature fun2(module, input, output)
+        return tuple(name, tree_name, handle_to_layer)
+    """
+    if(handles is None):
+        handles = []
+    if(tree_name is None):
+        tree_name = ""
+    for name, module in model.named_children():
+        new_tree_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
+        if (isinstance(hook_to, list) and new_tree_name in hook_to) or (isinstance(hook_to, bool) and hook_to):
+            handles.append(
+                (
+                    name,
+                    tree_name,
+                    module.register_forward_hook(fun(module, name=name, tree_name=tree_name))
+                )
+            )
+        
+        if(verbose):
+            print(new_tree_name)
+        hook_model(model=module, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, verbose=verbose)
+    return handles
