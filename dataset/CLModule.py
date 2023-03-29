@@ -77,7 +77,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dataset_class_labels=None,
         custom_f_steps=(0,),
         custom_f=lambda *args: None,
-        disable_dream_transforms:bool=False,
+        enable_dream_transforms:bool=True,
         train_only_dream_batch_at:bool=False,
         richbar_refresh_fequency:int=50,
         standard_image_size=None,
@@ -103,7 +103,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams_per_target = max_logged_dreams_per_target
         self.progress_bar = progress_bar
-        self.disable_dream_transforms = disable_dream_transforms
+        self.enable_dream_transforms = enable_dream_transforms
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
@@ -187,7 +187,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 optimizer=self.optimizer,
                 transforms=self.render_transforms,
                 thresholds=thresholds,
-                disable_transforms=self.disable_dream_transforms,
+                enable_transforms=self.enable_dream_transforms,
                 standard_image_size=self.standard_image_size,
                 custom_loss_gather_f=custom_loss_gather_f,
                 display_additional_info=self.render_vis_display_additional_info,

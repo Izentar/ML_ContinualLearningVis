@@ -189,7 +189,7 @@ class DisorderDream():
             dreaming_batch_size=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
-            disable_transforms=True,
+            enable_transforms=True,
         )
 
         constructed_dream = dream_module._generate_dreams_for_target(

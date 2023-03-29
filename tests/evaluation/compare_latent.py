@@ -69,7 +69,7 @@ class CompareLatent():
             scheduler_steps=(1024*3, 1024*4, 1024*5),
             dream_threshold=(1024*6,),
             loss_obj_step_sample=False,
-            disable_transforms=True,
+            enable_transforms=True,
         ):
         label = 'compare_latent'
 
@@ -112,7 +112,7 @@ class CompareLatent():
             dreaming_batch_size=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
-            disable_transforms=disable_transforms
+            enable_transforms=enable_transforms
         )
 
         model.to('cuda:0').eval()

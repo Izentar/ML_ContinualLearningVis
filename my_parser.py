@@ -87,7 +87,7 @@ be used to generate an output image during dreaming, using only max value. Value
 images from the batch will be additionaly saved.')
     parser.add_argument("--dream_frequency", type=int, default=1, help='How often dream images should be used during \
 training. The bigger value the lesser frequency.')
-    parser.add_argument("--enable_dream_transforms", action="store_false", help='Enable and add all default \
+    parser.add_argument("--disable_dream_transforms", action="store_true", help='Enable and add all default \
 tranforms on dreamed images used in lucid framework in main function.') ##**
     parser.add_argument("--disable_dream_shuffle", action="store_false", help='Flag to shuffle only train dream dataset')
     parser.add_argument("--param_image", type=str, default='image', help='Type of image. Default \
@@ -236,9 +236,9 @@ def wandb_run_name(args):
     if(args.train_only_dream_batch_at is not None and args.train_only_dream_batch_at != False):
         dream = 'dream'
     tr = "_"
-    if(args.enable_dream_transforms is not None and args.enable_dream_transforms != False):
-        tr = "_tr"
-    return f"{args.model_type}_{dream}{tr}_{np.random.randint(0, 5000)}"
+    if(args.disable_dream_transforms != True):
+        tr = "_tr_"
+    return f"{args.model_type}_{dream}{tr}{np.random.randint(0, 5000)}"
 
 def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
     """

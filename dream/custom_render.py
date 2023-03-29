@@ -104,14 +104,14 @@ class RenderVisState():
         preprocess=True,
         standard_image_size=None,
         display_additional_info=False,
-        disable_transforms=False,
+        enable_transforms=True,
         thresholds=None,
         device=None,
     ) -> None:
         self.preprocess = preprocess
         self.standard_image_size = standard_image_size
         self.display_additional_info = display_additional_info
-        self.disable_transforms = disable_transforms
+        self.enable_transforms = enable_transforms
         self._set_thresholds(thresholds)
         self._set_custom_f_steps(custom_f_steps)
         
@@ -304,14 +304,16 @@ class RenderVisState():
                 torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
             )
 
-        if(self.disable_transforms):
-            if(self.display_additional_info):
-                print(f"{Fore.RED}VIS: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
-            self._transform_f = lambda x: x
-        else:
+        if(self.enable_transforms):
             if(self.display_additional_info):
                 print("VIS: ENABLE DREAM TRANSFORMS")
             self._transform_f = transform.compose(value)
+        else:
+            if(self.display_additional_info):
+                print(f"{Fore.RED}VIS: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
+            self._transform_f = lambda x: x
+
+            
 
 def render_vis(
     render_dataclass,

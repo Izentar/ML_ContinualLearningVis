@@ -210,13 +210,13 @@ def logic(args, log_args_to_wandb=True):
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
     dream_image_f = param_f_create(ptype=args.param_image)
     render_transforms = None
-    render_transforms = [
-        dream_tr.pad(4), 
-        dream_tr.jitter(2), 
-        dream_tr.random_scale([n/100. for n in range(80, 120)]),
-        dream_tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
-        dream_tr.jitter(2),
-    ]
+    #render_transforms = [
+    #    dream_tr.pad(4), 
+    #    dream_tr.jitter(2), 
+    #    dream_tr.random_scale([n/100. for n in range(80, 120)]),
+    #    dream_tr.random_rotate(list(range(-10,10)) + list(range(-5,5)) + 10*list(range(-2,2))),
+    #    dream_tr.jitter(2),
+    #]
     JITTER = 2
     ROTATE = 5
     SCALE = 1.1
@@ -228,12 +228,12 @@ def logic(args, log_args_to_wandb=True):
     #    dream_tr.jitter(int(JITTER))
     #]
 
-    #render_transforms = [
-    #    dream_tr.pad(2*JITTER),
-    #    dream_tr.jitter(JITTER),
-    #    dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-    #    dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
-    #]
+    render_transforms = [
+        dream_tr.pad(2*JITTER),
+        #dream_tr.jitter(JITTER),
+        dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+        dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
+    ]
 
     data_passer = {}
 
@@ -358,7 +358,7 @@ def logic(args, log_args_to_wandb=True):
         dataset_class_labels=dataset_class_labels,
         datasampler=datasampler,
         batch_size=args.batch_size,
-        disable_dream_transforms=args.enable_dream_transforms,
+        enable_dream_transforms=not args.disable_dream_transforms,
         shuffle=args.disable_shuffle,
         dream_shuffle=args.disable_dream_shuffle,
         swap_datasets=args.swap_datasets,
@@ -477,7 +477,7 @@ def logic(args, log_args_to_wandb=True):
     #    dream_transform=dreams_transforms,
     #    target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
     #    loss_obj_step_sample=compare_latent_step_sample,
-    #    disable_transforms=args.disable_dream_transforms,
+    #    enable_transforms=not args.disable_dream_transforms,
     #)
     #disorder_dream = DisorderDream()
     #dataset = dataset_class(root="./data", train=True, transform=transform)
