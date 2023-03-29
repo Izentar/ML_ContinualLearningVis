@@ -232,12 +232,12 @@ def log_to_wandb(args):
     print(wandb.config)
 
 def wandb_run_name(args):
-    dream = "dull"
+    dream = "dull_"
+    tr = ""
     if(args.train_only_dream_batch_at is not None and args.train_only_dream_batch_at != False):
-        dream = 'dream'
-    tr = "_"
-    if(args.disable_dream_transforms != True):
-        tr = "_tr_"
+        dream = 'dream_'
+        if(args.disable_dream_transforms != True):
+            tr = "tr_"
     return f"{args.model_type}_{dream}{tr}{np.random.randint(0, 5000)}"
 
 def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:

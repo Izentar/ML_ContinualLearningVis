@@ -144,7 +144,7 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
     def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
         super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1, with_reconstruction=with_reconstruction)
 
-    def forward_encoder(self, x):
+    def forward(self, x, **kwargs):
         xe = gaussA(self.conv_enc1(x))
         #print(torch.mean(torch.abs(xe), dim=(1, 2, 3)))
         xe = gaussA(self.conv_enc2(xe))
@@ -172,7 +172,7 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         #print()
         xe_latent_pre_relu = self.ln_encode_cl(xe)
 
-        return xe_latent_pre_relu, shp
+        return xe_latent_pre_relu
 
     def forward_decoder(self, xe, shp):
         xd = gaussA(self.ln_decode_cl(xe))
