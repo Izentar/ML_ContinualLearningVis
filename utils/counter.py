@@ -37,6 +37,15 @@ class Counter(CounterBase):
     def get(self):
         return self.value
 
+    def pp_get(self):
+        self.value += 1
+        return self.value
+
+    def get_pp(self):
+        tmp = self.value
+        self.value += 1
+        return tmp
+
     def reset(self):
         self.value = self.start
 

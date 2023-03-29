@@ -127,3 +127,14 @@ def hook_model(model:torch.nn.Module, fun, tree_name:str=None, handles=None, hoo
             print(new_tree_name)
         hook_model(model=module, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, verbose=verbose)
     return handles
+
+
+def log_wandb_tensor_decorator(func, name:list[str], logger):
+    """
+        Log value. The name is passed in list of length 1 to keep the string reference in case of modifying it.
+    """
+    import wandb
+    def inner(val:torch.Tensor):
+        wandb.log({name[0]: val.item()})
+        return func(val)
+    return inner

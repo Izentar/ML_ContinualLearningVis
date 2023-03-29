@@ -27,8 +27,6 @@ from utils.utils import hook_model
 from dream.image import _Image
 from torchvision import transforms as tr
 
-dream_current_step = 0
-
 def _check_img_size(transform_f, image_f, standard_image_size):
     if(standard_image_size is None):
         return
@@ -117,8 +115,8 @@ class RenderVisState():
         self._set_thresholds(thresholds)
         self._set_custom_f_steps(custom_f_steps)
         
-        self._set_custom_loss_gather_f(custom_loss_gather_f)
-        self._set_custom_f(custom_f)
+        self._set_forward_loss_hook(custom_loss_gather_f)
+        self._set_advance_end_hook(custom_f)
         self._set_objective_f(objective_f)
 
         self._set_device(device)
@@ -240,23 +238,23 @@ class RenderVisState():
 
 
     @property
-    def custom_loss_gather_f(self):
-        return self._custom_loss_gather_f
-    @custom_loss_gather_f.setter
-    def custom_loss_gather_f(self, value):
-        self._set_custom_loss_gather_f(value=value)
-    def _set_custom_loss_gather_f(self, value):
-        self._custom_loss_gather_f = empty_loss_f if value is None else value
+    def forward_loss_hook(self):
+        return self._forward_loss_hook
+    @forward_loss_hook.setter
+    def forward_loss_hook(self, value):
+        self._set_forward_loss_hook(value=value)
+    def _set_forward_loss_hook(self, value):
+        self._forward_loss_hook = empty_loss_f if value is None else value
 
 
     @property
-    def custom_f(self):
-        return self._custom_f
-    @custom_f.setter
-    def custom_f(self, value):
+    def advance_end_hook(self):
+        return self._advance_end_hook
+    @advance_end_hook.setter
+    def advance_end_hook(self, value):
         self._set_objective_f(value=value)
-    def _set_custom_f(self, value):
-        self._custom_f = empty_f if value is None else value
+    def _set_advance_end_hook(self, value):
+        self._advance_end_hook = empty_f if value is None else value
 
 
     @property
@@ -333,7 +331,7 @@ def render_vis(
 
     if verbose:
         rd.model(rd.transform_f(rd.optim_image.image()))
-        print("Initial loss: {:.3f}".format(rd.objective_f(rd.hook.get_output)))
+        print("Initial loss: {:.3f}".format(rd.objective_f(rd.hook.get_output)))    
     
     images = []
     iterations = max(rd.thresholds)
@@ -344,16 +342,13 @@ def render_vis(
             rd.optimizer.zero_grad()
             rd.model(rd.transform_f(rd.optim_image.image()))
             loss = rd.objective_f(rd.hook.get_output)
-            loss = rd.custom_loss_gather_f(loss)
-            global dream_current_step
-            wandb.log({'loss_during_dreaming': loss.item()}, step=dream_current_step)
-            dream_current_step += 1
+            loss = rd.forward_loss_hook(loss)
             loss.backward()
             return loss
             
         rd.optimizer.step(closure)
         if i in rd.custom_f_steps:
-            rd.custom_f()
+            rd.advance_end_hook()
         if i in rd.thresholds:
             image = tensor_to_img_array(rd.optim_image.image())
             if verbose:

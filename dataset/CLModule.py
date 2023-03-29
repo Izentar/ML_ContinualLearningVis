@@ -14,7 +14,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 #from lucent.optvis import param, render
-from dream.custom_render import RenderVisState, render_vis
+from dream.custom_render import RenderVisState, render_vis, empty_loss_f
 import wandb
 
 import numpy as np
@@ -171,6 +171,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.eval()
 
+        name = f"run_{task_index}"
+        run_name = [name, name]
+        custom_loss_gather_f = layer_loss_obj.gather_loss if hasattr(layer_loss_obj, 'gather_loss') else empty_loss_f
+        if(self.logger is not None and custom_loss_gather_f is not None):
+            custom_loss_gather_f = utils.log_wandb_tensor_decorator(custom_loss_gather_f, run_name, self.logger)
+
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         self.render_vis_display_additional_info = True
         rendervis_state = RenderVisState(
@@ -183,7 +189,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 thresholds=thresholds,
                 disable_transforms=self.disable_dream_transforms,
                 standard_image_size=self.standard_image_size,
-                custom_loss_gather_f=layer_loss_obj.gather_loss if hasattr(layer_loss_obj, 'gather_loss') else None,
+                custom_loss_gather_f=custom_loss_gather_f,
                 display_additional_info=self.render_vis_display_additional_info,
                 preprocess=False,
                 device=model.device,
@@ -197,6 +203,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             task_index=task_index,
             layer_loss_obj=layer_loss_obj,
             rendervis_state=rendervis_state,
+            run_name=run_name,
         )
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
@@ -213,7 +220,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_loss_obj, rendervis_state):
+    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_loss_obj, rendervis_state, run_name:list[str]):
         new_dreams = []
         new_targets = []
 
@@ -228,6 +235,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 progress=self.progress_bar,
                 layer_loss_obj=layer_loss_obj,
                 rendervis_state=rendervis_state,
+                run_name=run_name,
             )
             self.progress_bar.clear_dreaming()
         else:
@@ -248,16 +256,18 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     progress=progress,
                     layer_loss_obj=layer_loss_obj,
                     rendervis_state=rendervis_state,
+                    run_name=run_name,
                 )
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
-    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_loss_obj, rendervis_state):
+    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_loss_obj, rendervis_state, run_name:list[str]):
         progress.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
             if(layer_loss_obj is not None):
                 layer_loss_obj.set_current_class(target)
+            run_name[0] = f"{run_name[1]}/target_{target}"
             target_dreams = self._generate_dreams_for_target(
                 model=model, 
                 target=target, 

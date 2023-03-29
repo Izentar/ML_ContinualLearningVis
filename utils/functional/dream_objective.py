@@ -222,7 +222,7 @@ def diversity(layer):
     return inner
 
 def dream_objective_SAE_diversity_cosine(model, **kwargs):
-    return diversity(model.get_root_objective_target() + 'conv_enc2')
+    return 0.3 * diversity(model.get_root_objective_target() + 'conv_enc2')
 
 class DreamObjectiveManager():
     GET_OBJECTIVE = {

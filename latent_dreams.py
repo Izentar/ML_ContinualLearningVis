@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
-from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs
+from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs, wandb_run_name
 
 from utils.load import try_load
 from config.default import robust_data_path
@@ -166,7 +166,7 @@ def model_summary(source_model):
 
 def logic(args, log_args_to_wandb=True):
     # normal dreaming
-    pl.seed_everything(42)
+    #pl.seed_everything(42)
 
     main_split = collect_main_split = 0.5
     sigma = 0.01
@@ -240,7 +240,7 @@ def logic(args, log_args_to_wandb=True):
     tags = []
     if args.fast_dev_run:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline)
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, name=wandb_run_name(args))
     if(log_args_to_wandb):
         log_to_wandb(args)
     progress_bar = CustomRichProgressBar()

@@ -6,7 +6,7 @@ from pathlib import Path
 import glob
 import os
 from utils import utils
-from config.default import model_to_save_file_type
+import numpy as np
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -230,6 +230,15 @@ def log_to_wandb(args):
     print(' '.join(sys.argv))
     print('Used config:')
     print(wandb.config)
+
+def wandb_run_name(args):
+    dream = "dull"
+    if(args.train_only_dream_batch_at is not None and args.train_only_dream_batch_at != False):
+        dream = 'dream'
+    tr = "_"
+    if(args.enable_dream_transforms is not None and args.enable_dream_transforms != False):
+        tr = "_tr"
+    return f"{args.model_type}_{dream}{tr}_{np.random.randint(0, 5000)}"
 
 def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
     """
