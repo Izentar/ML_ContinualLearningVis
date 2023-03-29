@@ -417,7 +417,7 @@ class LayerLossData():
             return torch.zeros(1, dtype=output.dtype, requires_grad=output.requires_grad, device=output.device)
 
 class LayerLoss():
-    def __init__(self, device, del_cov_after=False) -> None:
+    def __init__(self, device, del_cov_after=False, scalar=0.5) -> None:
         self.loss_list = []
         self.current_batch_classes:torch.Tensor = None
         self.archived_batch_classes = None
@@ -425,6 +425,7 @@ class LayerLoss():
         self.losses_data = dict()
         self.device = device
         self.del_cov_after = del_cov_after
+        self.scalar = scalar
 
     def _set_archived(self, classes:torch.Tensor):
         if(self.archived_batch_classes is None):
@@ -471,7 +472,7 @@ class LayerLoss():
             raise Exception("Loss list is empty")
         sum_loss = torch.sum(torch.stack(self.loss_list))
         self.loss_list = []
-        return loss + sum_loss
+        return loss + self.scalar * sum_loss
 
 def collect_model_layer_stats(
     model:torch.nn.Module, 
