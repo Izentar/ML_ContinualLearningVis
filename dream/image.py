@@ -168,10 +168,11 @@ class Image():
         """
             dtype - fft; pixel;
         """
+        print(f'VIS: Selected dream image type: {dtype}')
         if(dtype == 'fft'):
             return FFTImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
         elif(dtype == 'pixel'):
-            return PixelImage(w=w, h=h, sd=sd, batch=batch, channels=channels, decay_power=decay_power, device=device)
+            return PixelImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, device=device)
         else:
             raise Exception(f'Unknown type "{dtype}"')
 

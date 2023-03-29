@@ -83,6 +83,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         standard_image_size=None,
         data_passer=None,
         dream_decorrelate=True,
+        dream_image_type:str='fft',
     ):
         """
         Args:
@@ -108,6 +109,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
         self.dream_decorrelate = dream_decorrelate
+        self.dream_image_type = dream_image_type
 
         self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) or isinstance(fast_dev_run_dream_threshold, list) else (fast_dev_run_dream_threshold, )
         self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) or isinstance(dream_threshold, list) else (dream_threshold, )
@@ -116,7 +118,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.logger = logger
         self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if dataset_class_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
         self.render_transforms = render_transforms
-        self.dream_image = dream_image_f(image_size=image_size, dreaming_batch_size=dreaming_batch_size, decorrelate=dream_decorrelate)
+        self.dream_image = dream_image_f(
+            dtype=self.dream_image_type, 
+            image_size=image_size, 
+            dreaming_batch_size=dreaming_batch_size, 
+            decorrelate=dream_decorrelate
+        )
         
         self.dataset_class_labels = dataset_class_labels
         self.custom_f_steps = custom_f_steps

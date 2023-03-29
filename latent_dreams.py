@@ -112,20 +112,21 @@ def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
     
 def param_f_create(ptype):
 
-    def param_f_image(image_size, dreaming_batch_size, decorrelate, **kwargs):
+    def param_f_image(dtype, image_size, dreaming_batch_size, decorrelate, **kwargs):
         channels, w, h = parse_image_size(image_size)
         # uses 2D Fourier coefficients
         # sd - scale of the random numbers [0, 1)
-        return Image(dtype='fft', w=w, h=h, channels=channels, batch=dreaming_batch_size,
+        return Image(dtype=dtype, w=w, h=h, channels=channels, batch=dreaming_batch_size,
             decorrelate=decorrelate)
         
     def param_f_cppn(image_size, **kwargs):
+        print(f'Selected dream image type: cppn')
         def param_f():
             return param.cppn(image_size)
         return param_f
 
     
-    if(ptype == 'image'):
+    if(ptype == 'fft' or ptype == 'pixel'):
         return param_f_image
     elif(ptype == 'cppn'):
         return param_f_cppn
@@ -208,7 +209,7 @@ def logic(args, log_args_to_wandb=True):
 
     one_hot_means = get_one_hots(mytype='diagonal', size=args.number_of_classes)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
-    dream_image_f = param_f_create(ptype=args.param_image)
+    dream_image_f = param_f_create(ptype=args.dream_image_type)
     render_transforms = None
     #render_transforms = [
     #    dream_tr.pad(4), 
@@ -344,6 +345,7 @@ def logic(args, log_args_to_wandb=True):
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
+        dream_image_type=args.dream_image_type,
         render_transforms=render_transforms,
         fast_dev_run=args.fast_dev_run,
         fast_dev_run_dream_threshold=args.fast_dev_run_dream_threshold,

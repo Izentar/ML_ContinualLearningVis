@@ -90,8 +90,8 @@ training. The bigger value the lesser frequency.')
     parser.add_argument("--disable_dream_transforms", action="store_true", help='Enable and add all default \
 tranforms on dreamed images used in lucid framework in main function.') ##**
     parser.add_argument("--disable_dream_shuffle", action="store_false", help='Flag to shuffle only train dream dataset')
-    parser.add_argument("--param_image", type=str, default='image', help='Type of image. Default \
-"image"-normal image  "cppn"-cppn image (does not use "dreaming_batch_size")')
+    parser.add_argument("--dream_image_type", type=str, default='fft', help='Type of image. Default \
+"fft"; "pixel"; "cppn"(does not use "dreaming_batch_size")')
     parser.add_argument("--train_only_dream_batch_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.') ##**
     parser.add_argument("--use_dreams_at_start", action="store_true", help='Use dreams at the first fit loop.') ##**
