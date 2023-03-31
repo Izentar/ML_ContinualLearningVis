@@ -5,7 +5,7 @@ from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 import math
 from model.model_base import ModelBase
-from model.activation_layer import gaussA, conjunction
+from model.activation_layer import gaussA, conjunction, GaussA
 
 class SAE_CIFAR(nn.Module, ModelBase):
     def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
@@ -144,10 +144,13 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
     def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
         super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1, with_reconstruction=with_reconstruction)
 
+        self.gauss_cov = GaussA(0.1)
+        self.gauss_linear = GaussA(30)
+
     def forward(self, x, **kwargs):
-        xe = gaussA(self.conv_enc1(x))
+        xe = self.gauss_cov(self.conv_enc1(x))
         #print(torch.mean(torch.abs(xe), dim=(1, 2, 3)))
-        xe = gaussA(self.conv_enc2(xe))
+        xe = self.gauss_cov(self.conv_enc2(xe))
         #print(torch.mean(torch.abs(xe), dim=(1, 2, 3)))
         shp = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
@@ -165,7 +168,7 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         #print(torch.exp(-0.001 * tmp * tmp).item())
         #r = torch.sigmoid(r)
         #xe = relu(r)
-        xe = gaussA(r, 30)
+        xe = self.gauss_linear(r)
         #print(torch.mean(xe))
         #print(torch.sum(xe).item(), torch.min(xe).item(), torch.max(xe).item(), torch.mean(xe).item(), xe[0][0].item())
         #print(xe.shape, torch.linalg.norm(xe, dim=1))

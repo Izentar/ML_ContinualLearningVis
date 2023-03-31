@@ -31,6 +31,7 @@ from collections.abc import Sequence
 from utils.utils import parse_image_size
 import wandb
 from dream.image import Image
+from utils import utils
 
 def data_transform():
     return transforms.Compose(
@@ -187,7 +188,6 @@ def logic(args, log_args_to_wandb=True):
         for g in optim.param_groups:
             g['lr'] = args.lr
 
-
     layer_stats_hook_to:list[str]|None=['model.ln_enc1', 'model.ln_encode_cl']
     layer_stats_verbose=False
     layer_stats_flush_to_disk=False
@@ -334,6 +334,10 @@ def logic(args, log_args_to_wandb=True):
 
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))
+    #exit()
+
+    #h = utils.get_model_hierarchy(model)
+    #print(h)
     #exit()
     
 

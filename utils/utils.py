@@ -138,3 +138,14 @@ def log_wandb_tensor_decorator(func, name:list[str], logger):
         wandb.log({name[0]: val.item()})
         return func(val)
     return inner
+
+def get_model_hierarchy(model, separator='.',tree_name:str=None, model_names:list[str]=None):
+    if(tree_name is None):
+        model_names = []
+    if(tree_name is None):
+        tree_name = ""
+    for name, module in model.named_children():
+        new_tree_name = f"{tree_name}{separator}{name}" if len(tree_name) != 0 else name
+        model_names.append(new_tree_name)
+        get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
+    return model_names

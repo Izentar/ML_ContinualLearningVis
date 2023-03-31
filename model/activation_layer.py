@@ -35,6 +35,7 @@ def gaussA(x, sigma=0.1):
 
 class GaussA(torch.nn.Module):
     def __init__(self, sigma) -> None:
+        super().__init__()
         self.sigma = sigma
 
     def forward(self, input: Tensor) -> Tensor:
