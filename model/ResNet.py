@@ -3,8 +3,6 @@ from torchvision.models import resnet18
 from torch import nn
 from pytorchcv.model_provider import get_model as ptcv_get_model
 from model.model_base import ModelBase
-import torch
-from utils.utils import replace_layer
 
 class ResNet18(nn.Module, ModelBase):
     def __init__(self, num_classes, *args, **kwargs):

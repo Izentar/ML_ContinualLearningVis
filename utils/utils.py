@@ -17,7 +17,7 @@ def replace_layer(module:torch.nn.Module, name:str, classToReplace, replaceWithC
             print(f'replaced: {name}.{attr_str}')
             setattr(module, attr_str, replaceWithClass_f(name, attr_str, target_attr))
     for childName, childModule in module.named_children():
-        replace_layer(childModule, f"{name}.{childName}", classToReplace, replaceWithClass_f) 
+        replace_layer(childModule, name=f"{name}.{childName}", classToReplace=classToReplace, replaceWithClass_f=replaceWithClass_f) 
 
 def check_python_index(index:list[int]|int|None|bool, size:int, current_val:int, is_none_good=False) -> bool:
     def _check(index:str|bool|int, size, current_val):

@@ -32,6 +32,7 @@ from utils.utils import parse_image_size
 import wandb
 from dream.image import Image
 from utils import utils
+from model.activation_layer import GaussA
 
 def data_transform():
     return transforms.Compose(
@@ -329,6 +330,9 @@ def logic(args, log_args_to_wandb=True):
             optimizer_restart_params_type=args.reset_optim_type,
             optimizer_params=optim_params,
             swap_datasets=args.swap_datasets,
+            replace_layer=args.replace_layer,
+            replace_layer_from=torch.nn.ReLU,
+            replace_layer_to_f=lambda a, b, x: GaussA(30),
         )
     print(f'MODEL TYPE: {model.get_obj_str_type()}')
 

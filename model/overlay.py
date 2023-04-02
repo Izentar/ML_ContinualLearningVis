@@ -9,6 +9,7 @@ from utils.data_manipulation import select_class_indices_tensor
 from utils.cyclic_buffer import CyclicBufferByClass
 from loss_function.chiLoss import ChiLossBase, DummyLoss
 from model.SAE import SAE_CIFAR
+from utils import utils
 
 from config.default import datasets, datasets_map
 
@@ -93,6 +94,9 @@ class CLModel(base.CLBase):
         dreams_with_logits:bool=False,
         resume_path:str=None,
         enable_robust:bool=False,
+        replace_layer=None,
+        replace_layer_from=None,
+        replace_layer_to_f=None,
         *args, 
         **kwargs
     ):
@@ -121,6 +125,11 @@ class CLModel(base.CLBase):
                 raise Exception('Robust selected but robust_dataset or attack_kwargs not provided.')
         else:
             self.model = model
+
+        if(replace_layer):
+            if(replace_layer_from is None or replace_layer_to_f is None):
+                raise Exception(f'replace_layer_from is None: {replace_layer_from is None} or replace_layer_to_f is None: {replace_layer_to_f is None}')
+            utils.replace_layer(self, 'model', replace_layer_from, replace_layer_to_f)
             
         self.loss_f = loss_f if isinstance(loss_f, ChiLossBase) else DummyLoss(loss_f)
         print(f"INFO: Using loss {str(self.loss_f)}")
