@@ -5,7 +5,17 @@ from config.default import tmp_stat_folder
 from pathlib import Path
 from config.default import model_to_save_file_type
 from utils.utils import hook_model
+import wandb
 
+def _get_shape_hash(k, v:torch.Tensor):
+    return (v.shape, k)
+
+def _get_hash(k, v:torch.Size):
+    return (v, k)
+
+def unhook(handles:list):
+    for h in handles:
+        h.remove()
 
 class ModuleStatData(torch.nn.Module):
     def __init__(self, full_name) -> None:
@@ -65,9 +75,12 @@ class ModuleStatData(torch.nn.Module):
     def cov(self, x):
         raise Exception('No setter')
 
-    def cov_inverse(self, del_cov_after=False, failed_inverse_multiplication=8000):
-        if(self._cov_inverse is not None):
+    def cov_inverse(self, del_cov_after=False, recalculate=False, failed_inverse_multiplication=8000):
+        if(self._cov_inverse is not None and not recalculate):
             return self._cov_inverse
+
+        if(del_cov_after and recalculate):
+            raise Exception("Bad flags. Cannot both be true: del_cov_after, recalculate")
 
         self._cov_inverse = dict()
         for k, v in self.cov.items():
@@ -75,8 +88,10 @@ class ModuleStatData(torch.nn.Module):
                 self._cov_inverse[k] = torch.inverse(v)
                 if(del_cov_after):
                     del v
-            except RuntimeError:
-                print(f"ERROR: inverse for covariance matrix does not exist. Applying one times {failed_inverse_multiplication} as inverse covariance.")
+            except RuntimeError as e:
+                msg = f"ERROR: inverse for covariance matrix does not exist. Applying one times {failed_inverse_multiplication} as inverse covariance. Exception:\n\t{str(e)}\nMatrix:\n\t{v.shape}"
+                print(msg)
+                wandb.log({f'message/inverse_cov/key_{k}': msg})
                 self._cov_inverse[k] = torch.ones_like(v) * failed_inverse_multiplication
         return self._cov_inverse
 
@@ -184,13 +199,15 @@ class ModuleStat():
         self._update_call_mean = self._update_mean
 
     def _update_mean_first_occurence(self, k:int, v:torch.Tensor):
-        self.data._mean[k] = v.clone()
-        self.data._old_mean[k] = self.data._mean[k].clone()
-
+        h = _get_shape_hash(k=k, v=v)
+        self.data._mean[h] = v.clone()
+        self.data._old_mean[h] = self.data._mean[h].clone()
+       
     def _update_mean_inner(self, k:int, v:torch.Tensor):
-        del self.data._old_mean[k]
-        self.data._old_mean[k] = self.data._mean[k].clone()
-        self.data._mean[k] += (v - self.data._mean[k]) / self.data.counter_update
+        h = _get_shape_hash(k=k, v=v)
+        del self.data._old_mean[h]
+        self.data._old_mean[h] = self.data._mean[h].clone()
+        self.data._mean[h] += (v - self.data._mean[h]) / self.data.counter_update
 
     def _update_mean(self, k:int, v:torch.Tensor):
         try:
@@ -211,10 +228,12 @@ class ModuleStat():
         self._update_call_std = self._update_std
 
     def _update_std_first_occurence(self, k:int, v:torch.Tensor):
-        self.data._M2n[k] = torch.zeros(v.shape[0], device=v.device, requires_grad=False, dtype=v.dtype)
+        h = _get_shape_hash(k=k, v=v)
+        self.data._M2n[h] = torch.zeros(v.shape[0], device=v.device, requires_grad=False, dtype=v.dtype)
 
     def _update_std_inner(self, k:int, v:torch.Tensor):
-        self.data._M2n[k] += (v - self.data._old_mean[k]) * (v - self.data._mean[k])
+        h = _get_shape_hash(k=k, v=v)
+        self.data._M2n[h] += (v - self.data._old_mean[h]) * (v - self.data._mean[h])
 
     def _update_std(self, k:int, v:torch.Tensor):
         try:
@@ -230,19 +249,32 @@ class ModuleStat():
     ################################
     def _update_cov_first_call(self, k:int, v:torch.Tensor):
         self.data._cov = dict()
+        self.data._cov_diff = dict()
+        self.data._cov_diff_matrix = dict()
         self._update_cov_first_occurence(k=k, v=v)
 
         self._update_call_cov = self._update_cov
 
     def _update_cov_first_occurence(self, k:int, v:torch.Tensor):
-        self.data._cov[k] = torch.zeros(v.shape[0], v.shape[0], device=self.device, dtype=v.dtype, requires_grad=False)
+        h = _get_shape_hash(k=k, v=v)
+        self.data._cov[h] = torch.zeros(v.shape[0], v.shape[0], device=self.device, dtype=v.dtype, requires_grad=False)
+        self.data._cov_diff[h] = torch.zeros_like(self.data._old_mean[h], requires_grad=False).unsqueeze(dim=1)
+        self.data._cov_diff_matrix[h] = torch.zeros(
+            self.data._old_mean[h].shape[0], self.data._old_mean[h].shape[0], 
+            device=self.device, 
+            dtype=self.data._old_mean[h].dtype, 
+            requires_grad=False
+        )
 
     def _update_cov_inner(self, k:int, v:torch.Tensor):
-        diff:torch.Tensor = (v - self.data._old_mean[k]).unsqueeze(dim=0)
-        weight = (self.data.counter_update - 2) / (self.data.counter_update - 1)
-        cov:torch.Tensor = self.data._cov[k]
-        cov.mul_(weight).add_(diff * diff.T * self.data.counter_update)
-        del diff
+        h = _get_shape_hash(k=k, v=v)
+        torch.subtract(v.unsqueeze(dim=1), self.data._old_mean[h].unsqueeze(dim=1), out=self.data._cov_diff[h])
+        torch.matmul(self.data._cov_diff[h], self.data._cov_diff[h].T, out=self.data._cov_diff_matrix[h])
+        self.data._cov_diff_matrix[h].div_(self.data.counter_update)
+        
+        cov:torch.Tensor = self.data._cov[h]
+        cov.mul_((self.data.counter_update - 2) / (self.data.counter_update - 1))
+        cov.add_(self.data._cov_diff_matrix[h])
 
     def _update_cov(self, k:int, v:torch.Tensor):
         # https://stats.stackexchange.com/questions/310680/sequential-recursive-online-calculation-of-sample-covariance-matrix
@@ -398,23 +430,6 @@ def hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str=None
         hook_model_stats(model=module, stats=stats, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to)
     return handles
 
-class LayerLossData():
-    def __init__(self, full_name, scaling:torch.Tensor) -> None:
-        self.full_name = full_name
-        self.layer_stat_data = None
-        self.scaling = scaling
-
-    def hook_fun(self, module:torch.nn.Module, input, output:torch.Tensor, layer_stat_data):
-        data:ModuleStatData = layer_stat_data
-        mean = data.mean[self.current_cl]
-        output = output.reshape(output.shape[0], -1).to(mean.device)
-
-        mean_diff = output - mean
-        try:
-            return self.scaling * torch.sum(mean_diff * torch.inverse(data.cov) * mean_diff.T)
-        except RuntimeError:
-            print(f"ERROR: inverse for covariance matrix does not exist. Applying zero as loss for module: {module._get_name()}")
-            return torch.zeros(1, dtype=output.dtype, requires_grad=output.requires_grad, device=output.device)
 
 class LayerLoss():
     def __init__(self, device, del_cov_after=False, scalar=0.5) -> None:
@@ -450,13 +465,11 @@ class LayerLoss():
             self.current_cl = cl
             
     def hook_fun(self, full_name:str, layer_stat_data):
-        #data = LayerLossData(full_name, self.scaling)
-        #self.losses_data[full_name] = data
-
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             data:ModuleStatData = layer_stat_data
-            mean = data.mean[self.current_cl].to(self.device)
-            cov_inverse = data.cov_inverse(del_cov_after=self.del_cov_after)[self.current_cl].to(self.device)
+            h = _get_hash(k=self.current_cl, v=output.shape[1:])
+            mean = data.mean[h].to(self.device)
+            cov_inverse = data.cov_inverse(del_cov_after=self.del_cov_after)[h].to(self.device)
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
@@ -496,9 +509,8 @@ def collect_model_layer_stats(
     target_list = []
 
     model.eval()
-    #model = model.to('cpu')
-
-    progress_bar.setup_progress_bar(key='stats', text="[bright_red]Collect stats...", iterations=len(single_dataloader) if fast_dev_run else fast_dev_run_max_batches)
+    iterat = len(single_dataloader) if not fast_dev_run else fast_dev_run_max_batches
+    progress_bar.setup_progress_bar(key='stats', text="[bright_red]Collect stats...", iterations=iterat)
     with torch.no_grad():
         for idx, (input, target) in enumerate(single_dataloader):
             if(fast_dev_run and idx == fast_dev_run_max_batches):
@@ -518,12 +530,12 @@ def collect_model_layer_stats(
 
     return model_stats, target_list
 
-def pca(data:dict[ModuleStatData]):
+def pca(data:dict[ModuleStatData], overestimated_rank=6):
     out_by_layer_class = dict()
     for k_layer, v_layer in data.items():
         cov = v_layer.get_const_data().cov
         out_by_layer_class[k_layer] = dict()
         for k, v in cov.items():
-            _, out, _ = torch.pca_lowrank(v)
+            _, out, _ = torch.pca_lowrank(v, center=overestimated_rank)
             out_by_layer_class[k_layer][k] = out
     return out_by_layer_class

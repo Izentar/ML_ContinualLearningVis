@@ -22,7 +22,7 @@ def legend_without_duplicate_labels(ax):
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
     ax.legend(*zip(*unique))
 
-def legend_fix(label_plot: dict, ax, fig):
+def set_legend(label_plot: dict, ax):
     label = []
     plot = []
     for _, val in label_plot.items():
@@ -42,7 +42,6 @@ def legend_fix(label_plot: dict, ax, fig):
         p.set_label(l)
 
     ax.legend()
-    #fig.legend(plot, label, bbox_to_anchor = [1.05, 0.6], loc='upper left', borderaxespad=0)
 
 class ServePlot():
     def __init__(self, **kwargs):
@@ -71,6 +70,7 @@ class ServePlot():
 
         ax = self.axs
         if(isinstance(self.axs, list) or isinstance(self.axs, np.ndarray)):
+            # bad size of nrow, ncol if exception thrown
             ax = self.axs[self.index_list[self.ax_idx]]
             self.ax_idx += 1
             if(self.ax_idx == len(self.index_list)):
@@ -79,27 +79,27 @@ class ServePlot():
         self.current_fig = self.fig
         return self.fig, ax
 
-    def schedule_flush(self, plot_point_obj, name, show, idx, ftype):
+    def schedule_flush(self, plot_point_obj, name, show, ftype, idx=None):
         self.name = name
         self.show = show
         self.idx = idx
         self.ftype = ftype
         self.plot_point_obj = plot_point_obj
 
-    def _flush(self):
+    def _flush(self, to_wandb):
         if(self.name is None):
             raise Exception('Cannot flush to file. No config data provided.')
-        self.plot_point_obj.flush(self.current_fig, self.current_ax, self.name, self.show, idx=self.idx, ftype=self.ftype)
+        self.plot_point_obj.flush(self.current_fig, self.current_ax, self.name, self.show, idx=self.idx, ftype=self.ftype, to_wandb=to_wandb)
         self.name = None
 
     def __del__(self):
         if(self.del_flush):
             self._flush()
 
-    def force_flush(self, plot_point_obj, name, show, idx, ftype):
+    def force_flush(self, plot_point_obj, name, show, ftype, to_wandb, idx=None):
         self.del_flush = False
-        self.schedule_flush(plot_point_obj, name, show, idx, ftype)
-        self._flush()
+        self.schedule_flush(plot_point_obj, name=name, show=show, idx=idx, ftype=ftype)
+        self._flush(to_wandb)
 
 
 class Statistics():
@@ -334,10 +334,9 @@ class PointPlot():
             data_dims[t] = []
         return data_x_target, data_y_target, data_dims
         
-    def flush(self, fig, ax, name, show, idx=None, ftype='png'):
+    def flush(self, fig, ax, name, show, to_wandb, idx=None, ftype='png'):
         tryCreatePath(name)
         ax.legend()
-        ax.grid(True)
         if(name is not None):
             n = None
             if(idx is None):
@@ -347,7 +346,8 @@ class PointPlot():
                 print(f"INFO: Plot {full_name}")
                 n = f"{full_name}.{ftype}"
             fig.savefig(n)
-            wandb.log({f"stat_plots/{n}": wandb.Image(fig)})
+            if(to_wandb):
+                wandb.log({f"custom_plots/{n}": wandb.Image(fig)})
         if(show):
             plt.show()
         plt.clf()
@@ -405,8 +405,8 @@ class PointPlot():
             #        'plot': [pos_plot, neg_plot],
             #    }
             ax.set_title(f'Class {cl}')
-            plotter.schedule_flush(self, name, show, idx, ftype)
-            legend_fix(legend_label, ax, fig)
+            plotter.schedule_flush(self, name=name, show=show, idx=idx, ftype=ftype)
+            set_legend(legend_label, ax, fig)
             #self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
 
         plotter.force_flush(self, name, show, idx+1, ftype)
@@ -449,7 +449,7 @@ class PointPlot():
                 plot_index += 1
                 #if(idx1 + 1 < len(mean)):
                 #    ax.axhline(y=plot_index - 0.5, color='black')
-        legend_fix(legend_label, ax, fig)
+        set_legend(legend_label, ax, fig)
         ax.set_title('std-mean')
         plt.yticks(list(range(len(labels))), labels, rotation='horizontal')
         add_range = (maxi - mini) * border_range_scale
@@ -497,7 +497,7 @@ class PointPlot():
                 'plot': new_plot,
             }
 
-        legend_fix(legend_label, ax, fig)
+        set_legend(legend_label, ax, fig)
         ax.set_title(f'Distance of the means from each other')
         plt.yticks(list(range(len(y_labels))), y_labels, rotation='horizontal')
         self.flush(fig, ax, name, show, idx=idx+1, ftype=ftype)
@@ -665,6 +665,7 @@ class PointPlot():
         size_y=10.8,
         nrows=1,
         ncols=1,
+        to_wandb=True,
     ):
         name = self.root / name
         self._try_create_dir(name)
@@ -674,15 +675,52 @@ class PointPlot():
             x:np.ndarray = x.to('cpu').numpy()
             fig, ax = plotter.get_next()
             plot = ax.bar(range(len(x)), x)
-            plotter.schedule_flush(self, name, show, cl, ftype)
 
+            ax.grid(True)
             legend_label[cl] = {
                 'label': [f'Class {cl}'], 
                 'plot': [plot],
             }
-            legend_fix(legend_label, ax, fig)
+            set_legend(legend_label, ax)
         
-        plotter.force_flush(self, name, show, len(data.items()) + 1, ftype)
+        plotter.force_flush(self, name=name, show=show, ftype=ftype, to_wandb=to_wandb)
+
+    def plot_errorbar(
+            self, 
+            data:dict, 
+            name='bar_plot', 
+            show=False, 
+            ftype='png',
+            size_x=15.4,
+            size_y=10.8,
+            to_wandb=True,
+        ):
+            name = self.root / name
+            self._try_create_dir(name)
+            fig, ax = plt.subplots(figsize=(size_x,size_y))
+            legend_label = dict()
+            x_min = []
+            x_max = []
+            x_std = []
+            x_mean = []
+            classes = []
+            for cl, x in data.items():
+                x:np.ndarray = x.to('cpu').numpy()
+                x_min.append(np.min(x))
+                x_max.append(np.max(x))
+                x_std.append(np.std(x))
+                x_mean.append(np.mean(x))
+                classes.append(cl)
+            x_min = np.array(x_min)
+            x_max = np.array(x_max)
+            x_std = np.array(x_std)
+            x_mean = np.array(x_mean)
+            plot = ax.errorbar(np.arange(len(classes)), x_mean, x_std, fmt='ok', lw=3)
+            plot = ax.errorbar(np.arange(len(classes)), x_mean, yerr=[x_mean - x_min, x_max - x_mean], fmt='.k', ecolor='green', lw=1)
+            ax.set_xlim(-1, len(classes))
+
+            plot.set_label(f'Min/Max/Mean/STD - Class {classes}')
+            self.flush(fig=fig, ax=ax, name=name, show=show, ftype=ftype, to_wandb=to_wandb)
 
     def saveBuffer(self, buffer, name):
         tryCreatePath(name)

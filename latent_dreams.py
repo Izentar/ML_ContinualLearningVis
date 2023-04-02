@@ -188,7 +188,7 @@ def logic(args, log_args_to_wandb=True):
         for g in optim.param_groups:
             g['lr'] = args.lr
 
-    layer_stats_hook_to:list[str]|None=['model.ln_enc1', 'model.ln_encode_cl']
+    layer_stats_hook_to:list[str]|None=['model.gauss_linear']
     layer_stats_verbose=False
     layer_stats_flush_to_disk=False
     layer_stats_loss_device='cuda:0'
@@ -439,15 +439,16 @@ def logic(args, log_args_to_wandb=True):
     cl_data_module.flush_wandb()
 
     if(args.gather_layer_loss_at is not None):
-        plot_pca_graph(custom_loop.model_stats, model=model)
+        plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
+        plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model)
 
-        for k, v in custom_loop.model_stats.items():
-            for cl, vv in v.get_const_data().std.items():
-                wandb.log({
-                    f'stats/{k}/min/cl{cl}': torch.min(vv),
-                    f'stats/{k}/max/cl{cl}': torch.max(vv),
-                    f'stats/{k}/avg/cl{cl}': torch.mean(vv),
-                })
+        #for k, v in custom_loop.model_stats.items():
+        #    for cl, vv in v.get_const_data().std.items():
+        #        wandb.log({
+        #            f'stats/{k}/min/cl{cl}': torch.min(vv),
+        #            f'stats/{k}/max/cl{cl}': torch.max(vv),
+        #            f'stats/{k}/avg/cl{cl}': torch.mean(vv),
+        #        })
 
     # 
     # TODO
@@ -501,12 +502,36 @@ def logic(args, log_args_to_wandb=True):
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
 
-def plot_pca_graph(model_stats:dict, model:torch.nn.Module):
+def extract_data_from_key(data:dict) -> dict:
+    """
+        Get dict like [(torch_size, class_number)] and extract it as [torch_size][class_number]
+    """
+    new = dict()
+    for k, v in data.items():
+        if(new.get(k[0]) is None):
+            new[k[0]] = dict()
+        new[k[0]][k[1]] = v
+    return new
 
-    out = pca(model_stats)
+def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:int):
+    out = pca(model_stats, overestimated_rank=overestimated_rank)
     plotter = PointPlot()
-    for k, v in out.items():
-        plotter.plot_bar(v, name=f'{model.name()}/pca/{k}',nrows=int(np.sqrt(len(v))), ncols=int(np.sqrt(len(v))) + 1)
+    to_plot = dict()
+    for layer_name, v in out.items():
+        to_plot[layer_name] = extract_data_from_key(data=v)
+    for layer_name, v in to_plot.items(): 
+        for torch_size, vv in v.items():
+            plotter.plot_bar(vv, name=f'{model.name()}/pca/{layer_name}/{torch_size}',nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
+            
+
+def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module):
+    plotter = PointPlot()
+    for layer_name, v in model_stats.items(): 
+        v = v.get_const_data()
+        std = v.std
+        std = extract_data_from_key(data=std)
+        for torch_size, vv in std.items(): 
+            plotter.plot_errorbar(vv, name=f'{model.name()}/pca/std/{layer_name}/{torch_size}')
 
 def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, nrows=1, ncols=1, logger=None):
     stats = Statistics()

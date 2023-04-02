@@ -160,6 +160,8 @@ means it will be used just like the python indexing for negative numbers.') ##**
     ######################################
     parser.add_argument("--run_config_folder", type=str, default='run_conf', 
         help='Folder where to save and load argparse config for flags "config" and "config_export" ')
+    parser.add_argument("--pca_estimate_rank", type=int, default=6, 
+        help='Slighty overestimated rank of input matrix in PCA algorithm. Default is 6.')
 
 
     args = parser.parse_args()

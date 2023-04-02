@@ -32,7 +32,7 @@ from config.default import default_export_path, model_to_save_file_type
 from model.statistics import base as layer_stat_framework
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
-from model.statistics.base import ModelLayerStatistics
+from model.statistics.base import ModelLayerStatistics, unhook
 from colorama import Fore, Back, Style
 
 ########################################################################
@@ -226,11 +226,12 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
         main_enable = utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop)
         if main_enable:
             layer_loss = None
+            loss_layer_handles = None
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
                 layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after)
-                layer_stat_framework.hook_model_stats(
+                loss_layer_handles = layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
                     fun=layer_loss.hook_fun, 
@@ -244,6 +245,8 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
                 task_index=self.current_task, 
                 layer_loss_obj=layer_loss,
             )
+            if(loss_layer_handles is not None):
+                unhook(loss_layer_handles)
             print("DREAMING END")
 
     def _model_weigth_sanity_check(self):

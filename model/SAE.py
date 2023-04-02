@@ -161,14 +161,13 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         #exit()
 
         xe = xe.reshape(-1, shp[1] * shp[2] * shp[3])
-        r = self.ln_enc1(xe)
+        xe = self.gauss_linear(self.ln_enc1(xe))
         #print(torch.sum(r).item(), torch.min(r).item(), torch.max(r).item(), torch.mean(r).item(), r[0][0].item())
         #tmp = r[0][0]
         #print((-0.001 * tmp * tmp).item())
         #print(torch.exp(-0.001 * tmp * tmp).item())
         #r = torch.sigmoid(r)
         #xe = relu(r)
-        xe = self.gauss_linear(r)
         #print(torch.mean(xe))
         #print(torch.sum(xe).item(), torch.min(xe).item(), torch.max(xe).item(), torch.mean(xe).item(), xe[0][0].item())
         #print(xe.shape, torch.linalg.norm(xe, dim=1))
