@@ -102,7 +102,9 @@ def parse_image_size(image_size):
         h = image_size
     return channels, w, h
 
-def hook_model(model:torch.nn.Module, fun, hook_to:list[str]|bool=False, verbose:bool=False) -> list:  
+def hook_model(model:torch.nn.Module, fun, 
+    hook_to:list[str]|bool|torch.nn.Module|list[torch.nn.Module|list]=False, 
+    verbose:bool=False) -> list:  
     handles = []
     tree_name = ""
     already_hooked = []
@@ -120,7 +122,9 @@ def hook_model(model:torch.nn.Module, fun, hook_to:list[str]|bool=False, verbose
 
     return ret
 
-def _hook_model(model:torch.nn.Module, fun, tree_name:str, handles, already_hooked:list[str], hook_to:list[str]|bool=False, verbose:bool=False) -> list:   
+def _hook_model(model:torch.nn.Module, fun, tree_name:str, handles, already_hooked:list[str], 
+    hook_to:list[str]|bool|torch.nn.Module|list[torch.nn.Module|list]=False, 
+    verbose:bool=False) -> list:   
     """
         fun - fun with signature fun(layer, name, tree_name) that returns
             new fun with signature fun2(module, input, output)
@@ -132,7 +136,9 @@ def _hook_model(model:torch.nn.Module, fun, tree_name:str, handles, already_hook
         tree_name = ""
     for name, module in model.named_children():
         new_tree_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
-        if (isinstance(hook_to, list) and new_tree_name in hook_to) or (isinstance(hook_to, bool) and hook_to):
+        if ((isinstance(hook_to, list) and 
+                (new_tree_name in hook_to or module.__class__.__name__ in hook_to)) 
+            or (isinstance(hook_to, bool) and hook_to)):
             handles.append(
                 (
                     name,
@@ -140,7 +146,10 @@ def _hook_model(model:torch.nn.Module, fun, tree_name:str, handles, already_hook
                     module.register_forward_hook(fun(module, name=name, tree_name=tree_name))
                 )
             )
-            already_hooked.append(new_tree_name)
+            to_append = new_tree_name
+            if(isinstance(hook_to, list) and module.__class__.__name__ in hook_to):
+                to_append = module.__class__.__name__
+            already_hooked.append(to_append)
         
         if(verbose):
             print(new_tree_name)

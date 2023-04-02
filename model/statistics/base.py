@@ -408,7 +408,8 @@ class ModelLayerStatistics(torch.nn.Module):
     #    self.__dict__['layers'] = state['layers']
     #    self.__dict__['shared_ref'] = state['shared_ref']
 
-def hook_model_stats(model:torch.nn.Module, stats: dict, fun, hook_to:list[str]=None) -> list:
+def hook_model_stats(model:torch.nn.Module, stats: dict, fun, 
+    hook_to:list[str]|list[torch.nn.Module|list]=None) -> list:
     """
         fun - has signature fun(module, input, output, layer_stat_data)
     """
@@ -426,21 +427,29 @@ def hook_model_stats(model:torch.nn.Module, stats: dict, fun, hook_to:list[str]=
         hook_to=hook_to,
         already_hooked=already_hooked,
     )
-    if(not isinstance(hook_to, bool) and set() != set()):
+    if(not isinstance(hook_to, bool) and set(already_hooked) != set(hook_to)):
         raise Exception(f'Not hooked to every provided layer. \n\tProvided: {hook_to}\n\tHooked to: {already_hooked}\n\tModel possible layers: {get_model_hierarchy(model=model)}')
 
     return ret
 
-def _hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str, handles, hook_to:list[str], already_hooked) -> list:
+def _hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str, handles, 
+        hook_to:list[str]|list[torch.nn.Module|list], 
+        already_hooked
+    ) -> list:
     for name, module in model.named_children():
         new_tree_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
         
-        if (isinstance(hook_to, list) and new_tree_name in hook_to) or (isinstance(hook_to, bool) and hook_to):
+        if ((isinstance(hook_to, list) and 
+                (new_tree_name in hook_to or module.__class__.__name__ in hook_to)) 
+            or (isinstance(hook_to, bool) and hook_to)):
             layer_stat_data = stats[new_tree_name].get_const_data()
             handles.append(module.register_forward_hook(
                 fun(full_name=new_tree_name, layer_stat_data=layer_stat_data)
             ))
-            already_hooked.append(new_tree_name)
+            to_append = new_tree_name
+            if(isinstance(hook_to, list) and module.__class__.__name__ in hook_to):
+                to_append = module.__class__.__name__
+            already_hooked.append(to_append)
         
         _hook_model_stats(model=module, stats=stats, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, already_hooked=already_hooked)
     return handles

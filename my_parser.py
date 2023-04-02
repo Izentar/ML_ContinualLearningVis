@@ -154,7 +154,7 @@ at given fit loop index. Default None means this functionality is not enabled. V
 means it will be used just like the python indexing for negative numbers.') ##**
     parser.add_argument("--save_layer_stats", type=str, help='Path where to save layer_stats.') ##**
     parser.add_argument("--load_layer_stats", type=str, help='Path from where to load layer_stats.') ##**
-    parser.add_argument("--layer_stats_hook_to", nargs='+', type=str, help='Name of the layers to hook up. If excaption \
+    parser.add_argument("--layer_stats_hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
 thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
 
