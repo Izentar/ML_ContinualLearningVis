@@ -67,7 +67,7 @@ class ModelHookData():
 
     def _hook_fun(self, layer, name, tree_name):
         hook = ModuleHookData()
-        self.layers[f'{tree_name}_{name}'] = hook
+        self.layers[f'{tree_name}.{name}'] = hook
         def inner(module, input, output):
             hook.hook_f(module=module, input=input, output=output)
 

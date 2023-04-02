@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from config.default import tmp_stat_folder
 from pathlib import Path
 from config.default import model_to_save_file_type
-from utils.utils import hook_model
+from utils.utils import hook_model, get_model_hierarchy
 import wandb
 
 def _get_shape_hash(k, v:torch.Tensor):
@@ -408,16 +408,30 @@ class ModelLayerStatistics(torch.nn.Module):
     #    self.__dict__['layers'] = state['layers']
     #    self.__dict__['shared_ref'] = state['shared_ref']
 
-def hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str=None, handles=None, hook_to:list[str]=None):
+def hook_model_stats(model:torch.nn.Module, stats: dict, fun, hook_to:list[str]=None) -> list:
     """
         fun - has signature fun(module, input, output, layer_stat_data)
     """
     if(stats is None):
         raise Exception('Constant statistics reference is "None".')
-    if(handles is None):
-        handles = []
-    if(tree_name is None):
-        tree_name = ""
+    handles = []
+    already_hooked = []
+    tree_name = ""
+    ret = _hook_model_stats(
+        model=model,
+        stats=stats,
+        fun=fun,
+        tree_name=tree_name,
+        handles=handles,
+        hook_to=hook_to,
+        already_hooked=already_hooked,
+    )
+    if(not isinstance(hook_to, bool) and set() != set()):
+        raise Exception(f'Not hooked to every provided layer. \n\tProvided: {hook_to}\n\tHooked to: {already_hooked}\n\tModel possible layers: {get_model_hierarchy(model=model)}')
+
+    return ret
+
+def _hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str, handles, hook_to:list[str], already_hooked) -> list:
     for name, module in model.named_children():
         new_tree_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
         
@@ -426,8 +440,9 @@ def hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str=None
             handles.append(module.register_forward_hook(
                 fun(full_name=new_tree_name, layer_stat_data=layer_stat_data)
             ))
+            already_hooked.append(new_tree_name)
         
-        hook_model_stats(model=module, stats=stats, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to)
+        _hook_model_stats(model=module, stats=stats, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, already_hooked=already_hooked)
     return handles
 
 
@@ -482,7 +497,7 @@ class LayerLoss():
         
     def gather_loss(self, loss) -> torch.Tensor:
         if(len(self.loss_list) == 0):
-            raise Exception("Loss list is empty")
+            raise Exception("Loss list is empty. Maybe tried to hook to the nonexistent layer?")
         sum_loss = torch.sum(torch.stack(self.loss_list))
         self.loss_list = []
         return loss + self.scalar * sum_loss

@@ -129,10 +129,10 @@ class DLA(DLAImplementation, ModelBase):
         return self.dla(x)
 
     def get_objective_layer_name(self):
-        return "dla_linear"
+        return "dla.linear"
 
     def get_root_name(self):
-        return "dla_"
+        return "dla."
 
     def get_objective_layer(self):
         return self.dla.linear

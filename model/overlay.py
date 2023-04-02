@@ -68,12 +68,12 @@ class SAE_standalone(base.CLBase):
         self.log("test_step_acc", self.test_acc)
 
     def get_objective_target(self):
-        return "model_fc"
+        return "model.fc"
 
     def get_root_objective_target(self): 
         if(self.enable_robust):
-            return "model_model_" + self.model.model.get_root_name()
-        return "model_" + self.model.get_root_name()
+            return "model.model." + self.model.model.get_root_name()
+        return "model." + self.model.get_root_name()
 
     def forward(self, *args):
         return self.model(*args)
@@ -241,8 +241,8 @@ class CLModel(base.CLBase):
 
     def get_objective_target(self):
         if(self.enable_robust):
-            return "model_model_" + self.model.model.get_objective_layer_name()
-        return "model_" + self.model.get_objective_layer_name()
+            return "model.model." + self.model.model.get_objective_layer_name()
+        return "model." + self.model.get_objective_layer_name()
 
     def get_objective_layer(self):
         if(self.enable_robust):
@@ -256,8 +256,8 @@ class CLModel(base.CLBase):
 
     def get_root_objective_target(self): 
         if(self.enable_robust):
-            return "model_model_" + self.model.model.get_root_name()
-        return "model_" + self.model.get_root_name()
+            return "model.model." + self.model.model.get_root_name()
+        return "model." + self.model.get_root_name()
 
     def loss_to(self, device):
         return

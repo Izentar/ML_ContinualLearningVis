@@ -102,7 +102,25 @@ def parse_image_size(image_size):
         h = image_size
     return channels, w, h
 
-def hook_model(model:torch.nn.Module, fun, tree_name:str=None, handles=None, hook_to:list[str]|bool=False, verbose:bool=False) -> list:   
+def hook_model(model:torch.nn.Module, fun, hook_to:list[str]|bool=False, verbose:bool=False) -> list:  
+    handles = []
+    tree_name = ""
+    already_hooked = []
+    ret = _hook_model(
+        model=model,
+        fun=fun,
+        hook_to=hook_to,
+        verbose=verbose,
+        handles=handles,
+        tree_name=tree_name,
+        already_hooked=already_hooked,
+    )
+    if(not isinstance(hook_to, bool) and set(already_hooked) != set(hook_to)):
+        raise Exception(f'Not hooked to every provided layer. \n\tProvided: {hook_to}\n\tHooked to: {already_hooked}\n\tModel possible layers: {get_model_hierarchy(model=model)}')
+
+    return ret
+
+def _hook_model(model:torch.nn.Module, fun, tree_name:str, handles, already_hooked:list[str], hook_to:list[str]|bool=False, verbose:bool=False) -> list:   
     """
         fun - fun with signature fun(layer, name, tree_name) that returns
             new fun with signature fun2(module, input, output)
@@ -122,10 +140,11 @@ def hook_model(model:torch.nn.Module, fun, tree_name:str=None, handles=None, hoo
                     module.register_forward_hook(fun(module, name=name, tree_name=tree_name))
                 )
             )
+            already_hooked.append(new_tree_name)
         
         if(verbose):
             print(new_tree_name)
-        hook_model(model=module, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, verbose=verbose)
+        _hook_model(model=module, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, verbose=verbose, already_hooked=already_hooked)
     return handles
 
 
@@ -139,13 +158,19 @@ def log_wandb_tensor_decorator(func, name:list[str], logger):
         return func(val)
     return inner
 
-def get_model_hierarchy(model, separator='.',tree_name:str=None, model_names:list[str]=None):
-    if(tree_name is None):
-        model_names = []
-    if(tree_name is None):
-        tree_name = ""
+def get_model_hierarchy(model, separator='.') -> list[str]:
+    model_names = []
+    tree_name = ""
+    return _get_model_hierarchy(
+        model=model,
+        separator=separator,
+        model_names=model_names,
+        tree_name=tree_name,
+    )
+
+def _get_model_hierarchy(model, tree_name:str, model_names:list[str], separator='.') -> list[str]:
     for name, module in model.named_children():
         new_tree_name = f"{tree_name}{separator}{name}" if len(tree_name) != 0 else name
         model_names.append(new_tree_name)
-        get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
+        _get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
     return model_names

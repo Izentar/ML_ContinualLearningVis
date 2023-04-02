@@ -188,7 +188,7 @@ def logic(args, log_args_to_wandb=True):
         for g in optim.param_groups:
             g['lr'] = args.lr
 
-    layer_stats_hook_to:list[str]|None=['model.gauss_linear']
+    layer_stats_hook_to:list[str]|None=args.layer_stats_hook_to
     layer_stats_verbose=False
     layer_stats_flush_to_disk=False
     layer_stats_loss_device='cuda:0'
