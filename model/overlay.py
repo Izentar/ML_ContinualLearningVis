@@ -117,6 +117,7 @@ class CLModel(base.CLBase):
             robust_dataset = self._get_dataset_list(robust_dataset_name)[1](data_path=robust_data_path)
             if(robust_dataset_name is not None and robust_data_path is not None and
                 robust_dataset is not None and attack_kwargs is not None):
+                print('INFO: Enabled robust model overlay')
                 self.model = model_utils.make_and_restore_model(
                     arch=model, dataset=robust_dataset, resume_path=resume_path
                 )[0]
@@ -129,6 +130,7 @@ class CLModel(base.CLBase):
         if(replace_layer):
             if(replace_layer_from is None or replace_layer_to_f is None):
                 raise Exception(f'replace_layer_from is None: {replace_layer_from is None} or replace_layer_to_f is None: {replace_layer_to_f is None}')
+            print(f'INFO: Replacing layer from "{replace_layer_from.__class__.__name__}d"')
             utils.replace_layer(self, 'model', replace_layer_from, replace_layer_to_f)
             
         self.loss_f = loss_f if isinstance(loss_f, ChiLossBase) else DummyLoss(loss_f)
@@ -175,23 +177,9 @@ class CLModel(base.CLBase):
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss
 
-    def process_losses_normal_reconstruction(self, x, loss, log_label, alpha=0.05, model_out_dict=None):
-        if(model_out_dict is not None and 'image_reconstruction' in model_out_dict):
-            loss_reconstruction = mse_loss(model_out_dict['image_reconstruction'], Variable(x))
-            self.log(f"{log_label}/reconstuction_loss", loss_reconstruction)
-            loss = loss * alpha + (1 - alpha) * loss_reconstruction
-        return loss
-
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self.loss_f(latent, y)
         self.log(f"{log_label}/classification_loss", loss)
-
-        loss = self.process_losses_normal_reconstruction(
-            x=x, 
-            loss=loss, 
-            log_label=log_label, 
-            model_out_dict=model_out_dict
-        )
         return loss
 
     def training_step_dream(self, batch):
@@ -305,13 +293,6 @@ class CLModelIslandsTest(CLModel):
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self.loss_f(latent, y)
         self.log(f"{log_label}/MSE_loss", loss)
-
-        loss = self.process_losses_normal_reconstruction(
-            x=x, 
-            loss=loss, 
-            log_label=log_label, 
-            model_out_dict=model_out_dict
-        )
 
         # log values of a point
         selected_class = 0
@@ -427,13 +408,6 @@ class CLModelWithIslands(CLModel):
             self.log(f"{log_label}/norm", norm)
             loss += norm
         self.log(f"{log_label}/island", loss)
-
-        loss = self.process_losses_normal_reconstruction(
-            x=x, 
-            loss=loss, 
-            log_label=log_label, 
-            model_out_dict=model_out_dict
-        )
 
         return loss
 

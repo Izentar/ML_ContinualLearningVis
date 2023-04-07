@@ -22,7 +22,6 @@ class CLBase(LightningModule):
         optimizer_restart_params_type:str=None,
         optimizer_params:dict=None,
         scheduler_steps:Sequence[int]=None,
-        swap_datasets:bool=False,
         *args, 
         **kwargs
     ):
@@ -74,41 +73,19 @@ class CLBase(LightningModule):
         self.optimizer = None
 
         self.scheduler_steps = scheduler_steps if scheduler_steps is not None else (None, )
-        self.swap_datasets = swap_datasets
-
-        if(self.swap_datasets):
-            print(f"INFO: Model overlay in swap_datasets mode.")
-
-    def _inner_training_step(self, batch, batch_idx):
+    
+    def training_step(self, batch, batch_idx):
         if "dream" not in batch:
             return self.training_step_normal(batch["normal"])
         if 'normal' not in batch:
             return self.training_step_dream(batch["dream"])
 
         loss_normal = self.training_step_normal(batch["normal"])
-        #TODO Czy naprawdę potrzebujemy uczyć się na snach w każdym batchu? W każdym z nich będą te same obrazki zawsze.
-        #TODO może powinniśmy wymieszać obrazki ze snów ze zwykłymi obrazkami?
         if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
             (isinstance(self.dream_frequency, int) and batch_idx % self.dream_frequency == 0):
             loss_dream = self.training_step_dream(batch["dream"])
             return loss_normal + loss_dream
         return loss_normal
-
-    def _inner_training_step_swap_datasets(self, batch, batch_idx):
-        if("dream" in batch):
-            return self.training_step_dream(batch["dream"])
-        elif("normal" in batch):
-            return self.training_step_normal(batch["normal"])
-        else:
-            raise Exception(f'No batch found. Batch keys: {batch.keys()}')
-
-    
-    def training_step(self, batch, batch_idx):
-        if(self.swap_datasets):
-            loss = self._inner_training_step_swap_datasets(batch, batch_idx)
-        else:
-            loss = self._inner_training_step(batch, batch_idx)
-        return loss
 
     def get_model_out_data(self, model_out):
         """

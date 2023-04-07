@@ -169,17 +169,14 @@ def model_summary(source_model):
 
 def logic(args, log_args_to_wandb=True):
     # normal dreaming
-    #pl.seed_everything(42)
+    if(args.seed is not None):
+        pl.seed_everything(args.seed)
 
     main_split = collect_main_split = 0.5
     sigma = 0.01
     rho = 1.
-    test_sigma_disorder = 0.0
-    start_img_value = 0.0
     wandb_offline = False if not args.fast_dev_run else True
     #wandb_offline = True
-    compare_latent_step_sample = False
-    collect_numb_of_points = 2500
 
     optimizer = lambda param: torch.optim.Adam(param, lr=args.lr)
     #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
@@ -195,9 +192,6 @@ def logic(args, log_args_to_wandb=True):
     layer_stats_loss_device='cuda:0'
     layer_stats_collect_device='cuda:0'
     
-
-    nrows = 4
-    ncols = 4
     num_sanity_val_steps = 0
     dream_optim = lambda params: torch.optim.Adam(params, lr=args.dream_lr)
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
@@ -271,7 +265,7 @@ def logic(args, log_args_to_wandb=True):
     set_manager.init_dream_objectives(logger=logger, label='dream')
     print(f"Selected configuration:\n{str(set_manager)}")
 
-    source_model = set_manager.model(num_classes=args.number_of_classes, with_reconstruction=args.with_reconstruction)
+    source_model = set_manager.model(num_classes=args.number_of_classes)
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
@@ -299,7 +293,6 @@ def logic(args, log_args_to_wandb=True):
     check(split=train_tasks_split, 
         num_classes=args.number_of_classes, 
         num_tasks=args.num_tasks,
-        with_reconstruction=args.with_reconstruction, 
         enable_robust=args.enable_robust,
     )
 
@@ -329,7 +322,6 @@ def logic(args, log_args_to_wandb=True):
             scheduler_steps=args.train_scheduler_steps,
             optimizer_restart_params_type=args.reset_optim_type,
             optimizer_params=optim_params,
-            swap_datasets=args.swap_datasets,
             replace_layer=args.replace_layer,
             replace_layer_from=torch.nn.ReLU,
             replace_layer_to_f=lambda a, b, x: GaussA(30),
@@ -371,12 +363,10 @@ def logic(args, log_args_to_wandb=True):
         enable_dream_transforms=not args.disable_dream_transforms,
         shuffle=args.disable_shuffle,
         dream_shuffle=args.disable_dream_shuffle,
-        swap_datasets=args.swap_datasets,
         num_workers=args.num_workers,
         dream_num_workers=args.dream_num_workers,
         test_val_num_workers=args.test_val_num_workers,
         train_only_dream_batch_at=args.train_only_dream_batch_at,
-        use_dreams_at_start=args.use_dreams_at_start,
         standard_image_size=args.standard_image_size,
         data_passer=data_passer,
         dream_decorrelate=args.decorrelate,
@@ -412,7 +402,6 @@ def logic(args, log_args_to_wandb=True):
         run_training_at=args.run_training_at,
         early_finish_at=args.early_finish_at,
         reload_model_at=args.reload_model_at,
-        swap_datasets=args.swap_datasets,
         reinit_model_at=args.reinit_model_at,
         weight_reset_sanity_check=args.weight_reset_sanity_check,
         enable_checkpoint=args.enable_checkpoint,
@@ -446,62 +435,77 @@ def logic(args, log_args_to_wandb=True):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
         plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model)
 
-        #for k, v in custom_loop.model_stats.items():
-        #    for cl, vv in v.get_const_data().std.items():
-        #        wandb.log({
-        #            f'stats/{k}/min/cl{cl}': torch.min(vv),
-        #            f'stats/{k}/max/cl{cl}': torch.max(vv),
-        #            f'stats/{k}/avg/cl{cl}': torch.mean(vv),
-        #        })
+    collect_model_information(
+        args=args,
+        model=model, 
+        attack_kwargs=attack_kwargs, 
+        dataset_class=dataset_class, 
+        train_tasks_split=train_tasks_split, 
+        collect_main_split=collect_main_split, 
+        logger=logger, 
+        dreams_transforms=dreams_transforms, 
+        set_manager=set_manager,
+    )
 
-    # 
-    # TODO
-    # write below to functions
-    #
+def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, collect_main_split, logger, dreams_transforms, set_manager):
+    if(not args.compare_latent and not args.disorder_dream and not args.collect_stats):
+        return
+    collect_numb_of_points = 2500
+    nrows = 4
+    ncols = 4
+    compare_latent_step_sample = False
+    test_sigma_disorder = 0.0
+    start_img_value = 0.0
 
     transform = transforms.Compose([transforms.ToTensor()])
-    dataset = dataset_class(root="./data", train=False, transform=transform)
-    dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
-    targets = None
-    if isinstance(dataset, torch.utils.data.Subset):
-        targets = np.take(dataset.dataset.targets, dataset.indices).tolist()
-    else:
-        targets = dataset.targets
-    collector_batch_sampler = PairingBatchSamplerV2(
-                dataset=dataset,
-                batch_size=args.batch_size,
-                shuffle=True,
-                classes=np.unique(targets),
-                main_class_split=collect_main_split,
-            )
-    #collect_stats(model=model, dataset=dataset,
-    #    collect_numb_of_points=collect_numb_of_points, 
-    #    collector_batch_sampler=collector_batch_sampler,
-    #    nrows=nrows, ncols=ncols, 
-    #    logger=logger, attack_kwargs=attack_kwargs)
-    #compare_latent = CompareLatent()
-    #compare_latent(
-    #    model=model,
-    #    #loss_f=model.loss_f, 
-    #    used_class=0, 
-    #    logger=logger,
-    #    dream_transform=dreams_transforms,
-    #    target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
-    #    loss_obj_step_sample=compare_latent_step_sample,
-    #    enable_transforms=not args.disable_dream_transforms,
-    #)
-    #disorder_dream = DisorderDream()
-    #dataset = dataset_class(root="./data", train=True, transform=transform)
-    #disorder_dream(
-    #    model=model,
-    #    used_class=1, 
-    #    logger=logger,
-    #    dataset=dataset,
-    #    dream_transform=dreams_transforms,
-    #    #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
-    #    sigma_disorder=test_sigma_disorder,
-    #    start_img_value=start_img_value,
-    #)
+    if(args.collect_stats):
+        print('STATISTICS: Collecting model stats')
+        dataset = dataset_class(root="./data", train=False, transform=transform)
+        dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
+        targets = None
+        if isinstance(dataset, torch.utils.data.Subset):
+            targets = np.take(dataset.dataset.targets, dataset.indices).tolist()
+        else:
+            targets = dataset.targets
+        collector_batch_sampler = PairingBatchSamplerV2(
+                    dataset=dataset,
+                    batch_size=args.batch_size,
+                    shuffle=True,
+                    classes=np.unique(targets),
+                    main_class_split=collect_main_split,
+                )
+        collect_stats(model=model, dataset=dataset,
+            collect_numb_of_points=collect_numb_of_points, 
+            collector_batch_sampler=collector_batch_sampler,
+            nrows=nrows, ncols=ncols, 
+            logger=logger, attack_kwargs=attack_kwargs)
+    if(args.compare_latent):
+        print('STATISTICS: Compare latent')
+        compare_latent = CompareLatent()
+        compare_latent(
+            model=model,
+            #loss_f=model.loss_f, 
+            used_class=0, 
+            logger=logger,
+            dream_transform=dreams_transforms,
+            target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
+            loss_obj_step_sample=compare_latent_step_sample,
+            enable_transforms=not args.disable_dream_transforms,
+        )
+    if(args.disorder_dream):
+        print('STATISTICS: Disorder dream')
+        disorder_dream = DisorderDream()
+        dataset = dataset_class(root="./data", train=True, transform=transform)
+        disorder_dream(
+            model=model,
+            used_class=1, 
+            logger=logger,
+            dataset=dataset,
+            dream_transform=dreams_transforms,
+            #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
+            sigma_disorder=test_sigma_disorder,
+            start_img_value=start_img_value,
+        )
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
@@ -576,7 +580,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
     plotter.saveBuffer(buffer, name='saves/latent')
 
-def check(split, num_classes, num_tasks, with_reconstruction, enable_robust):
+def check(split, num_classes, num_tasks, enable_robust):
     test = set()
     for s in split:
         test = test.union(s)
@@ -584,9 +588,6 @@ def check(split, num_classes, num_tasks, with_reconstruction, enable_robust):
         raise Exception(f"Wrong number of classes: {num_classes} / train or validation split: {len(test)}.")
     if(len(split) != num_tasks):
         raise Exception(f"Wrong number of tasks: {num_tasks} / train or validation split size: {len(split)}.")
-    if(with_reconstruction and enable_robust):
-        raise Exception(f"Framework robusness does not support model that returns multiple variables. Set correct flags. Current:\
-\nwith_reconstruction: {with_reconstruction}\enable_robust: {enable_robust}")
 
 if __name__ == "__main__":
     args, _ = arg_parser()

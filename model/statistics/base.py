@@ -456,15 +456,14 @@ def _hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str, ha
 
 
 class LayerLoss():
-    def __init__(self, device, del_cov_after=False, scalar=0.5) -> None:
+    def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
         self.loss_list = []
         self.current_batch_classes:torch.Tensor = None
         self.archived_batch_classes = None
-        self.scaling = torch.tensor(2, dtype=torch.float32)
+        self.scaling = scaling
         self.losses_data = dict()
         self.device = device
         self.del_cov_after = del_cov_after
-        self.scalar = scalar
 
     def _set_archived(self, classes:torch.Tensor):
         if(self.archived_batch_classes is None):
@@ -498,8 +497,8 @@ class LayerLoss():
 
             mean_diff = output - mean
             self.loss_list.append(
-                torch.sum(
-                    self.scaling * torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T))
+                self.scaling * torch.sum(
+                    torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
                 ).to(input[0].device)
             )
         return inner
@@ -509,7 +508,7 @@ class LayerLoss():
             raise Exception("Loss list is empty. Maybe tried to hook to the nonexistent layer?")
         sum_loss = torch.sum(torch.stack(self.loss_list))
         self.loss_list = []
-        return loss + self.scalar * sum_loss
+        return loss * sum_loss
 
 def collect_model_layer_stats(
     model:torch.nn.Module, 

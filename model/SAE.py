@@ -8,9 +8,8 @@ from model.model_base import ModelBase
 from model.activation_layer import gaussA, conjunction, GaussA
 
 class SAE_CIFAR(nn.Module, ModelBase):
-    def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
+    def __init__(self, num_classes, ln_hidden1=256):
         super().__init__()
-        self.with_reconstruction = with_reconstruction
         self.ln_hidden1 = ln_hidden1
         self.conv_enc1 = nn.Conv2d(
             in_channels=3, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
@@ -37,10 +36,6 @@ class SAE_CIFAR(nn.Module, ModelBase):
         #self.fc = nn.Linear(in_features=last_hidd_layer, out_features=num_classes)
 
         self._initialize_weights()
-
-        self.custom_forward_decoder_f = lambda xe_latent_pre_relu, shp: xe_latent_pre_relu
-        if (self.with_reconstruction):
-            self.custom_forward_decoder_f = self._decode_part
     
     def _initialize_weights(self):
         for m in self.modules():
@@ -60,15 +55,6 @@ class SAE_CIFAR(nn.Module, ModelBase):
     def init_weights(self):
         self._initialize_weights()
 
-    def _decode_part(self, xe_latent_pre_relu, linear_to_conv_shape):
-        x = self.forward_decoder_class(xe_latent_pre_relu)
-
-        image_reconstruction = self.forward_decoder_hidden(x, linear_to_conv_shape)
-
-        return xe_latent_pre_relu, {
-            'image_reconstruction': image_reconstruction,
-        }
-
     def forward_encoder(self, x):
         xe, conv_to_linear_shape = self.forward_encoder_hidden(
             x, 
@@ -81,7 +67,7 @@ class SAE_CIFAR(nn.Module, ModelBase):
     def forward(self, x, **kwargs):
         xe_latent_pre_relu, conv_to_linear_shape = self.forward_encoder(x)
 
-        return self.custom_forward_decoder_f(xe_latent_pre_relu, conv_to_linear_shape)
+        return xe_latent_pre_relu
         
     def forward_encoder_class(self, x):
         return self.ln_encode_cl(x)
@@ -99,17 +85,6 @@ class SAE_CIFAR(nn.Module, ModelBase):
         #xe_latent_second = self.fake_relu(xe_latent_pre_relu) if fake_relu else xe_latent
         #encoder_hat = self.fc(xe_latent_second)
         return xe, conv_to_linear_shape#, xe_latent, xe_latent_second, encoder_hat, conv_to_linear_shape
-
-    def forward_decoder_class(self, xe):
-        xd = self.relu(self.ln_decode_cl(xe))
-        return xd
-
-    def forward_decoder_hidden(self, xe, linear_to_conv_shape):
-        xd = self.relu(self.ln_dec1(xe))
-        xd = torch.reshape(xd, (linear_to_conv_shape[0], linear_to_conv_shape[1], linear_to_conv_shape[2], linear_to_conv_shape[3]))
-        xd = self.relu(self.conv_dec1(xd))
-        # xd = F.upsample(xd,30)
-        return sigmoid(self.conv_dec2(xd))
 
     def get_objective_layer_name(self):
         return "ln_encode_cl"
@@ -141,8 +116,8 @@ class SAE_CIFAR_TEST(SAE_CIFAR):
         return xe_latent_pre_relu, conv_to_linear_shape
 
 class SAE_CIFAR_GAUSS(SAE_CIFAR):
-    def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
-        super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1, with_reconstruction=with_reconstruction)
+    def __init__(self, num_classes, ln_hidden1=256):
+        super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1)
 
         self.gauss_cov = GaussA(0.1)
         self.gauss_linear = GaussA(30)
@@ -184,8 +159,8 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         return sigmoid(self.conv_dec2(xd))
 
 class SAE_CIFAR_CONJ(SAE_CIFAR_GAUSS):
-    def __init__(self, num_classes, ln_hidden1=256, with_reconstruction=True):
-        super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1, with_reconstruction=with_reconstruction)
+    def __init__(self, num_classes, ln_hidden1=256):
+        super().__init__(num_classes=num_classes, ln_hidden1=ln_hidden1)
 
         self.ln_encode_cl = nn.Linear(in_features=math.ceil(ln_hidden1 / 2), out_features=num_classes)
 

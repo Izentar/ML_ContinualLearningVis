@@ -377,8 +377,6 @@ class CLDataModule(DreamDataModule):
         dream_shuffle=True,
         datasampler=None,
         root="data",
-        swap_datasets=False,
-        use_dreams_at_start=False,
         dream_decorrelate=True,
         **kwargs
     ):
@@ -421,12 +419,8 @@ class CLDataModule(DreamDataModule):
         # TODO
         self.dataset_class = dataset_class
         self.data_transform = data_transform
-        self.swap_datasets = swap_datasets
-        self.use_dreams_at_start = use_dreams_at_start
 
         print(f"Validation task split: {self.val_tasks_split}")
-        if(self.swap_datasets):
-            print(f"INFO: Datasets in swap_datasets mode.")
 
     def prepare_data(self):
         train_dataset = self.dataset_class(
@@ -518,9 +512,7 @@ class CLDataModule(DreamDataModule):
 
     def _check_dream_dataset_setup(self) -> bool:
         inner_check = bool(
-            (self.swap_datasets and self.current_loop_index % 2 == 1) 
-            or utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop']) 
-            or (self.use_dreams_at_start and self.current_loop_index == 0)
+            utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop'])
         )
         if(self.dream_dataset_for_current_task is None and inner_check):
             raise Exception("Dream dataset not properly set. Try call before 'generate_synthetic_data' or 'next' or 'setup_task_index'")

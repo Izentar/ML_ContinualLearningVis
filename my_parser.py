@@ -16,7 +16,7 @@ Validation dataset uses data from test dataset but divided into appropriate task
 Test dataset uses test data with only the classes used in previous tasks. 
 """)
 
-
+    parser.add_argument("--seed", type=int, help='Seed of the pytorch random number generator. Default None - random seed.') ##**
     parser.add_argument("--run_training_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
 If True, run on all loops, if False, do not run. If "gather_layer_loss_at" is set, then it takes precedence.') ##**
     parser.add_argument("--config", action="append", help='The config file(s) that should be used. The config file \
@@ -27,8 +27,6 @@ takes precedence over command line arguments. Config files will be applied in or
     parser.add_argument("--framework_type", type=str, default='cl-sae-crossentropy', help='Framework type') ##**
     parser.add_argument("-d", "--dataset", type=str) ##**
     parser.add_argument("--early_finish_at", type=int, default=-1, help='Finish training loop at desired epoch. Default "-1"')
-    parser.add_argument("--with_reconstruction", action="store_true", help='If exist use the model with reconstruction \
-of the original image during training and use additional comparison loss of the original and reconstructed image.')
     parser.add_argument("--disable_shuffle", action="store_false", help='Flag to shuffle train normal and dream datasets. If \
 flag "disable_dream_shuffle" is set then it takes precedence over this flag.')
     parser.add_argument("--datasampler_type", type=str, default='none', help='''Select datasampler type.
@@ -94,7 +92,6 @@ tranforms on dreamed images used in lucid framework in main function.') ##**
 "fft"; "pixel"; "cppn"(does not use "dreaming_batch_size")')
     parser.add_argument("--train_only_dream_batch_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.') ##**
-    parser.add_argument("--use_dreams_at_start", action="store_true", help='Use dreams at the first fit loop.') ##**
     parser.add_argument("--standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
 Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
     parser.add_argument("--advance_clear_dreams", action="store_true", help='If the dreams at the beginning of the advance loop should be cleared.')
@@ -103,11 +100,8 @@ Checks if the output image has the provided shape. Do not include batch here. De
 
 
     ######################################
-    #####       dataset swap        ######
+    #####       model reinit        ######
     ######################################
-    parser.add_argument("--swap_datasets", action="store_true", help='Do training once, generate dream dataset and then\
-run training on a newly initialized model using only dream dataset. Not compatible with "dream_frequency", \
-"train_only_dream_batch_at". Odd task number will indicate normal training and even task number will indicate dream training.') ##**
     parser.add_argument("--reload_model_at", nargs='+', type=str, help='Reload model weights after each main loop.\
 Reloading means any weights that model had before training will be reloaded. Reload is done AFTER dream generation if turned on.') ##**
     parser.add_argument("--reinit_model_at", nargs='+', type=str, help='Reset model after each main loop.\
@@ -166,6 +160,9 @@ thrown, list of avaliable layers will be displayed.') ##**
         help='Folder where to save and load argparse config for flags "config" and "config_export" ')
     parser.add_argument("--pca_estimate_rank", type=int, default=6, 
         help='Slighty overestimated rank of input matrix in PCA algorithm. Default is 6.')
+    parser.add_argument("--compare_latent", action="store_true", help='')
+    parser.add_argument("--disorder_dream", action="store_true", help='')
+    parser.add_argument("--collect_stats", action="store_true", help='')
 
 
     args = parser.parse_args()
