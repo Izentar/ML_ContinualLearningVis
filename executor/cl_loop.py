@@ -66,7 +66,6 @@ class CLLoop(Loop):
         num_loops=None,
         run_training_at=False,
         early_finish_at=-1,
-        swap_datasets=False,
         weight_reset_sanity_check=False,
         enable_checkpoint:bool=False,
         save_trained_model:bool=False,
@@ -88,6 +87,7 @@ class CLLoop(Loop):
         layer_loss_del_cov_after=False,
         save_layer_stats=None,
         load_layer_stats=None,
+        ll_scaling=0.01,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -117,7 +117,6 @@ class CLLoop(Loop):
         self.fast_dev_run = fast_dev_run
         self.run_training_at = run_training_at
         self.early_finish_at = early_finish_at
-        self.swap_datasets = swap_datasets
         self.weight_reset_sanity_check = weight_reset_sanity_check
         self.enable_checkpoint = enable_checkpoint
         self.save_trained_model = save_trained_model
@@ -137,16 +136,8 @@ class CLLoop(Loop):
         self.model_stats = None
         self.layer_loss_del_cov_after = layer_loss_del_cov_after
 
-        if(self.swap_datasets and (self.num_tasks != 1 or self.num_loops % 2 == 1 or self.reload_model_at == False)):
-            raise Exception(f'Wrong variables set for "swap_datasets" flag. \
---num_tasks:"{self.num_tasks}" --num_loops:"{self.num_loops}" --reload_model_at:"{self.reload_model_at}"\n\
-Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
-
         if utils.check_python_enabled(self.reinit_model_at) and utils.check_python_enabled(self.reload_model_at):
             raise Exception("ERROR: reinit_model_at and reload_model_at cannot be both true")
-
-        if(self.swap_datasets):
-            print(f"INFO: CLLoop in swap_datasets mode.")
 
         self.layer_stats_hook_to = layer_stats_hook_to
         self.layer_stats_verbose = layer_stats_verbose
@@ -155,6 +146,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
         self.layer_stats_collect_device = layer_stats_collect_device
         self.load_layer_stats = load_layer_stats
         self.save_layer_stats = save_layer_stats
+        self.ll_scaling = ll_scaling
 
     @property
     def done(self) -> bool:
@@ -230,7 +222,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after)
+                layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after, scaling=self.ll_scaling)
                 loss_layer_handles = layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
@@ -319,7 +311,7 @@ Values must be --num_tasks:"1" --num_loops:"%2" --reload_model_at:"True"')
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
 
-        if(self.advance_clear_dreams or self.swap_datasets):
+        if(self.advance_clear_dreams):
             self.trainer.datamodule.clear_dreams_dataset()
         self._try_generate_dream()
         self._update_data_passer()

@@ -464,6 +464,7 @@ class LayerLoss():
         self.losses_data = dict()
         self.device = device
         self.del_cov_after = del_cov_after
+        print(f'LAYER_LOSS: Scaling {self.scaling}')
 
     def _set_archived(self, classes:torch.Tensor):
         if(self.archived_batch_classes is None):
