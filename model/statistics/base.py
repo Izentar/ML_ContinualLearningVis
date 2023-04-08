@@ -562,7 +562,9 @@ class LayerGradActivationPruning(LayerBase):
             # magic from https://discuss.pytorch.org/t/is-it-possible-use-torch-argsort-output-to-index-a-tensor/134327/2
             i0 = torch.arange(B).unsqueeze(-1).expand(B, k)
             i1 = torch.topk(grad_input_view, k, dim = 1, largest=False).indices.expand(B, k)
+            i1_1 = torch.topk(grad_input_view, k, dim = 1, largest=True).indices.expand(B, k)
             grad_input_view[i0, i1] = 0.0
+            grad_input_view[i0, i1_1] = 0.0
             return (grad_input, )
 
         return module.register_full_backward_hook(inner)

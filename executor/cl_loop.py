@@ -90,7 +90,7 @@ class CLLoop(Loop):
         ll_scaling=0.01,
         use_grad_pruning_at=None,
         grad_pruning_percent=0.01,
-        use_grad_activ_pruning=None,
+        use_grad_activ_pruning_at=None,
         grad_activ_pruning_percent=0.01,
     ) -> None:
         """
@@ -135,7 +135,7 @@ class CLLoop(Loop):
         self.advance_clear_dreams = advance_clear_dreams
         self.use_grad_pruning_at = use_grad_pruning_at
         self.grad_pruning_percent = grad_pruning_percent
-        self.use_grad_activ_pruning = use_grad_activ_pruning
+        self.use_grad_activ_pruning_at = use_grad_activ_pruning_at
         self.grad_activ_pruning_percent = grad_activ_pruning_percent
 
         self.enable_data_parser = data_passer is not None
@@ -249,7 +249,7 @@ class CLLoop(Loop):
                     fun=tmp.hook_fun, 
                     hook_to=self.layer_stats_hook_to
                 ))
-            if(utils.check_python_index(self.use_grad_activ_pruning, self.num_loops, self.current_loop)):
+            if(utils.check_python_index(self.use_grad_activ_pruning_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
                 tmp = layer_stat_framework.LayerGradActivationPruning(device=self.layer_stats_loss_device, percent=self.grad_activ_pruning_percent)

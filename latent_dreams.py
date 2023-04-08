@@ -426,7 +426,7 @@ def logic(args, log_args_to_wandb=True):
         ll_scaling=args.ll_scaling,
         use_grad_pruning_at=args.use_grad_pruning_at,
         grad_pruning_percent=args.grad_pruning_percent,
-        use_grad_activ_pruning=args.use_grad_activ_pruning,
+        use_grad_activ_pruning_at=args.use_grad_activ_pruning_at,
         grad_activ_pruning_percent=args.grad_activ_pruning_percent,
     )
     trainer.fit_loop = custom_loop
