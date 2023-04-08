@@ -90,6 +90,8 @@ class CLLoop(Loop):
         ll_scaling=0.01,
         use_grad_pruning_at=None,
         grad_pruning_percent=0.01,
+        use_grad_activ_pruning=None,
+        grad_activ_pruning_percent=0.01,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -133,6 +135,8 @@ class CLLoop(Loop):
         self.advance_clear_dreams = advance_clear_dreams
         self.use_grad_pruning_at = use_grad_pruning_at
         self.grad_pruning_percent = grad_pruning_percent
+        self.use_grad_activ_pruning = use_grad_activ_pruning
+        self.grad_activ_pruning_percent = grad_activ_pruning_percent
 
         self.enable_data_parser = data_passer is not None
         self.data_passer = data_passer if data_passer is not None else {}
@@ -245,6 +249,17 @@ class CLLoop(Loop):
                     fun=tmp.hook_fun, 
                     hook_to=self.layer_stats_hook_to
                 ))
+            if(utils.check_python_index(self.use_grad_activ_pruning, self.num_loops, self.current_loop)):
+                print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                self._try_load_model_layer_stats()
+                tmp = layer_stat_framework.LayerGradActivationPruning(device=self.layer_stats_loss_device, percent=self.grad_activ_pruning_percent)
+                layer_hook_obj.append(tmp)
+                loss_layer_handles.append(utils.hook_model(
+                    model=self.trainer.lightning_module, 
+                    fun=tmp.hook_fun, 
+                    hook_to=self.layer_stats_hook_to
+                ))
+
             
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)

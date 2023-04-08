@@ -65,13 +65,13 @@ class ModelHookData():
         self.handles = None
         self.handles = self._hook_model(model=model)
 
-    def _hook_fun(self, layer, name, tree_name):
+    def _hook_fun(self, layer, name, tree_name, new_tree_name):
         hook = ModuleHookData()
         self.layers[f'{tree_name}.{name}'] = hook
         def inner(module, input, output):
             hook.hook_f(module=module, input=input, output=output)
 
-        return inner
+        return layer.register_forward_hook(inner)
 
     def _hook_model(self, model):
         handles = hook_model(model=model, fun=self._hook_fun, hook_to=True)
@@ -79,7 +79,7 @@ class ModelHookData():
 
     def unhook(self):
         if(not self.deleted and self.handles is not None):
-            for _, _, h in self.handles:
+            for h in self.handles.values():
                 h.remove()
             self.deleted = True
 

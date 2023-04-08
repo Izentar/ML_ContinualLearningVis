@@ -13,8 +13,8 @@ def _get_shape_hash(k, v:torch.Tensor):
 def _get_hash(k, v:torch.Size):
     return (v, k)
 
-def unhook(handles:list):
-    for h in handles:
+def unhook(handles:dict):
+    for h in handles.values():
         h.remove()
 
 class ModuleStatData(torch.nn.Module):
@@ -325,10 +325,12 @@ class ModelLayerStatistics(torch.nn.Module):
         self.shared_ref['val_by_target'] = dict()
         self.flush_to_disk = flush_to_disk
 
-        f = lambda layer, name, tree_name: self._set_statistics_f(layer=layer, name=name, tree_name=tree_name)
+        f = lambda layer, name, tree_name, new_tree_name: layer.register_forward_hook(
+            self._set_statistics_f(layer=layer, name=name, tree_name=tree_name, new_tree_name=new_tree_name)
+        )
         self.handles = hook_model(model=model, fun=f, hook_to=hook_to, verbose=hook_verbose)
 
-    def _set_statistics_f(self, layer, name, tree_name):
+    def _set_statistics_f(self, layer, name, tree_name, new_tree_name):
         full_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
         stat = ModuleStat(device=self.device, full_name=full_name, shared_ref=self.shared_ref, flush_to_disk=self.flush_to_disk)
         self.layers[full_name] = stat
@@ -373,7 +375,7 @@ class ModelLayerStatistics(torch.nn.Module):
 
     def unhook(self):
         if(not self.deleted):
-            for _, _, v in self.handles:
+            for v in self.handles.values():
                 v.remove()
             self.deleted = True
 
@@ -522,8 +524,10 @@ class LayerGradPruning(LayerBase):
         self.by_class  = dict()
 
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):           
-
         def inner(module:torch.nn.Module, grad_input:torch.Tensor, grad_output:torch.Tensor):
+            """
+                Sort std by descending order and zeros neurons that have the biggest std in given layer.
+            """
             data:ModuleStatData = layer_stat_data
             h = _get_hash(k=self.current_cl, v=grad_input[0].shape[1:])
             std = data.std[h].to(self.device)
@@ -535,6 +539,30 @@ class LayerGradPruning(LayerBase):
             # return val should match input
             # Since backprop works in reverse, grad_output is what got propagated 
             # from the next layer while grad_input is what will be sent to the previous one.
+            return (grad_input, )
+
+        return module.register_full_backward_hook(inner)
+
+class LayerGradActivationPruning(LayerBase):
+    def __init__(self, device, percent) -> None:
+        super().__init__(device=device)
+        
+        self.percent = percent
+        self.by_class  = dict()
+
+    def hook_fun(self, module:torch.nn.Module, name:str, tree_name, new_tree_name):
+        def inner(module:torch.nn.Module, grad_input:torch.Tensor, grad_output:torch.Tensor):
+            """
+                Look which neurons have the smallest gadient and zero them.
+            """
+            grad_input = grad_input[0].clone()
+            grad_input_view = grad_input.view(grad_input.shape[0], -1)
+            B = grad_input_view.shape[0]
+            k = int(grad_input_view.shape[1] * self.percent)
+            # magic from https://discuss.pytorch.org/t/is-it-possible-use-torch-argsort-output-to-index-a-tensor/134327/2
+            i0 = torch.arange(B).unsqueeze(-1).expand(B, k)
+            i1 = torch.topk(grad_input_view, k, dim = 1, largest=False).indices.expand(B, k)
+            grad_input_view[i0, i1] = 0.0
             return (grad_input, )
 
         return module.register_full_backward_hook(inner)
