@@ -411,7 +411,7 @@ class ModelLayerStatistics(torch.nn.Module):
 def hook_model_stats(model:torch.nn.Module, stats: dict, fun, 
     hook_to:list[str]|list[torch.nn.Module|list]=None) -> list:
     """
-        fun - has signature fun(module, input, output, layer_stat_data)
+        fun - has signature fun(module, full_name, layer_stat_data) that calls any module hook function and returns handle to it
     """
     if(stats is None):
         raise Exception('Constant statistics reference is "None".')
@@ -443,9 +443,9 @@ def _hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str, ha
                 (new_tree_name in hook_to or module.__class__.__name__ in hook_to)) 
             or (isinstance(hook_to, bool) and hook_to)):
             layer_stat_data = stats[new_tree_name].get_const_data()
-            handles.append(module.register_forward_hook(
-                fun(full_name=new_tree_name, layer_stat_data=layer_stat_data)
-            ))
+            handles.append(
+                fun(module=module, full_name=new_tree_name, layer_stat_data=layer_stat_data)
+            )
             to_append = new_tree_name
             if(isinstance(hook_to, list) and module.__class__.__name__ in hook_to):
                 to_append = module.__class__.__name__
@@ -454,23 +454,11 @@ def _hook_model_stats(model:torch.nn.Module, stats: dict, fun, tree_name:str, ha
         _hook_model_stats(model=module, stats=stats, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, already_hooked=already_hooked)
     return handles
 
-
-class LayerLoss():
-    def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
-        self.loss_list = []
+class LayerBase():
+    def __init__(self, device) -> None:
+        self.device = device
         self.current_batch_classes:torch.Tensor = None
         self.archived_batch_classes = None
-        self.scaling = scaling
-        self.losses_data = dict()
-        self.device = device
-        self.del_cov_after = del_cov_after
-        print(f'LAYER_LOSS: Scaling {self.scaling}')
-
-    def _set_archived(self, classes:torch.Tensor):
-        if(self.archived_batch_classes is None):
-            self.archived_batch_classes = classes
-        else:
-            self.archived_batch_classes = torch.cat(self.archived_batch_classes, classes)
 
     def set_current_batch_classes(self, classes):
         if(isinstance(classes, list)):
@@ -482,13 +470,28 @@ class LayerLoss():
             raise Exception(f'Unrecongized data type: "{type(classes)}"')
         self._set_archived(classes=classes)
 
+    def _set_archived(self, classes:torch.Tensor):
+        if(self.archived_batch_classes is None):
+            self.archived_batch_classes = classes
+        else:
+            self.archived_batch_classes = torch.cat(self.archived_batch_classes, classes)
+        
     def set_current_class(self, cl):
         if(isinstance(cl, torch.TensorType)):
             self.current_cl = cl.item()
         else:
             self.current_cl = cl
-            
-    def hook_fun(self, full_name:str, layer_stat_data):
+
+class LayerLoss(LayerBase):
+    def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
+        super().__init__(device=device)
+
+        self.loss_list = []
+        self.scaling = scaling
+        self.del_cov_after = del_cov_after
+        print(f'LAYER_LOSS: Scaling {self.scaling}')    
+    
+    def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             data:ModuleStatData = layer_stat_data
             h = _get_hash(k=self.current_cl, v=output.shape[1:])
@@ -502,7 +505,7 @@ class LayerLoss():
                     torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
                 ).to(input[0].device)
             )
-        return inner
+        return module.register_forward_hook(inner)
         
     def gather_loss(self, loss) -> torch.Tensor:
         if(len(self.loss_list) == 0):
@@ -510,6 +513,31 @@ class LayerLoss():
         sum_loss = torch.sum(torch.stack(self.loss_list))
         self.loss_list = []
         return loss * sum_loss
+
+class LayerGradPruning(LayerBase):
+    def __init__(self, device, percent) -> None:
+        super().__init__(device=device)
+        
+        self.percent = percent
+        self.by_class  = dict()
+
+    def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):           
+
+        def inner(module:torch.nn.Module, grad_input:torch.Tensor, grad_output:torch.Tensor):
+            data:ModuleStatData = layer_stat_data
+            h = _get_hash(k=self.current_cl, v=grad_input[0].shape[1:])
+            std = data.std[h].to(self.device)
+            to = int(std.shape[0] * self.percent)
+            indices = torch.argsort(std, descending=True)[:to]
+            grad_input = grad_input[0].clone()
+            grad_input_view = grad_input.view(grad_input.shape[0], -1)
+            grad_input_view[:, indices] = 0.0
+            # return val should match input
+            # Since backprop works in reverse, grad_output is what got propagated 
+            # from the next layer while grad_input is what will be sent to the previous one.
+            return (grad_input, )
+
+        return module.register_full_backward_hook(inner)
 
 def collect_model_layer_stats(
     model:torch.nn.Module, 

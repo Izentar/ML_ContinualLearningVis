@@ -88,6 +88,8 @@ class CLLoop(Loop):
         save_layer_stats=None,
         load_layer_stats=None,
         ll_scaling=0.01,
+        use_grad_pruning_at=None,
+        grad_pruning_percent=0.01,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -129,6 +131,8 @@ class CLLoop(Loop):
         self.data_module = data_module
         self.progress_bar = progress_bar
         self.advance_clear_dreams = advance_clear_dreams
+        self.use_grad_pruning_at = use_grad_pruning_at
+        self.grad_pruning_percent = grad_pruning_percent
 
         self.enable_data_parser = data_passer is not None
         self.data_passer = data_passer if data_passer is not None else {}
@@ -217,28 +221,41 @@ class CLLoop(Loop):
     def _try_generate_dream(self):
         main_enable = utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop)
         if main_enable:
-            layer_loss = None
-            loss_layer_handles = None
+            layer_hook_obj = []
+            loss_layer_handles = []
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                layer_loss = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after, scaling=self.ll_scaling)
-                loss_layer_handles = layer_stat_framework.hook_model_stats(
+                tmp = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after, scaling=self.ll_scaling)
+                layer_hook_obj.append(tmp)
+                loss_layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
-                    fun=layer_loss.hook_fun, 
+                    fun=tmp.hook_fun, 
                     hook_to=self.layer_stats_hook_to
-                )
+                ))
+            if(utils.check_python_index(self.use_grad_pruning_at, self.num_loops, self.current_loop)):
+                print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                self._try_load_model_layer_stats()
+                tmp = layer_stat_framework.LayerGradPruning(device=self.layer_stats_loss_device, percent=self.grad_pruning_percent)
+                layer_hook_obj.append(tmp)
+                loss_layer_handles.append(layer_stat_framework.hook_model_stats(
+                    model=self.trainer.lightning_module, 
+                    stats=self.model_stats, 
+                    fun=tmp.hook_fun, 
+                    hook_to=self.layer_stats_hook_to
+                ))
             
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
             self.trainer.datamodule.generate_synthetic_data(
                 model=self.trainer.lightning_module, 
                 task_index=self.current_task, 
-                layer_loss_obj=layer_loss,
+                layer_hook_obj=layer_hook_obj,
             )
-            if(loss_layer_handles is not None):
-                unhook(loss_layer_handles)
+            if(len(loss_layer_handles) != 0):
+                for l in loss_layer_handles:
+                    unhook(l)
             print("DREAMING END")
 
     def _model_weigth_sanity_check(self):

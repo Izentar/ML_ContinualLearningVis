@@ -18,22 +18,11 @@ class SAE_CIFAR(nn.Module, ModelBase):
             in_channels=32, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
         )
 
-        self.relu = torch.nn.ReLU(inplace=True)
+        self.relu = torch.nn.ReLU()
+        self.relu_end = torch.nn.ReLU()
 
         self.ln_enc1 = nn.Linear(in_features=50176, out_features=ln_hidden1)
         self.ln_encode_cl = nn.Linear(in_features=ln_hidden1, out_features=num_classes)
-
-        self.ln_decode_cl = nn.Linear(in_features=num_classes, out_features=ln_hidden1)
-        self.ln_dec1 = nn.Linear(in_features=ln_hidden1, out_features=50176)
-        self.conv_dec1 = nn.ConvTranspose2d(
-            in_channels=64, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
-        )
-        self.conv_dec2 = nn.ConvTranspose2d(
-            in_channels=32, out_channels=3, kernel_size=(3, 3), stride=(1, 1)
-        )
-
-        #self.fake_relu = custom_modules.FakeReLUM()
-        #self.fc = nn.Linear(in_features=last_hidd_layer, out_features=num_classes)
 
         self._initialize_weights()
     
@@ -78,7 +67,7 @@ class SAE_CIFAR(nn.Module, ModelBase):
         conv_to_linear_shape = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
         xe = xe.reshape(-1, conv_to_linear_shape[1] * conv_to_linear_shape[2] * conv_to_linear_shape[3])
-        xe = self.relu(self.ln_enc1(xe))
+        xe = self.relu_end(self.ln_enc1(xe))
 
         #xe_latent_pre_relu = self.fc2_3(xe)
         #xe_latent = relu(xe_latent_pre_relu)
@@ -150,13 +139,6 @@ class SAE_CIFAR_GAUSS(SAE_CIFAR):
         xe_latent_pre_relu = self.ln_encode_cl(xe)
 
         return xe_latent_pre_relu
-
-    def forward_decoder(self, xe, shp):
-        xd = gaussA(self.ln_decode_cl(xe))
-        xd = gaussA(self.ln_dec1(xd))
-        xd = torch.reshape(xd, (shp[0], shp[1], shp[2], shp[3]))
-        xd = gaussA(self.conv_dec1(xd))
-        return sigmoid(self.conv_dec2(xd))
 
 class SAE_CIFAR_CONJ(SAE_CIFAR_GAUSS):
     def __init__(self, num_classes, ln_hidden1=256):

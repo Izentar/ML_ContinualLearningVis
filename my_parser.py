@@ -152,6 +152,9 @@ means it will be used just like the python indexing for negative numbers.') ##**
 thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
     parser.add_argument("--ll_scaling", type=float, default=0.01, help='Scaling for layer loss.') ##**
+    parser.add_argument("--use_grad_pruning_at", type=int, help='Use gradient pruning at.') ##**
+    parser.add_argument("--grad_pruning_percent", type=int, default=0.01,
+        help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
 
 
     ######################################

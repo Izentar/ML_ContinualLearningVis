@@ -49,7 +49,7 @@ class BaseCLDataModule(LightningDataModule, ABC):
         """
         pass
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_loss_obj=None) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj=None) -> None:
         """
             Generate new dreams from the tasks.
         """
@@ -168,7 +168,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if not (self.wandb_flushed):
             print('WARNING:\tdreaming images were not flushed by wandb.')
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_loss_obj=None) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None) -> None:
         """Generate new dreams."""
         primal_dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
         #dream_targets = self.transform_targets(model=model, dream_targets=primal_dream_targets, task_index=task_index)
@@ -180,7 +180,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         name = f"run_{task_index}"
         run_name = [name, name]
-        custom_loss_gather_f = layer_loss_obj.gather_loss if hasattr(layer_loss_obj, 'gather_loss') else empty_loss_f
+        custom_loss_gather_f = layer_hook_obj.gather_loss if hasattr(layer_hook_obj, 'gather_loss') else empty_loss_f
         if(self.logger is not None and custom_loss_gather_f is not None):
             custom_loss_gather_f = utils.log_wandb_tensor_decorator(custom_loss_gather_f, run_name, self.logger)
 
@@ -208,7 +208,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             dream_targets=dream_targets, 
             iterations=iterations,
             task_index=task_index,
-            layer_loss_obj=layer_loss_obj,
+            layer_hook_obj=layer_hook_obj,
             rendervis_state=rendervis_state,
             run_name=run_name,
         )
@@ -227,7 +227,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_loss_obj, rendervis_state, run_name:list[str]):
+    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_hook_obj:list, rendervis_state, run_name:list[str]):
         new_dreams = []
         new_targets = []
 
@@ -240,7 +240,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 new_dreams=new_dreams, 
                 new_targets=new_targets, 
                 progress=self.progress_bar,
-                layer_loss_obj=layer_loss_obj,
+                layer_hook_obj=layer_hook_obj,
                 rendervis_state=rendervis_state,
                 run_name=run_name,
             )
@@ -261,7 +261,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     new_dreams=new_dreams, 
                     new_targets=new_targets, 
                     progress=progress,
-                    layer_loss_obj=layer_loss_obj,
+                    layer_hook_obj=layer_hook_obj,
                     rendervis_state=rendervis_state,
                     run_name=run_name,
                 )
@@ -269,11 +269,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
-    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_loss_obj, rendervis_state, run_name:list[str]):
+    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_hook_obj:list, rendervis_state, run_name:list[str]):
         progress.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
-            if(layer_loss_obj is not None):
-                layer_loss_obj.set_current_class(target)
+            if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
+                for l in layer_hook_obj:
+                    l.set_current_class(target)
             run_name[0] = f"{run_name[1]}/target_{target}"
             target_dreams = self._generate_dreams_for_target(
                 model=model, 
@@ -489,8 +490,8 @@ class CLDataModule(DreamDataModule):
         if(self.train_task is None or len(self.train_task) <= 0):
             raise Exception(f"Train task dataset not set properly. Used index '{self.current_task_index}' from '{len(self.train_datasets)}'")
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_loss_obj=None) -> None:
-        super().generate_synthetic_data(model=model, task_index=task_index, layer_loss_obj=layer_loss_obj)
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj=None) -> None:
+        super().generate_synthetic_data(model=model, task_index=task_index, layer_hook_obj=layer_hook_obj)
         self.__setup_dream_dataset()
 
     def _get_all_prev_dream_classes(self) -> list:

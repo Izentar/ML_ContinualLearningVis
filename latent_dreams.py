@@ -423,7 +423,9 @@ def logic(args, log_args_to_wandb=True):
         advance_clear_dreams=args.advance_clear_dreams,
         save_layer_stats=args.save_layer_stats,
         load_layer_stats=args.load_layer_stats,
-        ll_scaling=args.ll_scaling
+        ll_scaling=args.ll_scaling,
+        use_grad_pruning_at=args.use_grad_pruning_at,
+        grad_pruning_percent=args.grad_pruning_percent,
     )
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)
