@@ -428,6 +428,7 @@ def logic(args, log_args_to_wandb=True):
         grad_pruning_percent=args.grad_pruning_percent,
         use_grad_activ_pruning_at=args.use_grad_activ_pruning_at,
         grad_activ_pruning_percent=args.grad_activ_pruning_percent,
+        layer_loss_del_cov_after=args.ll_del_cov_after,
     )
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)

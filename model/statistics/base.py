@@ -93,13 +93,13 @@ class ModuleStatData(torch.nn.Module):
         for k, v in self.cov.items():
             try:
                 self._cov_inverse[k] = torch.inverse(v)
-                if(del_cov_after):
-                    del v
             except RuntimeError as e:
                 msg = f"ERROR: inverse for covariance matrix does not exist. Applying one times {failed_inverse_multiplication} as inverse covariance. Exception:\n\t{str(e)}\nMatrix:\n\t{v.shape}"
                 print(msg)
                 wandb.log({f'message/inverse_cov/key_{k}': msg})
                 self._cov_inverse[k] = torch.ones_like(v) * failed_inverse_multiplication
+            if(del_cov_after):
+                del v
         return self._cov_inverse
 
 class ModuleStat():

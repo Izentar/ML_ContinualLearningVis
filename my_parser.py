@@ -157,6 +157,7 @@ thrown, list of avaliable layers will be displayed.') ##**
         help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
     parser.add_argument("--use_grad_activ_pruning_at", type=int, help='') ##**
     parser.add_argument("--grad_activ_pruning_percent", type=float, default=0.01, help='') ##**
+    parser.add_argument("--ll_del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
 
 
     ######################################
