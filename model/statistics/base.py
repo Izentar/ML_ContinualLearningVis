@@ -514,7 +514,7 @@ class LayerLoss(LayerBase):
             raise Exception("Loss list is empty. Maybe tried to hook to the nonexistent layer?")
         sum_loss = torch.sum(torch.stack(self.loss_list))
         self.loss_list = []
-        return loss * sum_loss
+        return loss + sum_loss
 
 class LayerGradPruning(LayerBase):
     def __init__(self, device, percent) -> None:
