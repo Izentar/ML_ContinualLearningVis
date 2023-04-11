@@ -7,6 +7,9 @@ from config.default import model_to_save_file_type
 from utils.utils import hook_model, get_model_hierarchy
 import wandb
 from collections.abc import Sequence
+import pickle
+import os
+import time
 
 def _get_shape_hash(k, v:torch.Tensor):
     return (v.shape, k)
@@ -24,14 +27,134 @@ def unhook(handles:dict|list):
     else:
         raise Exception(f'Unsuported type: {type(handles)}')
 
-class ModuleStatData(torch.nn.Module):
-    def __init__(self, full_name) -> None:
+
+class LazyDiskDict():
+    # https://stackoverflow.com/questions/4014621/a-python-class-that-acts-like-dict
+    def __init__(self, root_folder=tmp_stat_folder) -> None:
         super().__init__()
-        self._cov:dict|None = None
-        self._cov_inverse:dict|None = None
-        self._M2n:dict|None = None
-        self._mean:dict|None = None
-        self._old_mean:dict|None = None
+        self.root_folder = Path(root_folder)
+        self.clear()
+
+    def __setitem__(self, key, value) -> None:
+        if(key in self._flushed_names):
+            self._disk_remove_file(k=key)
+        else:
+            self._counter += 1
+        self._in_memory_vals[key] = value
+        self._all_keys[key] = self._counter
+
+    def __getitem__(self, key):
+        if(key not in self._all_keys): # check for possible key even if flushed
+            raise KeyError((key, self._all_keys))
+        try:
+            return self._in_memory_vals[key] 
+        except KeyError:
+            self._disk_restore(k=key)
+            return self._in_memory_vals[key]
+
+    def __del__(self):
+        for k in list(self._flushed_names.keys()):
+            self._disk_remove_file(k=k)
+
+    def __delitem__(self, key):
+        self._disk_remove_file(k=key)
+        del self._in_memory_vals[key]
+        del self._all_keys[key]
+        self._counter -= 1
+
+    def __iter__(self):
+        self._disk_restore_all()
+        return iter(self._in_memory_vals)
+
+    def __len__(self):
+        return self._counter
+
+    def __repr__(self):
+        self._disk_restore_all()
+        return repr(self._in_memory_vals)
+    
+    def __str__(self):
+        return repr(self)
+
+    def clear(self):
+        self._in_memory_vals = {}
+        self._all_keys = {} # to raise KeyError if not present
+        self._flushed_types = {}
+        self._flushed_names = {}
+        self._counter = 0
+
+    def has_key(self, key):
+        return key in self._all_keys
+
+    def keys(self):
+        return self._all_keys.keys()
+
+    def values(self):
+        self._disk_restore_all()
+        return self._in_memory_vals.values()
+
+    def items(self):
+        self._disk_restore_all()
+        #exit()
+        return self._in_memory_vals.items()
+
+    def _disk_restore_all(self):
+        for k in list(self._flushed_names.keys()):
+            self._disk_restore(k=k)
+
+    def _disk_flush(self, k):
+        self._flushed_names[k] = f'{str(hash((self._in_memory_vals[k], time.time_ns, k)))}.lazyval'
+        path = self.root_folder / self._flushed_names[k]
+        with open(path, 'wb') as f:
+            if(isinstance(self._in_memory_vals[k], torch.nn.Module) or isinstance(self._in_memory_vals[k], torch.Tensor)):
+                torch.save(self._in_memory_vals[k], f=f)
+                self._flushed_types[k] = 'pytorch'
+            else:
+                pickle.dump(self._in_memory_vals[k], file=f, protocol=pickle.HIGHEST_PROTOCOL)
+                self._flushed_types[k] = 'pickle'
+        del self._in_memory_vals[k]
+
+    def _disk_restore(self, k) -> None:
+        path = self.root_folder / self._flushed_names[k]
+        with open(path, 'rb') as f:
+            match(self._flushed_types[k]):
+                case 'pytorch':
+                    self._in_memory_vals[k] = torch.load(f=f)
+                case 'pickle':
+                    self._in_memory_vals[k] = pickle.load(file=f)
+                case _:
+                    raise Exception(f'Unknown type: {self._flushed_types[k]}')
+        self._disk_remove_file(k=k)
+
+    def _disk_remove_file(self, k):
+        if(k in self._flushed_names.keys()):
+            path = self.root_folder / self._flushed_names[k]
+            if os.path.exists(path):
+                os.remove(path=path)
+            del self._flushed_names[k]
+            del self._flushed_types[k]
+
+    def flush(self, key=None):
+        """
+            Flush variable to disk
+        """
+        if(key is None):
+            for k in list(self._in_memory_vals.keys()):
+                self._disk_flush(k=k)
+        else:
+            self._disk_flush(k=key)
+
+class ModuleStatData(torch.nn.Module):
+    def __init__(self, full_name, lazydict=True) -> None:
+        super().__init__()
+        self._selected_dict_class = dict
+        if(lazydict):
+            self._selected_dict_class = LazyDiskDict
+        self._cov:LazyDiskDict|dict|None = None
+        self._cov_inverse:LazyDiskDict|dict|None = None
+        self._M2n:LazyDiskDict|dict|None = None
+        self._mean:LazyDiskDict|dict|None = None
+        self._old_mean:LazyDiskDict|dict|None = None
 
         self._counter_update = 0
         self._full_name = full_name
@@ -82,14 +205,14 @@ class ModuleStatData(torch.nn.Module):
     def cov(self, x):
         raise Exception('No setter')
 
-    def cov_inverse(self, del_cov_after=False, recalculate=False, failed_inverse_multiplication=8000):
+    def cov_inverse(self, del_cov_after=False, recalculate=False, failed_inverse_multiplication=8000, lazyload=True):
         if(self._cov_inverse is not None and not recalculate):
             return self._cov_inverse
 
         if(del_cov_after and recalculate):
             raise Exception("Bad flags. Cannot both be true: del_cov_after, recalculate")
 
-        self._cov_inverse = dict()
+        self._cov_inverse = self._selected_dict_class()
         for k, v in self.cov.items():
             try:
                 self._cov_inverse[k] = torch.inverse(v)
@@ -100,7 +223,16 @@ class ModuleStatData(torch.nn.Module):
                 self._cov_inverse[k] = torch.ones_like(v) * failed_inverse_multiplication
             if(del_cov_after):
                 del v
+        if(lazyload and hasattr(self._cov_inverse, 'flush')):
+            self._cov_inverse.flush()
         return self._cov_inverse
+
+    def lazy_flush(self):
+        self._cov.flush() if self._cov is not None and hasattr(self._cov, 'flush') else None
+        self._cov_inverse.flush() if self._cov_inverse is not None and hasattr(self._cov_inverse, 'flush') else None
+        self._M2n.flush() if self._M2n is not None and hasattr(self._M2n, 'flush') else None
+        self._mean.flush() if self._mean is not None and hasattr(self._mean, 'flush') else None
+        self._old_mean.flush() if self._old_mean is not None and hasattr(self._old_mean, 'flush') else None
 
 class ModuleStat():
     def __init__(self, device:str, full_name:str, to_update:list[str]=None, shared_ref=None, flush_to_disk:str|bool=None) -> None:
@@ -108,12 +240,6 @@ class ModuleStat():
         self.shared_ref = dict() if shared_ref is None else shared_ref
         self.device = device
         self.data = ModuleStatData(full_name=full_name)
-        #self.full_name = full_name
-
-        #self._counter_update = 0
-        #self._mean = None
-        #self._M2n = None
-        #self._cov = None
 
         # should be faster than any other solution
         self._update_call_mean = lambda x: None
@@ -199,8 +325,8 @@ class ModuleStat():
     #####         MEAN         #####
     ################################
     def _update_mean_first_call(self, k:int, v:torch.Tensor):
-        self.data._mean = dict()
-        self.data._old_mean = dict()
+        self.data._mean = self.data._selected_dict_class()
+        self.data._old_mean = self.data._selected_dict_class()
         self._update_mean_first_occurence(k=k, v=v)
         
         self._update_call_mean = self._update_mean
@@ -229,7 +355,7 @@ class ModuleStat():
     #####         STD          #####
     ################################
     def _update_std_first_call(self, k:int, v:torch.Tensor):
-        self.data._M2n = dict()
+        self.data._M2n = self.data._selected_dict_class()
         self._update_std_first_occurence(k=k, v=v)
 
         self._update_call_std = self._update_std
@@ -255,9 +381,9 @@ class ModuleStat():
     #####         COV          #####
     ################################
     def _update_cov_first_call(self, k:int, v:torch.Tensor):
-        self.data._cov = dict()
-        self.data._cov_diff = dict()
-        self.data._cov_diff_matrix = dict()
+        self.data._cov = self.data._selected_dict_class()
+        self.data._cov_diff = self.data._selected_dict_class()
+        self.data._cov_diff_matrix = self.data._selected_dict_class()
         self._update_cov_first_occurence(k=k, v=v)
 
         self._update_call_cov = self._update_cov
@@ -296,8 +422,10 @@ class ModuleStat():
         """
         return self.data.cov
         
-    def get_const_data(self) -> ModuleStatData:
+    def get_const_data(self, lazyload=True) -> ModuleStatData:
         self._restore_from_file_caller()
+        if(lazyload):
+            self.data.lazy_flush()
         return self.data
 
     def save(self, path_filename:str|Path):
@@ -353,31 +481,6 @@ class ModelLayerStatistics(torch.nn.Module):
         return self.layers[name].calc_mean()   
 
     def get_stats(self, names:list[str]=None, prepare=False) -> dict:
-        """
-            Calculate and saves internally the results.
-            After calling again, returns value faster than the first time.
-
-            Returns ModuleStat reference objects in dictionary {tree.name: obj}
-        """
-        #if(names is not None):
-        #    for n in names:
-        #        match n:
-        #            case 'cov':
-        #                for v in self.layers.values():
-        #                    v.calc_cov()
-        #            case 'mean':
-        #                for v in self.layers.values():
-        #                    v.calc_mean()
-        #            case 'std':
-        #                for v in self.layers.values():
-        #                    v.calc_std()
-        #            case _:
-        #                raise Exception(f'Unknow name: {n}')
-        #elif(prepare):
-        #    for v in self.layers.values():
-        #        v.calc_cov()
-        #        v.calc_mean()
-        #        v.calc_std()
         return self.layers
 
     def unhook(self):
@@ -468,6 +571,7 @@ class LayerBase():
         self.device = device
         self.current_batch_classes:torch.Tensor = None
         self.archived_batch_classes = None
+        self.new_cl = False
 
     def set_current_batch_classes(self, classes):
         if(isinstance(classes, list)):
@@ -490,6 +594,7 @@ class LayerBase():
             self.current_cl = cl.item()
         else:
             self.current_cl = cl
+        self.new_cl = True
 
 class LayerLoss(LayerBase):
     def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
@@ -503,6 +608,9 @@ class LayerLoss(LayerBase):
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             data:ModuleStatData = layer_stat_data
+            if(self.new_cl):
+                data.lazy_flush()
+                self.new_cl = False
             h = _get_hash(k=self.current_cl, v=output.shape[1:])
             mean = data.mean[h].to(self.device)
             cov_inverse = data.cov_inverse(del_cov_after=self.del_cov_after)[h].to(self.device)
@@ -536,6 +644,9 @@ class LayerGradPruning(LayerBase):
                 Sort std by descending order and zeros neurons that have the biggest std in given layer.
             """
             data:ModuleStatData = layer_stat_data
+            if(self.new_cl):
+                data.lazy_flush()
+                self.new_cl = False
             h = _get_hash(k=self.current_cl, v=grad_input[0].shape[1:])
             std = data.std[h].to(self.device)
             to = int(std.shape[0] * self.percent)
