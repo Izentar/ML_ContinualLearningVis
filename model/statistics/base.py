@@ -6,6 +6,7 @@ from pathlib import Path
 from config.default import model_to_save_file_type
 from utils.utils import hook_model, get_model_hierarchy
 import wandb
+from collections.abc import Sequence
 
 def _get_shape_hash(k, v:torch.Tensor):
     return (v.shape, k)
@@ -13,9 +14,15 @@ def _get_shape_hash(k, v:torch.Tensor):
 def _get_hash(k, v:torch.Size):
     return (v, k)
 
-def unhook(handles:dict):
-    for h in handles.values():
-        h.remove()
+def unhook(handles:dict|list):
+    if(isinstance(handles, dict)):
+        for h in handles.values():
+            h.remove()
+    elif(isinstance(handles, Sequence)):
+        for h in handles:
+            h.remove()
+    else:
+        raise Exception(f'Unsuported type: {type(handles)}')
 
 class ModuleStatData(torch.nn.Module):
     def __init__(self, full_name) -> None:
