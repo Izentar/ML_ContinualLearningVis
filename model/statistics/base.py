@@ -595,9 +595,10 @@ class LayerLoss(LayerBase):
     def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
         super().__init__(device=device)
 
-        self.loss_list = []
+        self.loss_dict = {}
         self.scaling = scaling
         self.del_cov_after = del_cov_after
+        self._name_gather_check = {}
         print(f'LAYER_LOSS: Scaling {self.scaling}')    
     
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
@@ -612,18 +613,18 @@ class LayerLoss(LayerBase):
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
-            self.loss_list.append(
-                self.scaling * torch.sum(
+            if(self.loss_dict.get(full_name) is not None):
+                raise Exception(f'Loss for "{full_name}" was not processed. Tried to override loss.')
+            self.loss_dict[full_name] = self.scaling * torch.sum(
                     torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
                 ).to(input[0].device)
-            )
         return module.register_forward_hook(inner)
         
     def gather_loss(self, loss) -> torch.Tensor:
-        if(len(self.loss_list) == 0):
-            raise Exception("Loss list is empty. Maybe tried to hook to the nonexistent layer?")
-        sum_loss = torch.sum(torch.stack(self.loss_list))
-        self.loss_list = []
+        if(len(self.loss_dict) == 0):
+            raise Exception("Loss dict is empty. Maybe tried to hook to the nonexistent layer?")
+        sum_loss = torch.sum(torch.stack(list(self.loss_dict.values())))
+        self.loss_dict = {}
         return loss + sum_loss
 
 class LayerGradPruning(LayerBase):
@@ -642,7 +643,7 @@ class LayerGradPruning(LayerBase):
             if(self.new_cl):
                 data.lazy_flush()
                 self.new_cl = False
-            h = _get_hash(k=self.current_cl, v=grad_input[0].shape[1:])
+            h = _get_hash(k=self.current_cl, v=grad_output[0].shape[1:])
             std = data.std[h].to(self.device)
             to = int(std.shape[0] * self.percent)
             indices = torch.argsort(std, descending=True)[:to]
