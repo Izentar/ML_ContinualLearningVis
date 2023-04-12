@@ -613,9 +613,10 @@ class LayerLoss(LayerBase):
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
-            if(self.loss_dict.get(full_name) is not None):
-                raise Exception(f'Loss for "{full_name}" was not processed. Tried to override loss.')
-            self.loss_dict[full_name] = self.scaling * torch.sum(
+            loss_dict_key = (full_name, output.shape[1:])
+            if(loss_dict_key in self.loss_dict):
+                raise Exception(f'Loss for "{loss_dict_key}" was not processed. Tried to override loss.')
+            self.loss_dict[loss_dict_key] = self.scaling * torch.sum(
                     torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
                 ).to(input[0].device)
         return module.register_forward_hook(inner)
