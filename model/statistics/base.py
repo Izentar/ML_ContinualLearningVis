@@ -515,11 +515,6 @@ class ModelLayerStatistics(torch.nn.Module):
             elif(strict):
                 raise Exception(f'Could not find key {k} in model {self.trainer.lightning_module.name()}. Used "strict" flag.')
 
-    #def __setstate__(self, state):
-    #    super().__setstate__(state)
-    #    self.__dict__['layers'] = state['layers']
-    #    self.__dict__['shared_ref'] = state['shared_ref']
-
 def hook_model_stats(model:torch.nn.Module, stats: dict, fun, 
     hook_to:list[str]|list[torch.nn.Module|list]=None) -> list:
     """
@@ -612,8 +607,8 @@ class LayerLoss(LayerBase):
                 data.lazy_flush()
                 self.new_cl = False
             h = _get_hash(k=self.current_cl, v=output.shape[1:])
-            mean = data.mean[h].to(self.device)
-            cov_inverse = data.cov_inverse(del_cov_after=self.del_cov_after)[h].to(self.device)
+            mean = data.mean[h].requires_grad_(False).to(self.device)
+            cov_inverse = data.cov_inverse(del_cov_after=self.del_cov_after)[h].requires_grad_(False).to(self.device)
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean

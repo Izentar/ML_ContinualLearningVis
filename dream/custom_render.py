@@ -313,8 +313,6 @@ class RenderVisState():
                 print(f"{Fore.RED}VIS: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
             self._transform_f = lambda x: x
 
-            
-
 def render_vis(
     render_dataclass,
     verbose=False,
@@ -339,7 +337,6 @@ def render_vis(
     iterations = max(rd.thresholds)
     progress_bar.setup_iteration(iterations=iterations)
     for i in range(1, iterations + 1):
-        #print(torch.sum(torch.abs(transform_f(image_f()))))
         def closure():
             rd.optimizer.zero_grad()
             rd.model(rd.transform_f(rd.optim_image.image()))
