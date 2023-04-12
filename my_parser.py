@@ -151,7 +151,7 @@ means it will be used just like the python indexing for negative numbers.') ##**
     parser.add_argument("--layer_stats_hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
 thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
-    parser.add_argument("--ll_scaling", type=float, default=0.01, help='Scaling for layer loss.') ##**
+    parser.add_argument("--ll_scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
     parser.add_argument("--use_grad_pruning_at", type=int, help='Use gradient pruning at.') ##**
     parser.add_argument("--grad_pruning_percent", type=float, default=0.01,
         help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
@@ -248,7 +248,17 @@ def wandb_run_name(args):
         dream = 'dream_'
         if(args.disable_dream_transforms != True):
             tr = "tr_"
-    return f"{args.model_type}_{dream}{tr}{np.random.randint(0, 5000)}"
+    text = f"{args.model_type}_{dream}{tr}"
+    if(args.use_layer_loss_at is not None and args.train_only_dream_batch_at != False):
+        text = f"{text}ll{args.ll_scaling}_"
+    if(args.replace_layer):
+        text = f"{text}replayer_"
+    if(args.use_grad_pruning_at is not None and args.use_grad_pruning_at != False):
+        text = f"{text}gp{args.grad_pruning_percent}_"
+    if(args.use_grad_activ_pruning_at is not None and args.use_grad_activ_pruning_at != False):
+        text = f"{text}gap{args.grad_activ_pruning_percent}_"
+    
+    return f"{text}{np.random.randint(0, 5000)}"
 
 def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
     """
