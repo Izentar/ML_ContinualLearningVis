@@ -179,22 +179,17 @@ class DreamDataModule(BaseCLDataModule, ABC):
             model.eval()
 
         gather_to_invoke = []
-        run_name = []
+        name = f"dream_loss/run_{task_index}"
+        run_name = [name, name]
         for l in layer_hook_obj:
-            name = f"{l.__class__.__name__}/run_{task_index}"
-            name = [name, name]
-            run_name.append(name)
             if(hasattr(l, 'gather_loss')):
-                tmp = l.gather_loss
-                if(self.logger is not None):
-                    tmp = utils.log_wandb_tensor_decorator(tmp, name, self.logger)
-                gather_to_invoke.append(tmp)
+                gather_to_invoke.append(l.gather_loss)
         def inner_custom_loss_gather_f(loss):
             for l in gather_to_invoke:
                 loss = l(loss)
             return loss
         
-        
+        custom_loss_gather_f = utils.log_wandb_tensor_decorator(inner_custom_loss_gather_f, run_name, self.logger) if(self.logger is not None) else inner_custom_loss_gather_f
 
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
         self.render_vis_display_additional_info = True
@@ -208,7 +203,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 thresholds=thresholds,
                 enable_transforms=self.enable_dream_transforms,
                 standard_image_size=self.standard_image_size,
-                custom_loss_gather_f=inner_custom_loss_gather_f,
+                custom_loss_gather_f=custom_loss_gather_f,
                 display_additional_info=self.render_vis_display_additional_info,
                 preprocess=False,
                 device=model.device,
@@ -285,9 +280,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
         progress.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
             if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
-                for l, n in zip(layer_hook_obj, run_name):
+                for l in layer_hook_obj:
                     l.set_current_class(target)
-                    n[0] = f"{n[1]}/target_{target}"
+                run_name[0] = f"{run_name[1]}/target_{target}"
             target_dreams = self._generate_dreams_for_target(
                 model=model, 
                 target=target, 
