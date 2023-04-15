@@ -20,8 +20,8 @@ class FunConfigSetBase():
         'OBJECTIVE-RESNET20-C100-DIVERSITY': 'RESNET20C100',
         'OBJECTIVE-RESNET20-C100-CHANNEL': 'RESNET20',
         'TARGET-LATENT-DECODE': 'CL-MODEL-ISLAND-TEST',
-        'CL-MODEL': 'TARGET-DEFAULT',
-        'TARGET-DEFAULT': 'CL-MODEL',
+        'CL-MODEL': 'target-classic',
+        'target-classic': 'CL-MODEL',
     }
     
     GET_MODEL = {
@@ -220,7 +220,7 @@ class FunConfigSetPredefined(FunConfigSet):
         ],
         "cl-sae-crossentropy": [
             "select-decremental", 
-            "target-default", 
+            "target-classic", 
             "split-decremental", 
             "objective-channel", 
             "sae", 
@@ -228,11 +228,19 @@ class FunConfigSetPredefined(FunConfigSet):
         ],
         "resnet-pretrain-c100": [
             "select-decremental", 
-            "target-default", 
+            "target-classic", 
             "split-decremental", 
             "objective-channel", 
             "resnet20c100", 
             "cl-model"
+        ],
+        "sae-chiloss": [
+            "SELECT-CLASSIC", 
+            "target-classic", 
+            "NO-SPLIT", 
+            "objective-channel", 
+            "sae", 
+            "CL-MODEL-ISLAND"
         ]
 
     }

@@ -163,8 +163,11 @@ class CLModel(base.CLBase):
             model_out = self(x)
         latent, model_out_dict = self.get_model_out_data(model_out)
         
-        a = torch.abs(latent.detach()).sum().cpu().item()
-        self.log("train_loss/latent_model_abs_sum", a)
+        #a = torch.abs(latent.detach()).sum().cpu().item()
+        #self.log("train_loss/latent_model_abs_sum", a)
+        for k, v in self.loss_f.to_log.items():
+            self.log(k, v)
+
         loss = self.process_losses_normal(
             x=x, 
             y=y, 
@@ -257,7 +260,7 @@ class CLModel(base.CLBase):
         return "model." + self.model.get_root_name()
 
     def loss_to(self, device):
-        return
+        self.loss_f.to(device)
 
     def get_obj_str_type(self) -> str:
         return 'CLModel_' + type(self.model).__qualname__
@@ -391,17 +394,8 @@ class CLModelWithIslands(CLModel):
         self.alpha = alpha
         self.buff_on_same_device = buff_on_same_device
 
-    def call_loss(self, input, target, train=True, **kwargs):
-        return self.loss_f(input, target, train=train)
-
-    def loss_to(self, device):
-        self.loss_f.to(device)
-
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self.loss_f(latent, y)
-
-        for k, v in self.loss_f.to_log.items():
-            self.log(k, v)
 
         if(self.norm_lambda != 0.):
             norm = self.norm(latent, self.norm_lambda)
@@ -410,15 +404,6 @@ class CLModelWithIslands(CLModel):
         self.log(f"{log_label}/island", loss)
 
         return loss
-
-    def process_losses_dreams(self, x, y, latent, log_label, model_out_dict=None):
-        return self.process_losses_normal(
-            x=x, 
-            y=y, 
-            latent=latent, 
-            model_out_dict=model_out_dict,
-            log_label=log_label
-        )
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
@@ -440,7 +425,6 @@ class CLModelWithIslands(CLModel):
         self.test_acc(self.loss_f.classify(latent), y)
         self.log("test_acc", self.test_acc)
 
-
     def training_step(self, batch, batch_idx):
         if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):
             self.cyclic_latent_buffer.to(self.device)
@@ -450,4 +434,7 @@ class CLModelWithIslands(CLModel):
         return self.cyclic_latent_buffer
 
     def get_obj_str_type(self) -> str:
-        return 'CLModelWithIslands_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__
+        if(self._robust_model_set):
+            return 'CLModelWithIslands_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__
+        return 'CLModelWithIslands_' + type(self).__qualname__ + '_' + type(self.model).__qualname__
+        

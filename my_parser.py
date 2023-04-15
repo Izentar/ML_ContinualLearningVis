@@ -24,7 +24,7 @@ takes precedence over command line arguments. Config files will be applied in or
     parser.add_argument("--config_export", type=str, help='File where to export current config.')
     parser.add_argument("--cpu", action="store_true")
     parser.add_argument("--model_type", type=str, help='Model type') ##**
-    parser.add_argument("--framework_type", type=str, default='cl-sae-crossentropy', help='Framework type') ##**
+    parser.add_argument("--framework_type", type=str, default='sae-chiloss', help='Framework type') ##**
     parser.add_argument("-d", "--dataset", type=str) ##**
     parser.add_argument("--early_finish_at", type=int, default=-1, help='Finish training loop at desired epoch. Default "-1"')
     parser.add_argument("--disable_shuffle", action="store_false", help='Flag to shuffle train normal and dream datasets. If \

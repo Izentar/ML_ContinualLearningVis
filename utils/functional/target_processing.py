@@ -57,7 +57,7 @@ def target_processing_latent_mean(target, model, *args, **kwargs):
 
 class TargetProcessingManager():
     GET_TARGET_PROCESSING = {
-        'TARGET-DEFAULT': target_processing_default,
+        'TARGET-CLASSIC': target_processing_default,
         'TARGET-LATENT-DECODE': target_processing_latent_decode,
         'TARGET-LATENT-SAMPLE-NORMAL-STD': target_processing_latent_sample_normal_std,
         'TARGET-LATENT-SAMPLE-NORMAL-MEAN-STD-FULL-TARGETS': target_processing_latent_sample_normal_mean_std_full_targets,

@@ -30,6 +30,7 @@ class DummyLoss(torch.nn.Module):
     def __init__(self, loss):
         super().__init__()
         self.loss = loss
+        self.to_log = {}
         
     def __call__(self, input, target, train=True):
         return self.loss(input, target)
@@ -46,17 +47,20 @@ class DummyLoss(torch.nn.Module):
     def __str__(self):
         return 'DUMMY_LOSS__' + str(type(self.loss).__name__)
 
+    def to(self, device):
+        pass
+
 class ChiLossBase(torch.nn.Module):
     def __init__(self, cyclic_latent_buffer):
         super().__init__()
-        self.centers_of_clouds = cyclic_latent_buffer
+        self.cloud_data = cyclic_latent_buffer
         self.to_log = {}
         self._train = True
 
     def __call__(self, input, target, train=True):
         assert not torch.any(torch.isnan(input)), f"Input is NaN\n{input}"
         if self._train and train:
-            self.centers_of_clouds.push_target(input, target)
+            self.cloud_data.push_target(input, target)
 
     def __str__(self):
         return 'CHI_LOSS_BASE'
@@ -70,7 +74,7 @@ class ChiLossBase(torch.nn.Module):
         """
         means = []
         target = []
-        cloud_centers = self.centers_of_clouds.mean()
+        cloud_centers = self.cloud_data.mean()
         for key, val in cloud_centers.items():
             means.append(val.to(example.device))
             target.append(torch.tensor(key, dtype=torch.int8, device=example.device))
@@ -95,8 +99,8 @@ class ChiLossBase(torch.nn.Module):
 
     def sample(self, selected_class, utype='multivariate'):
         assert (utype == 'multivariate'), f"Not implemented {utype}"
-        cloud_mean = self.centers_of_clouds.mean_target(selected_class)
-        cloud_cov = self.centers_of_clouds.cov_target(selected_class)
+        cloud_mean = self.cloud_data.mean_target(selected_class)
+        cloud_cov = self.cloud_data.cov_target(selected_class)
         mnormal = MultivariateNormal(loc=cloud_mean, covariance_matrix=cloud_cov)
         return mnormal.sample()
 
@@ -182,7 +186,7 @@ class ChiLoss(ChiLossBase):
             self.call_idx += 1
             if(self.call_idx > self.start_mean_buff_at):
                 #self.cyclic_buffer.push_target(input, target)
-                means = self.cyclic_latent_buffer.mean()
+                means = self.cloud_data.mean()
                 #dist = self._calc_dist_from_means(input, means)
 
                 mean_distance = self._fill_target_means(target, means)
@@ -190,7 +194,113 @@ class ChiLoss(ChiLossBase):
         
         return self._calculate_batch_mean(input, target)
 
-    # ------------------------------------------------------------------------------------
+    def __call__(self, input, target, train=True):
+        super().__call__(input, target, train=train)
+
+        k = input.size(dim=1)
+        batch_size = input.size(dim=0)
+
+        target_stacked = target.repeat((len(target), 1))
+        positive_mask = (target_stacked == target_stacked.T).float()
+        negative_mask = (target_stacked != target_stacked.T).float()
+
+        means = self._calc_mean_dist(input, target) #/ 2# np.sqrt(2)
+
+        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
+        z_negative = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
+
+        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
+        second_part_positive = z_positive / (2 * k)
+
+        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
+        second_part_negative = z_negative / (2 * k)
+
+        positive_loss = (first_part_positive + second_part_positive) * positive_mask
+        negative_loss = (first_part_negative + second_part_negative) * negative_mask     
+
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size).sum()
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
+
+        negative_loss = (negative_loss * (self.rho/self.sigma)**2).sum()
+
+        self.to_log['positive_loss'] = positive_loss.detach()
+        self.to_log['negative_loss'] = negative_loss.detach()
+        loss = positive_loss + negative_loss
+        return loss
+        
+class ChiLoss_SimpleMeanBuffer(ChiLoss):
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1, eps=0.00001, start_mean_buff_at=500):
+        super().__init__(cyclic_latent_buffer, loss_means_from_buff, sigma, rho, eps, start_mean_buff_at)
+
+    def __call__(self, input, target, train=True):
+        super().__call__(input, target, train=train)
+        k = input.size(dim=1)
+        batch_size = input.size(dim=0)
+
+        target_stacked = target.repeat((len(target), 1))
+        positive_mask = (target_stacked == target_stacked.T).float()
+        negative_mask = (target_stacked != target_stacked.T).float()
+
+        means = self._calc_mean_dist(input, target)
+
+        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
+        z_negative = torch.cdist(input, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
+
+        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
+        second_part_positive = z_positive / (2 * k)
+
+        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
+        second_part_negative = z_negative / (2 * k)
+
+        positive_loss = (first_part_positive + second_part_positive) * positive_mask
+        negative_loss = (first_part_negative + second_part_negative) * negative_mask        
+
+
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
+
+        self.to_log['positive_loss'] = positive_loss.detach().sum()
+        self.to_log['negative_loss'] = negative_loss.detach().sum()
+        loss = positive_loss + negative_loss * (self.rho/self.sigma)**2 
+        return loss.sum()
+
+class ChiLoss_Simple(ChiLoss):
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1, eps=0.00001, start_mean_buff_at=500):
+        super().__init__(cyclic_latent_buffer, loss_means_from_buff, sigma, rho, eps, start_mean_buff_at)
+    
+    def __call__(self, input, target, train=True):
+        super().__call__(input, target, train=train)
+        k = input.size(dim=1)
+        batch_size = input.size(dim=0)
+
+        target_stacked = target.repeat((len(target), 1))
+        positive_mask = (target_stacked == target_stacked.T).float()
+        negative_mask = (target_stacked != target_stacked.T).float()
+
+        z = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2
+        
+        z_positive = z * positive_mask / (2 * self.sigma**2) 
+        z_negative = z * negative_mask / (2 * self.rho**2) 
+
+        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
+        second_part_positive = z_positive / (2 * k)
+
+        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
+        second_part_negative = z_negative / (2 * k)
+
+        positive_loss = first_part_positive + second_part_positive
+        negative_loss = first_part_negative + second_part_negative       
+
+        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
+        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
+        self.to_log['positive_loss'] = positive_loss.detach().sum()
+        self.to_log['negative_loss'] = negative_loss.detach().sum()
+        loss = positive_loss + negative_loss
+        return loss.sum()
+
+class ChiLoss_OneClassBatch(ChiLoss):
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1, eps=0.00001, start_mean_buff_at=500):
+        super().__init__(cyclic_latent_buffer, loss_means_from_buff, sigma, rho, eps, start_mean_buff_at)
 
     def _count_batch_class_occurrences(self, key) -> None:
         for k, val in self.forget_counter_by_class.items():
@@ -232,7 +342,8 @@ class ChiLoss(ChiLossBase):
         for d in to_delete:
             del self.start_latent_means[d]
 
-    def _one_class_batch(self, input, target, train=True):
+    def __call__(self, input, target, train=True):
+        super().__call__(input, target, train=train)
         k = input.size(dim=1)
         batch_size = input.size(dim=0)
 
@@ -265,105 +376,6 @@ class ChiLoss(ChiLossBase):
         loss = positive_loss.sum() + (negative_loss * (self.rho/self.sigma)**2).sum()
         
         return loss
-
-    def _simple_chi_loss(self, input, target):
-        k = input.size(dim=1)
-        batch_size = input.size(dim=0)
-
-        target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float()
-        negative_mask = (target_stacked != target_stacked.T).float()
-
-        z = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2
-        
-        z_positive = z * positive_mask / (2 * self.sigma**2) 
-        z_negative = z * negative_mask / (2 * self.rho**2) 
-
-        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
-        second_part_positive = z_positive / (2 * k)
-
-        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
-        second_part_negative = z_negative / (2 * k)
-
-        positive_loss = first_part_positive + second_part_positive
-        negative_loss = first_part_negative + second_part_negative       
-
-        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
-        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
-        self.to_log['positive_loss'] = positive_loss.detach().sum()
-        self.to_log['negative_loss'] = negative_loss.detach().sum()
-        loss = positive_loss + negative_loss
-        return loss.sum()
-
-    def _simple_mean_from_batch_chi_loss(self, input, target):
-        k = input.size(dim=1)
-        batch_size = input.size(dim=0)
-
-        target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float()
-        negative_mask = (target_stacked != target_stacked.T).float()
-
-        means = self._calc_mean_dist(input, target) #/ 2# np.sqrt(2)
-
-        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
-        z_negative = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
-
-        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
-        second_part_positive = z_positive / (2 * k)
-
-        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
-        second_part_negative = z_negative / (2 * k)
-
-        positive_loss = (first_part_positive + second_part_positive) * positive_mask
-        negative_loss = (first_part_negative + second_part_negative) * negative_mask     
-
-        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size).sum()
-        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
-
-        negative_loss = (negative_loss * (self.rho/self.sigma)**2).sum()
-
-        self.to_log['positive_loss'] = positive_loss.detach()
-        self.to_log['negative_loss'] = negative_loss.detach()
-        loss = positive_loss + negative_loss
-        return loss
-
-    def _simple_mean_buffer_chi_loss(self, input, target):
-        k = input.size(dim=1)
-        batch_size = input.size(dim=0)
-
-        target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float()
-        negative_mask = (target_stacked != target_stacked.T).float()
-
-        means = self._calc_mean_dist(input, target)
-
-        z_positive = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2) 
-        z_negative = torch.cdist(input, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.rho**2)    
-
-        first_part_positive = -(k / 2 - 1) * torch.log(z_positive / k + self.eps)
-        second_part_positive = z_positive / (2 * k)
-
-        first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
-        second_part_negative = z_negative / (2 * k)
-
-        positive_loss = (first_part_positive + second_part_positive) * positive_mask
-        negative_loss = (first_part_negative + second_part_negative) * negative_mask        
-
-
-        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size)
-        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size)
-
-        self.to_log['positive_loss'] = positive_loss.detach().sum()
-        self.to_log['negative_loss'] = negative_loss.detach().sum()
-        loss = positive_loss + negative_loss * (self.rho/self.sigma)**2 
-        return loss.sum()
-
-    def __call__(self, input, target, train=True):
-        super().__call__(input, target, train=train)
-        #return self._one_class_batch(input, target, train=train)
-        #return self._simple_chi_loss(input, target)
-        return self._simple_mean_from_batch_chi_loss(input, target)
-        #return self._simple_mean_buffer_chi_loss(input, target)
 
 class ChiLossOneHot(ChiLossBase):
     """
