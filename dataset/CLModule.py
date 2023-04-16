@@ -170,9 +170,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None) -> None:
         """Generate new dreams."""
-        primal_dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
-        #dream_targets = self.transform_targets(model=model, dream_targets=primal_dream_targets, task_index=task_index)
-        dream_targets = primal_dream_targets
+        dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
 
         model_mode = model.training # from torch.nn.Module
         if model_mode:
@@ -338,8 +336,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         progress_bar.setup_repeat(target=target, iterations=iterations)
         for _ in range(iterations):
             target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
-            objective = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
-            rendervis_state.objective_f = objective
+            rendervis_state.objective_f = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
 
             numpy_render = torch.from_numpy(
                 render_vis(
@@ -637,13 +634,13 @@ class CLDataModule(DreamDataModule):
         #    pin_memory=True
         #)
 
-    def transform_targets(self, model, dream_target, task_index):
-        if self.steps_to_locate_mean is not None:
-            if not self.calculated_mean_std:
-                self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
-            return self.target_processing_f(target=dream_target, model=model, mean=self.mean, std=self.std)
+    #def transform_targets(self, model, dream_target, task_index):
+    #    if self.steps_to_locate_mean is not None:
+    #        if not self.calculated_mean_std:
+    #            self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
+    #        return self.target_processing_f(target=dream_target, model=model, mean=self.mean, std=self.std)
 
-        return self.target_processing_f(target=dream_target, model=model)
+    #    return self.target_processing_f(target=dream_target, model=model)
 
     def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
         """
@@ -676,7 +673,7 @@ class CLDataModule(DreamDataModule):
         dataset_targets = get_target_from_dataset(self.train_task, toTensor=True)
 
         classes = torch.unique(dataset_targets).to(model.device)
-        #model_output_size = model(model.get_objective_target()).size(dim=1)
+        #model_output_size = model(model.get_objective_target_name()).size(dim=1)
         #classes_buffer = torch.zeros((len(classes), steps_to_locate_mean, 10),
         #    device=model.device,
         #    dtype=torch.float64)

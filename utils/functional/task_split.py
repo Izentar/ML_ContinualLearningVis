@@ -1,5 +1,12 @@
 import numpy as np
 
+"""
+    Strategy for splitting number of classes into an array of tasks
+    It is also used to split dataset into corresponding chunks.
+    For example we have 5 classes and we want to have 2 task. If we go by task_split_classic, then split will look like
+    [[0, 1], [2, 3], [4]]
+    After this, the select_task will be called.
+"""
 
 def task_split_classic(num_classes, num_tasks):
     # [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]

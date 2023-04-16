@@ -59,7 +59,8 @@ to choose epoch at which to call it.')
     parser.add_argument("--num_loops", type=int, default=1, help='How many loops will be traversed. \
 Each new loop will increment current task index. If "num_loops">"num_tasks" then at each new loop \
 the last task in array will be used.') ##**
-    parser.add_argument("--epochs_per_task", type=int, default=5, help='How many epochs do per one task in "num_tasks"') ##**
+    parser.add_argument("--epochs_per_task", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
+Array size should be the same as num_loops for each loop.') ##**
     parser.add_argument("--lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
     parser.add_argument("--gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
     parser.add_argument("--norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \

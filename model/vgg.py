@@ -183,7 +183,7 @@ class VGGBaseModel(base.CLBase):
         self.test_acc(y_model_out, y)
         self.log("test_step_acc", self.test_acc)
 
-    def get_objective_target(self):
+    def get_objective_target_name(self):
         return "classifier"
 
 
@@ -195,8 +195,8 @@ class VGGDefault(VGGBaseModel):
     def forward(self, *args):
         return self.vgg(*args)
 
-    def get_objective_target(self):
-        ret = super().get_objective_target()
+    def get_objective_target_name(self):
+        ret = super().get_objective_target_name()
         return "vgg." + ret
 
     def get_root_objective_target(self): 

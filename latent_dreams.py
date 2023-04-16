@@ -277,11 +277,6 @@ def logic(args, log_args_to_wandb=True):
         print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
     if(args.fast_dev_run):
-        pass
-        #num_tasks = 3
-        #num_classes = 6
-        #dreaming_batch_size = 8
-        #epochs_per_task = 2
         args.dreams_per_target = 64
 
     dream_dataset_class = dream_sets.DreamDatasetWithLogits if args.train_with_logits else dream_sets.DreamDataset

@@ -111,7 +111,7 @@ class CLBase(LightningModule):
         pass
 
     @abstractmethod
-    def get_objective_target(self):
+    def get_objective_target_name(self):
         """
             It should return the target layer name currently used in model.
         """

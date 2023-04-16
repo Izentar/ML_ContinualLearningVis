@@ -1,12 +1,19 @@
 import numpy as np
 import math
 
+"""
+    Called after task_split.py.
+    Strategy for selecting current classes from task list and task index.
+    For example, we have a list of [[0, 1, 2], [0, 1], [1]] and a task index 1. Selecting 
+    select_task_classic will give a list [0, 1].
+    After choosing task classes, for each target class there will be processed by function from target_precessing.py.
+"""
+
 def select_task_classic(tasks, task_index):
     """
         Get only current task set.
     """
-    current_split = set(tasks[task_index])
-    return current_split
+    return set(tasks[task_index])
 
 def select_task_decremental(tasks, task_index):
     """

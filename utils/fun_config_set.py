@@ -236,9 +236,9 @@ class FunConfigSetPredefined(FunConfigSet):
         ],
         "sae-chiloss": [
             "SELECT-CLASSIC", 
-            "target-classic", 
+            "TARGET-LATENT-SAMPLE-NORMAL-STD", 
             "NO-SPLIT", 
-            "objective-channel", 
+            "OBJECTIVE-LATENT-LOSSF-CREATOR", 
             "sae", 
             "CL-MODEL-ISLAND"
         ]

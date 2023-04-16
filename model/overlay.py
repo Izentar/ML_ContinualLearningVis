@@ -4,7 +4,7 @@ from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 from robustness import model_utils
-from loss_function.chiLoss import ChiLoss, l2_latent_norm, ChiLossOneHot
+from loss_function.chiLoss import ChiLoss, l2_latent_norm, OneHot
 from utils.data_manipulation import select_class_indices_tensor
 from utils.cyclic_buffer import CyclicBufferByClass
 from loss_function.chiLoss import ChiLossBase, DummyLoss
@@ -20,13 +20,13 @@ class SAE_standalone(base.CLBase):
         self.model = SAE_CIFAR(num_classes)
         self.enable_robust = enable_robust
 
-        self.loss_f = loss_f if loss_f is not None else cross_entropy
+        self._loss_f = loss_f if loss_f is not None else cross_entropy
         self.reconstruction_loss_f = reconstruction_loss_f if reconstruction_loss_f is not None else mse_loss
 
     def training_step_normal(self, batch):
         x, y = batch
         y_hat, y_reconstruction = self(x)
-        loss_classification = self.loss_f(y_hat, y)
+        loss_classification = self._loss_f(y_hat, y)
         loss_reconstruction = self.reconstruction_loss_f(y_reconstruction, Variable(x))
         alpha = 0.05
         loss = alpha * loss_classification + (1 - alpha) * loss_reconstruction
@@ -40,7 +40,7 @@ class SAE_standalone(base.CLBase):
     def training_step_dream(self, batch):
         x, y = batch
         y_hat, y_reconstruction = self(x)
-        loss_classification = self.loss_f(y_hat, y)
+        loss_classification = self._loss_f(y_hat, y)
         loss_reconstruction = self.reconstruction_loss_f(y_reconstruction, Variable(x))
         alpha = 0.05
         loss = alpha * loss_classification + (1 - alpha) * loss_reconstruction
@@ -54,7 +54,7 @@ class SAE_standalone(base.CLBase):
     def validation_step(self, batch, batch_idx, dataloader_idx):
         x, y = batch
         y_hat, _ = self(x)
-        val_loss = self.loss_f(y_hat, y)
+        val_loss = self._loss_f(y_hat, y)
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(y_hat, y)
@@ -63,12 +63,12 @@ class SAE_standalone(base.CLBase):
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat, _ = self(x)
-        test_loss = self.loss_f(y_hat, y)
+        test_loss = self._loss_f(y_hat, y)
         self.log("test_loss", test_loss)
         self.test_acc(y_hat, y)
         self.log("test_step_acc", self.test_acc)
 
-    def get_objective_target(self):
+    def get_objective_target_name(self) -> str:
         return "model.fc"
 
     def get_root_objective_target(self): 
@@ -133,11 +133,15 @@ class CLModel(base.CLBase):
             print(f'INFO: Replacing layer from "{replace_layer_from.__class__.__name__}d"')
             utils.replace_layer(self, 'model', replace_layer_from, replace_layer_to_f)
             
-        self.loss_f = loss_f if isinstance(loss_f, ChiLossBase) else DummyLoss(loss_f)
-        print(f"INFO: Using loss {str(self.loss_f)}")
+        self._loss_f = loss_f if isinstance(loss_f, ChiLossBase) else DummyLoss(loss_f)
+        print(f"INFO: Using loss {str(self._loss_f)}")
 
-        self.save_hyperparameters(ignore=['model', 'loss_f', 'optim_manager', 
+        self.save_hyperparameters(ignore=['model', '_loss_f', 'optim_manager', 
         'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f'])
+
+    @property
+    def loss_f(self):
+        return self._loss_f
 
     def _get_dataset_list(name:str):
         if name is not None:
@@ -150,7 +154,7 @@ class CLModel(base.CLBase):
         return self.model(*args, **kwargs)
 
     def call_loss(self, input, target, train, **kwargs):
-        return self.loss_f(input, target, train)
+        return self._loss_f(input, target, train)
 
     def training_step_normal(self, batch):
         x, y = batch
@@ -165,7 +169,7 @@ class CLModel(base.CLBase):
         
         #a = torch.abs(latent.detach()).sum().cpu().item()
         #self.log("train_loss/latent_model_abs_sum", a)
-        for k, v in self.loss_f.to_log.items():
+        for k, v in self._loss_f.to_log.items():
             self.log(k, v)
 
         loss = self.process_losses_normal(
@@ -176,12 +180,12 @@ class CLModel(base.CLBase):
             log_label="train_loss", 
         )
         self.log("train_loss/total", loss)
-        self.train_acc(self.loss_f.classify(latent), y)
+        self.train_acc(self._loss_f.classify(latent), y)
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        loss = self.loss_f(latent, y)
+        loss = self._loss_f(latent, y)
         self.log(f"{log_label}/classification_loss", loss)
         return loss
 
@@ -207,7 +211,7 @@ class CLModel(base.CLBase):
             log_label="train_loss_dream",
         )
         self.log("train_loss_dream/total", loss)
-        self.train_acc_dream(self.loss_f.classify(latent), y)
+        self.train_acc_dream(self._loss_f.classify(latent), y)
         self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
         return loss
 
@@ -224,7 +228,7 @@ class CLModel(base.CLBase):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        val_loss = cross_entropy(self.loss_f.classify(latent), y)
+        val_loss = cross_entropy(self._loss_f.classify(latent), y)
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(latent, y)
@@ -234,12 +238,12 @@ class CLModel(base.CLBase):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        test_loss = cross_entropy(self.loss_f.classify(latent), y)
+        test_loss = cross_entropy(self._loss_f.classify(latent), y)
         self.log("test_loss", test_loss)
-        self.test_acc(self.loss_f.classify(latent), y)
+        self.test_acc(self._loss_f.classify(latent), y)
         self.log("test_step_acc", self.test_acc)
 
-    def get_objective_target(self):
+    def get_objective_target_name(self) -> str:
         if(self.enable_robust):
             return "model.model." + self.model.model.get_objective_layer_name()
         return "model." + self.model.get_objective_layer_name()
@@ -260,7 +264,7 @@ class CLModel(base.CLBase):
         return "model." + self.model.get_root_name()
 
     def loss_to(self, device):
-        self.loss_f.to(device)
+        self._loss_f.to(device)
 
     def get_obj_str_type(self) -> str:
         return 'CLModel_' + type(self.model).__qualname__
@@ -279,22 +283,22 @@ class CLModelIslandsTest(CLModel):
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
         
         self.one_hot_means = one_hot_means
-        self.loss_f = ChiLossOneHot(one_hot_means, self.cyclic_latent_buffer, loss_f=self.loss_f)
+        self._loss_f = OneHot(one_hot_means, self.cyclic_latent_buffer, loss_f=self._loss_f)
 
         self.valid_correct = 0
         self.valid_all = 0
 
     def call_loss(self, input, target, train, **kwargs):
-        return self.loss_f(input, target, train)
+        return self._loss_f(input, target, train)
 
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)
 
     def decode(self, target):
-        return self.loss_f.decode(target)
+        return self._loss_f.decode(target)
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        loss = self.loss_f(latent, y)
+        loss = self._loss_f(latent, y)
         self.log(f"{log_label}/MSE_loss", loss)
 
         # log values of a point
@@ -325,10 +329,10 @@ class CLModelIslandsTest(CLModel):
         x, y = batch
         model_out = self(x)
         y_model, _ = self.get_model_out_data(model_out)
-        val_loss = self.loss_f(y_model, y)
+        val_loss = self._loss_f(y_model, y)
         self.log("val_loss", val_loss)
 
-        classified_to_class = self.loss_f.classify(y_model)
+        classified_to_class = self._loss_f.classify(y_model)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(classified_to_class, y)
         self.log("valid_acc", valid_acc)
@@ -350,16 +354,13 @@ class CLModelIslandsTest(CLModel):
         x, y = batch
         model_out = self(x)
         y_model, _ = self.get_model_out_data(model_out)
-        test_loss = self.loss_f(y_model, y)
+        test_loss = self._loss_f(y_model, y)
         self.log("test_loss", test_loss)
 
-        classified_to_class = self.loss_f.classify(y_model)
+        classified_to_class = self._loss_f.classify(y_model)
         self.test_acc(classified_to_class, y)
         #self.valid_to_class(classified_to_class, y)
         self.log("test_acc", self.test_acc)
-
-    def get_buffer(self):
-        return self.cyclic_latent_buffer
 
     def get_obj_str_type(self) -> str:
         if(self.enable_robust):
@@ -395,7 +396,7 @@ class CLModelWithIslands(CLModel):
         self.buff_on_same_device = buff_on_same_device
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        loss = self.loss_f(latent, y)
+        loss = self._loss_f(latent, y)
 
         if(self.norm_lambda != 0.):
             norm = self.norm(latent, self.norm_lambda)
@@ -409,29 +410,26 @@ class CLModelWithIslands(CLModel):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        val_loss = self.loss_f(latent, y, train=False)
+        val_loss = self._loss_f(latent, y, train=False)
         self.log("val_loss", val_loss)
         valid_acc = self.valid_accs[dataloader_idx]
-        valid_acc(self.loss_f.classify(latent), y)
+        valid_acc(self._loss_f.classify(latent), y)
         self.log("valid_acc", valid_acc)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        test_loss = self.loss_f(latent, y, train=False)
+        test_loss = self._loss_f(latent, y, train=False)
         self.log("test_loss", test_loss)
 
-        self.test_acc(self.loss_f.classify(latent), y)
+        self.test_acc(self._loss_f.classify(latent), y)
         self.log("test_acc", self.test_acc)
 
     def training_step(self, batch, batch_idx):
         if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):
             self.cyclic_latent_buffer.to(self.device)
         return super().training_step(batch=batch, batch_idx=batch_idx)
-        
-    def get_buffer(self):
-        return self.cyclic_latent_buffer
 
     def get_obj_str_type(self) -> str:
         if(self._robust_model_set):

@@ -79,12 +79,12 @@ class CyclicBufferByClass():
             result = f(self.cyclic_buff[idx, : self.__get_idx(idx)])
         return result
 
-    def mean(self):
+    def mean(self) -> dict[int, torch.Tensor]:
         def __mean(buff, dim=0):
             return torch.mean(buff, dim=dim)
         return self._operation_template(__mean)
 
-    def mean_target(self, target):
+    def mean_target(self, target) -> dict[int, torch.Tensor]:
         def __mean(buff, dim=0):
             return torch.mean(buff, dim=dim)
         return self._operation_template_target(__mean, target)
@@ -104,7 +104,7 @@ class CyclicBufferByClass():
         #    buf[cl_idx] = mean
         #return buf
 
-    def std_mean(self):
+    def std_mean(self) -> dict[int, torch.Tensor]:
         def __std_mean(buff, dim=0):
             return torch.std_mean(buff, dim=dim)
         return self._operation_template(__std_mean)
@@ -114,7 +114,7 @@ class CyclicBufferByClass():
             return torch.std_mean(buff, dim=dim)
         return self._operation_template_target(__std_mean, target)
 
-    def cov(self):
+    def cov(self) -> dict[int, torch.Tensor]:
         def __cov(buff):
             # https://pytorch.org/docs/stable/generated/torch.cov.html
             buff = torch.transpose(buff, 0, 1)

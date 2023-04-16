@@ -18,7 +18,7 @@ def inner_obj_latent_channel(layer, batch=None):
     return inner
 
 @wrap_objective()
-def inner_obj_latent(target, target_layer, target_val, counter: CounterKeysBase, logger=None, label=None, batch=None, loss_f=None):
+def inner_obj_latent(target_layer, target_val, batch=None, loss_f=None):
     inner_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
 
     @handle_batch(batch)
@@ -26,18 +26,11 @@ def inner_obj_latent(target, target_layer, target_val, counter: CounterKeysBase,
         latent = model(target_layer)
         latent_target = target_val.repeat(len(latent), 1)
         loss = inner_loss_f(latent, latent_target)
-        if(logger is not None and label is not None):
-            logger.log_metrics({f'{label}/loss_target_{target}': loss}, counter.get(target))
-            #logger.log_metrics({f'dream/sum_latent_{target}': latent.detach().sum().item()}, counter.get())
-            #logger.log_metrics({f'dream/sum_latent_target_{target}': latent_target.detach().sum().item()}, counter.get())
-            #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0, 0]}, counter.get())
-            #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0, 0]}, counter.get())
-        counter.up(target)
         return loss
     return inner
 
 @wrap_objective()
-def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, counter: CounterBase, logger=None, label=None, batch=None, loss_f=None):
+def inner_obj_latent_obj_max_val_channel(target_layer, target_val, batch=None, loss_f=None):
     loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
 
     @handle_batch(batch)
@@ -47,11 +40,6 @@ def inner_obj_latent_obj_max_val_channel(target, target_layer, target_val, count
         latent = latent[:, 0]
         latent_target = latent_target[:, 0]
         loss = loss_f(latent, latent_target)
-        if(logger is not None and label is not None):
-            logger.log_metrics({f'{label}/loss_target_{target}': loss}, counter.get())
-            #logger.log_metrics({f'dream/test/test_latent_{target}': latent[0]}, counter.get())
-            #logger.log_metrics({f'dream/test/test_target_{target}': latent_target[0]}, counter.get())
-        counter.up()
         return loss
     return inner
 
@@ -81,14 +69,14 @@ def dream_objective_resnet18_diversity_2(model, **kwargs):
     return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer4_0_conv2')
 
 def dream_objective_latent_channel(model, **kwargs):
-    return inner_obj_latent_channel(model.get_objective_target())
+    return inner_obj_latent_channel(model.get_objective_target_name())
 
 def dream_objective_channel(target_point: torch.Tensor, model, **kwargs):
     # be careful for recursion by calling methods from source_dataset_obj
     # specify layers names from the model - <top_var_name>_<inner_layer_name>
     # and apply the objective on this layer. Used only for dreams.
     # channel - diversity penalty
-    return objectives.channel(model.get_objective_target(), target_point.long()) 
+    return objectives.channel(model.get_objective_target_name(), target_point.long()) 
     
     #- objectives.diversity(
     #    "model_model_conv2"
@@ -98,30 +86,24 @@ def dream_objective_RESNET20_C100_diversity(model, **kwargs):
     return - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
 
 def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
-    return objectives.channel(model.get_objective_target(), target_point.long())
+    return objectives.channel(model.get_objective_target_name(), target_point.long())
 
-def dream_objective_latent_lossf_creator(logger, label=None, loss_f=None, **kwargs):
-    counter = CounterKeys()
-    def inner(target, target_point, model, **inner_kwargs):
+def dream_objective_latent_lossf_creator(loss_f=None, **kwargs):
+    def inner(target_point, model, **inner_kwargs):
         return inner_obj_latent(
-            target_layer=model.get_objective_target(), 
+            target_layer=model.get_objective_target_name(), 
             target_val=target_point.to(model.device), 
-            logger=logger, 
-            target=target,
             loss_f=loss_f,
-            label=label,
-            counter=counter,
         ) #- objectives.diversity(
         #    "model_model_conv2"
         #)
     return inner
 
-def dream_objective_latent_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2, logger=None, label=None):
+def dream_objective_latent_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2):
     '''
         latent_saver - must be a list, where the last tensor point 
             from model output layer will be saved at position 0 (zero).
     '''
-    counter = Counter()
     def wrapper(target, target_point, model, **kwargs):
         @wrap_objective()
         def dream_objective_step_sample_normal(target, target_layer, target_val, batch=None):
@@ -132,24 +114,20 @@ def dream_objective_latent_step_sample_normal_creator(loss_f, latent_saver: list
                 latent_saver.append(latent.detach().cpu().numpy())
                 latent_target = out_target_val.repeat(len(latent), 1).to(latent.device)
                 loss = loss_f(latent, latent_target)
-                if(logger is not None and label is not None):
-                    logger.log_metrics({f'{label}/step_sample_normal_loss': loss}, counter.get())
-                    counter.up()
                 return loss
             return inner
         return dream_objective_step_sample_normal(
-            target_layer=model.get_objective_target(), 
+            target_layer=model.get_objective_target_name(), 
             target_val=target_point.to(model.device),  
             target=target
         )
     return wrapper
 
-def dream_objective_latent_lossf_compare_creator(loss_f, latent_saver: list, logger=None, label=None):
+def dream_objective_latent_lossf_compare_creator(loss_f, latent_saver: list):
     '''
         latent_saver - must be a list, where the last tensor point 
             from model output layer will be saved at position 0 (zero).
     '''
-    counter = Counter()
     def wrapper(target, target_point, model, **kwargs):
         @wrap_objective()
         def dream_objective_lossf_latent_compare(target, target_layer, target_val, batch=None):
@@ -159,23 +137,20 @@ def dream_objective_latent_lossf_compare_creator(loss_f, latent_saver: list, log
                 latent_saver.append(latent.detach().cpu().numpy())
                 latent_target = target_val.repeat(len(latent), 1)
                 loss = loss_f(latent, latent_target)
-                if(logger is not None and label is not None):
-                    logger.log_metrics({f'{label}/lossf_latent_compare_loss': loss}, counter.get())
-                    counter.up()
                 return loss
             return inner
         return dream_objective_lossf_latent_compare(
-            target_layer=model.get_objective_target(), 
+            target_layer=model.get_objective_target_name(), 
             target_val=target_point.to(model.device),  
             target=target
         )
     return wrapper
 
 def dream_objective_latent_neuron_direction(target_point, model, **kwargs):
-    return objectives.direction_neuron(model.get_objective_target(), target_point.to(model.device))
+    return objectives.direction_neuron(model.get_objective_target_name(), target_point.to(model.device))
 
 def test(target, model, source_dataset_obj):
-    return objectives.channel(model.get_objective_target(), target.long()) - objectives.diversity(
+    return objectives.channel(model.get_objective_target_name(), target.long()) - objectives.diversity(
         "vgg_features_10"
     )
 

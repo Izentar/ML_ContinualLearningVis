@@ -34,6 +34,7 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
 from model.statistics.base import ModelLayerStatistics, unhook
 from colorama import Fore, Back, Style
+from collections.abc import Sequence
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -55,7 +56,7 @@ from colorama import Fore, Back, Style
 class CLLoop(Loop):
     def __init__(
         self,
-        epochs_per_task: List[int],
+        epochs_per_task: list[list[int]],
         reload_model_at: bool = False,
         reinit_model_at: bool = False,
         export_path: Optional[str] = None,
@@ -105,7 +106,7 @@ class CLLoop(Loop):
         super().__init__()
         self.num_tasks = len(epochs_per_task)
         self.num_loops = self.num_tasks if num_loops is None else num_loops
-        self.epochs_per_task = epochs_per_task
+        self._epochs_per_task = epochs_per_task
         self.current_task: int = 0
         self.current_loop: int = 0
         self.previous_task:int = 0
@@ -156,6 +157,10 @@ class CLLoop(Loop):
         self.save_layer_stats = save_layer_stats
         self.ll_scaling = ll_scaling
 
+        for l in self._epochs_per_task:
+            if((not isinstance(l, Sequence)) or len(l) < 1):
+                raise Exception(f'Bad epochs_per_task: {self._epochs_per_task}')
+
     @property
     def done(self) -> bool:
         return self.current_loop >= self.num_loops
@@ -182,7 +187,7 @@ class CLLoop(Loop):
                 self.data_passer['model_train_end_f'] = -1
         else:
             self.data_passer['model_train_end_f'] = None
-        self.data_passer['epoch_per_task'] = self.epochs_per_task[self.current_task]
+        self.data_passer['epoch_per_task'] = self.epochs_per_task
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the
@@ -297,9 +302,15 @@ class CLLoop(Loop):
             self.trainer.lightning_module.init_weights()
             self._model_weigth_sanity_check()
 
+    @property
+    def epochs_per_task(self):
+        if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
+            return self.fast_dev_run_epochs
+        return self._epochs_per_task[self.current_task][self.current_loop]
+
     def _setup_loop(self):
         # Set the max number of epochs for this task
-        max_epochs = self.fast_dev_run_epochs if self.fast_dev_run and self.fast_dev_run_epochs is not None else self.epochs_per_task[self.current_task]
+        max_epochs = self.epochs_per_task
         self.replace(
             fit_loop=FitLoop(max_epochs=max_epochs)
         )

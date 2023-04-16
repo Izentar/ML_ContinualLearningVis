@@ -1,20 +1,28 @@
 import torch
 
-def target_processing_latent_binary_classification(target, model, *args, **kwargs):
+"""
+    Called after select_task.py
+    Strategy for processing given target.
+    Can return the same target or can sample it from chiloss, giving a vector from latent space.
+"""
+
+def target_processing_latent_binary_classification(target, model):
     out = torch.zeros(model.get_objective_layer_output_shape(), dtype=torch.float32)
     out[target] = 1.
     return out
 
-def target_processing_default(target, *args, **kwargs):
+def target_processing_default(target, model):
     return torch.tensor(target, dtype=torch.int32)
 
-def target_processing_latent_decode(target, model, *args, **kwargs):
+def target_processing_latent_decode(target, model):
     return model.decode(torch.tensor([target], dtype=torch.int32)).float()
 
-def target_processing_latent_sample_normal_std(mean, std, *args, **kwargs):
+def target_processing_latent_sample_normal_std(target, model):
+    std, mean = model.loss_f.cloud_data.std_mean_target(target)
+    assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{target}"
     return torch.normal(mean, std)
 
-def target_processing_latent_sample_normal_mean_std_full_targets(target, mean, std, *args, **kwargs):
+def target_processing_latent_sample_normal_mean_std_full_targets(target, model):
     """
         Return a set of points taken from the normal distribution.
         Mean and std already have the shape of <class <mean / std of the points in this class>> so
@@ -24,6 +32,7 @@ def target_processing_latent_sample_normal_mean_std_full_targets(target, mean, s
         If you want to have a constant value of std, then use lambda expression to set an std to
         torch.tensor([std_value]). It will repeat it to the size of the mean. 
     """
+    std, mean = model.loss_f.cloud_data.std_mean()
     size = list(std.size())
     if len(size) == 0 or size[0] == 1:
         std = std.repeat(mean.size()[0]) / 2 # TODO div 2 not needed?
@@ -32,26 +41,19 @@ def target_processing_latent_sample_normal_mean_std_full_targets(target, mean, s
         return torch.index_select(tmp, dim=0, index=torch.tensor(target))
     return tmp[target]
 
-def target_processing_latent_sample_normal_mean_std_vectors(mean, std, *args, **kwargs):
-    assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std}"
-    point = torch.normal(mean=mean, std=std)
-    return point
-
-def target_processing_latent_sample_normal_buffer(target, model, *args, **kwargs):
-    std, mean = model.get_buffer().std_mean_target(target)
-    assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{target}"
-    return target_processing_latent_sample_normal_mean_std_vectors(mean=mean, std=std)
-
-def target_processing_latent_sample_multivariate(target, model, *args, **kwargs):
+def target_processing_latent_sample_multivariate(target, model):
+    """
+        Takes a bit to compute
+    """
     sample = model.loss_f.sample(target)
     return sample
 
-def target_processing_latent_buffer_last_point(target, model, *args, **kwargs):
-    last_point = model.get_buffer().front(target)
+def target_processing_latent_buffer_last_point(target, model):
+    last_point = model.loss_f.cloud_data.front(target)
     return last_point
 
-def target_processing_latent_mean(target, model, *args, **kwargs):
-    classes_mean = model.get_buffer().mean(target)
+def target_processing_latent_mean(target, model):
+    classes_mean = model.loss_f.cloud_data.mean(target)
     return classes_mean[target]
 
 
@@ -61,8 +63,6 @@ class TargetProcessingManager():
         'TARGET-LATENT-DECODE': target_processing_latent_decode,
         'TARGET-LATENT-SAMPLE-NORMAL-STD': target_processing_latent_sample_normal_std,
         'TARGET-LATENT-SAMPLE-NORMAL-MEAN-STD-FULL-TARGETS': target_processing_latent_sample_normal_mean_std_full_targets,
-        'TARGET-LATENT-SAMPLE-NORMAL-MEAN-STD-VECTORS': target_processing_latent_sample_normal_mean_std_vectors,
-        'TARGET-LATENT-SAMPLE-NORMAL-BUFFER': target_processing_latent_sample_normal_buffer,
         'TARGET-LATENT-SAMPLE-MULTIVARIATE': target_processing_latent_sample_multivariate,
         'TARGET-LATENT-BUFFER-LAST-POINT': target_processing_latent_buffer_last_point,
         'TARGET-LATENT-MEAN': target_processing_latent_mean,
