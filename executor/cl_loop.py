@@ -187,7 +187,8 @@ class CLLoop(Loop):
                 self.data_passer['model_train_end_f'] = -1
         else:
             self.data_passer['model_train_end_f'] = None
-        self.data_passer['epoch_per_task'] = self.epochs_per_task
+        if(self.current_loop != self.num_loops):
+            self.data_passer['epoch_per_task'] = self.epochs_per_task
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the
@@ -304,8 +305,12 @@ class CLLoop(Loop):
 
     @property
     def epochs_per_task(self):
-        if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
-            return self.fast_dev_run_epochs
+        #if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
+        #    return self.fast_dev_run_epochs
+        if(len(self._epochs_per_task[self.current_task]) >= self.current_loop):
+            tmp = self._epochs_per_task[self.current_task][-1]
+            print(f'WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list is index out of range.')
+            return tmp
         return self._epochs_per_task[self.current_task][self.current_loop]
 
     def _setup_loop(self):
