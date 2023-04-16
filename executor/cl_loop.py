@@ -305,8 +305,8 @@ class CLLoop(Loop):
 
     @property
     def epochs_per_task(self):
-        #if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
-        #    return self.fast_dev_run_epochs
+        if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
+            return self.fast_dev_run_epochs
         if(len(self._epochs_per_task[self.current_task]) >= self.current_loop):
             tmp = self._epochs_per_task[self.current_task][-1]
             print(f'WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list is index out of range.')
