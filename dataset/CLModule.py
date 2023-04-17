@@ -280,7 +280,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
                 for l in layer_hook_obj:
                     l.set_current_class(target)
-                run_name[0] = f"{run_name[1]}/target_{target}"
+            run_name[0] = f"{run_name[1]}/target_{target}"
             target_dreams = self._generate_dreams_for_target(
                 model=model, 
                 target=target, 

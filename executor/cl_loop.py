@@ -187,7 +187,7 @@ class CLLoop(Loop):
                 self.data_passer['model_train_end_f'] = -1
         else:
             self.data_passer['model_train_end_f'] = None
-        if(self.current_loop != self.num_loops):
+        if(self.current_loop < self.num_loops):
             self.data_passer['epoch_per_task'] = self.epochs_per_task
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
@@ -307,9 +307,9 @@ class CLLoop(Loop):
     def epochs_per_task(self):
         if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
             return self.fast_dev_run_epochs
-        if(len(self._epochs_per_task[self.current_task]) >= self.current_loop):
+        if(len(self._epochs_per_task[self.current_task]) <= self.current_loop):
             tmp = self._epochs_per_task[self.current_task][-1]
-            print(f'WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list is index out of range.')
+            print(f'WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list index out of range.')
             return tmp
         return self._epochs_per_task[self.current_task][self.current_loop]
 

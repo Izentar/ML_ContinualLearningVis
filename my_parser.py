@@ -76,7 +76,12 @@ If less than in dataset then model will be trained and validated only using this
     parser.add_argument("--enable_dreams_gen_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
 Without running this and running "run_training_at" will run only test. Use this with "train_only_dream_batch_at" to train only on dream batch.') ##**
+    
     parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
+    parser.add_argument("--select_task_type", type=str, help='From utils.functional.select_task.py')
+    parser.add_argument("--target_processing_type", type=str, help='From utils.functional.target_processing.py')
+    parser.add_argument("--task_split_type", type=str, help='From utils.functional.task_split.py')
+
     parser.add_argument("--dreams_per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
     parser.add_argument("--dreaming_batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
