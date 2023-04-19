@@ -62,6 +62,9 @@ class ChiLossBase(torch.nn.Module):
         self.to_log = {}
         self._train = True
 
+        if(self._cloud_data.dimensions <= 2):
+            raise Exception(f"Current Chiloss implementation requires latent size greater than 2. Currently {self._cloud_data.dimensions}")
+
     @property
     def cloud_data(self):
         return self._cloud_data

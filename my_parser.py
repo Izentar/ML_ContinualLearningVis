@@ -23,8 +23,6 @@ If True, run on all loops, if False, do not run. If "gather_layer_loss_at" is se
 takes precedence over command line arguments. Config files will be applied in order of the declaration.')
     parser.add_argument("--config_export", type=str, help='File where to export current config.')
     parser.add_argument("--cpu", action="store_true")
-    parser.add_argument("--model_type", type=str, help='Model type') ##**
-    parser.add_argument("--framework_type", type=str, default='sae-chiloss', help='Framework type') ##**
     parser.add_argument("-d", "--dataset", type=str) ##**
     parser.add_argument("--early_finish_at", type=int, default=-1, help='Finish training loop at desired epoch. Default "-1"')
     parser.add_argument("--disable_shuffle", action="store_false", help='Flag to shuffle train normal and dream datasets. If \
@@ -71,17 +69,22 @@ at where to call scheduler, change learning rate. Use "scheduler_type" to enable
 If less than in dataset then model will be trained and validated only using this number of classes')
 
     ######################################
+    #####       configuration       ######
+    ######################################
+    parser.add_argument("--framework_type", type=str, default='sae-chiloss', help='Framework type') ##**
+    parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
+    parser.add_argument("--select_task_type", type=str, help='From utils.functional.select_task.py')
+    parser.add_argument("--target_processing_type", type=str, help='From utils.functional.target_processing.py')
+    parser.add_argument("--task_split_type", type=str, help='From utils.functional.task_split.py')
+    parser.add_argument("--overlay_type", type=str, help='Overlay type')
+    parser.add_argument("--model_type", type=str, help='Model type') ##**
+
+    ######################################
     #####     dream parameters      ######
     ######################################
     parser.add_argument("--enable_dreams_gen_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
 Without running this and running "run_training_at" will run only test. Use this with "train_only_dream_batch_at" to train only on dream batch.') ##**
-    
-    parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
-    parser.add_argument("--select_task_type", type=str, help='From utils.functional.select_task.py')
-    parser.add_argument("--target_processing_type", type=str, help='From utils.functional.target_processing.py')
-    parser.add_argument("--task_split_type", type=str, help='From utils.functional.task_split.py')
-
     parser.add_argument("--dreams_per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
     parser.add_argument("--dreaming_batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')

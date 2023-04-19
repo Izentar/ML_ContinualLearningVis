@@ -113,7 +113,7 @@ class CLLoop(Loop):
         self.previous_loop:int = 0
         self.export_path = Path(export_path) if export_path is not None else Path(default_export_path)
         self.export_path.mkdir(parents=True, exist_ok=True)
-        self.save_model_inner_path = save_model_inner_path if save_model_inner_path is not None else ""
+        self.save_model_inner_path = Path(save_model_inner_path) if save_model_inner_path is not None else Path("")
         
         self.reload_model_at = reload_model_at
         self.reinit_model_at = reinit_model_at
@@ -125,9 +125,9 @@ class CLLoop(Loop):
         self.weight_reset_sanity_check = weight_reset_sanity_check
         self.enable_checkpoint = enable_checkpoint
         self.save_trained_model = save_trained_model
-        self.load_model = load_model
+        self.load_model = Path(load_model) if load_model is not None else load_model
         self.save_dreams = save_dreams
-        self.load_dreams = load_dreams
+        self.load_dreams = Path(load_dreams) if load_dreams is not None else load_dreams
         self.gather_layer_loss_at = gather_layer_loss_at
         self.layer_dataloader = layer_dataloader
         self.use_layer_loss_at = use_layer_loss_at
@@ -328,12 +328,21 @@ class CLLoop(Loop):
         else:
             self.custom_advance_f = lambda: print(f"{Fore.RED}INFO: SKIPPING ANY TRAINING at loop {self.current_loop}{Style.RESET_ALL}")
 
+    def _export_path_contains(self, other):
+        size = len(self.export_path.parents) + 1
+        if(self.export_path == other.parents[- size]):
+            return True
+        return False
+
     def _gen_folder_name_by_time(self, dtype:str=None):
         folder = datetime.datetime.now().strftime("%d-%m-%Y")
         time = datetime.datetime.now().strftime("%H-%M-%S")
         if(dtype is None):
             dtype = ""
-        ret = self.export_path / f"{self.save_model_inner_path}" / dtype / folder
+        if(self._export_path_contains(self.save_model_inner_path)):
+            ret = self.save_model_inner_path / dtype / folder
+        else:
+            ret = self.export_path / self.save_model_inner_path / dtype / folder
         ret.mkdir(parents=True, exist_ok=True)
         return ret, time
 
@@ -346,7 +355,10 @@ class CLLoop(Loop):
 
     def _try_load_dreams(self):
         if(self.load_dreams is not None):
-            find_path = self.export_path / self.load_dreams
+            if(self._export_path_contains(self.load_dreams)):
+                find_path = self.load_dreams
+            else:
+                find_path = self.export_path / self.load_dreams
             path = glob.glob(str(find_path), recursive=True)
             if('dreams.' not in self.load_dreams):
                 raise Exception(f'Unknown filename to load dreams. May be the wrong filetype. File: {find_path}')
@@ -397,7 +409,10 @@ class CLLoop(Loop):
 
     def _try_load_model(self):
         if(self.load_model is not None):
-            find_path = self.export_path / self.load_model
+            if(self._export_path_contains(self.load_model)):
+                find_path = self.load_model
+            else:
+                find_path = self.export_path / self.load_model
             path = glob.glob(str(find_path), recursive=True)
             if(len(path) != 1):
                 raise Exception(f'Cannot load model - no or too many matching filenames. From "{find_path}" found only these paths: {path}')

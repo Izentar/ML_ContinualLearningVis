@@ -20,8 +20,8 @@ class FunConfigSetBase():
         'OBJECTIVE-RESNET20-C100-DIVERSITY': 'RESNET20C100',
         'OBJECTIVE-RESNET20-C100-CHANNEL': 'RESNET20',
         'TARGET-LATENT-DECODE': 'CL-MODEL-ISLAND-TEST',
-        'CL-MODEL': 'target-classic',
-        'target-classic': 'CL-MODEL',
+        'CL-MODEL': 'TARGET-CLASSIC',
+        'TARGET-CLASSIC': 'CL-MODEL',
     }
     
     GET_MODEL = {
@@ -50,7 +50,17 @@ class FunConfigSetBase():
         otype: str, 
         logger=None
     ) -> None:
-        pass
+        FunConfigSetBase.SPECIFIC_COMBINATIONS = self._to_upper(FunConfigSetBase.SPECIFIC_COMBINATIONS)
+        FunConfigSetBase.GET_MODEL = self._to_upper(FunConfigSetBase.GET_MODEL)
+        FunConfigSetBase.GET_OVERLAY = self._to_upper(FunConfigSetBase.GET_OVERLAY)
+
+    def _to_upper(self, dtype):
+        new_dict = {}
+        for k, v in dtype.items():
+            k = k.upper()
+            v = v.upper() if isinstance(v, str) else v
+            new_dict[k] = v
+        return new_dict
 
 class FunConfigSet(FunConfigSetBase):
     def __init__(self, 

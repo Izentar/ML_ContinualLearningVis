@@ -259,6 +259,7 @@ def logic(args, log_args_to_wandb=True):
         select_task_type=args.select_task_type,
         target_processing_type=args.target_processing_type,
         task_split_type=args.task_split_type,
+        otype=args.overlay_type,
         #mtype='SAEGAUSS', 
         #mtype='RESNET18', 
         dream_obj_type=args.dream_obj_type,

@@ -55,7 +55,7 @@ class SAE_standalone(base.CLBase):
         x, y = batch
         y_hat, _ = self(x)
         val_loss = self._loss_f(y_hat, y)
-        self.log("val_loss", val_loss)
+        self.log("val_last_step_loss", val_loss, on_epoch=True)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(y_hat, y)
         self.log("valid_step_acc", valid_acc)
@@ -64,7 +64,7 @@ class SAE_standalone(base.CLBase):
         x, y = batch
         y_hat, _ = self(x)
         test_loss = self._loss_f(y_hat, y)
-        self.log("test_loss", test_loss)
+        self.log("test_loss", test_loss, on_step=True)
         self.test_acc(y_hat, y)
         self.log("test_step_acc", self.test_acc)
 
@@ -229,7 +229,7 @@ class CLModel(base.CLBase):
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
         val_loss = cross_entropy(self._loss_f.classify(latent), y)
-        self.log("val_loss", val_loss)
+        self.log("val_last_step_loss", val_loss, on_epoch=True)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(latent, y)
         self.log("valid_step_acc", valid_acc)
@@ -239,7 +239,7 @@ class CLModel(base.CLBase):
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
         test_loss = cross_entropy(self._loss_f.classify(latent), y)
-        self.log("test_loss", test_loss)
+        self.log("test_loss", test_loss, on_step=True)
         self.test_acc(self._loss_f.classify(latent), y)
         self.log("test_step_acc", self.test_acc)
 
@@ -330,7 +330,7 @@ class CLModelIslandsTest(CLModel):
         model_out = self(x)
         y_model, _ = self.get_model_out_data(model_out)
         val_loss = self._loss_f(y_model, y)
-        self.log("val_loss", val_loss)
+        self.log("val_last_step_loss", val_loss, on_epoch=True)
 
         classified_to_class = self._loss_f.classify(y_model)
         valid_acc = self.valid_accs[dataloader_idx]
@@ -355,12 +355,12 @@ class CLModelIslandsTest(CLModel):
         model_out = self(x)
         y_model, _ = self.get_model_out_data(model_out)
         test_loss = self._loss_f(y_model, y)
-        self.log("test_loss", test_loss)
+        self.log("test_loss", test_loss, on_step=True)
 
         classified_to_class = self._loss_f.classify(y_model)
         self.test_acc(classified_to_class, y)
         #self.valid_to_class(classified_to_class, y)
-        self.log("test_acc", self.test_acc)
+        self.log("test_step_acc", self.test_acc)
 
     def get_obj_str_type(self) -> str:
         if(self.enable_robust):
@@ -411,7 +411,7 @@ class CLModelWithIslands(CLModel):
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
         val_loss = self._loss_f(latent, y, train=False)
-        self.log("val_loss", val_loss)
+        self.log("val_last_step_loss", val_loss, on_epoch=True)
         valid_acc = self.valid_accs[dataloader_idx]
         valid_acc(self._loss_f.classify(latent), y)
         self.log("valid_acc", valid_acc)
@@ -421,9 +421,10 @@ class CLModelWithIslands(CLModel):
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
         test_loss = self._loss_f(latent, y, train=False)
-        self.log("test_loss", test_loss)
+        self.log("test_loss", test_loss, on_step=True)
 
-        self.test_acc(self._loss_f.classify(latent), y)
+        classified_to_class = self._loss_f.classify(latent)
+        self.test_acc(classified_to_class, y)
         self.log("test_acc", self.test_acc)
 
     def training_step(self, batch, batch_idx):
