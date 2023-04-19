@@ -10,6 +10,8 @@ import random
 import numpy as np
 from utils.counter import CounterBase, Counter
 from torchvision import transforms
+from dream.image import Image
+from torchvision import transforms as tr
 
 class DisorderDream():
     """
@@ -36,11 +38,7 @@ class DisorderDream():
         real_image = torch.flatten(real_image).requires_grad_(True) 
         #to_pil = transforms.ToPILImage()
         def starting_image(**kwargs):
-            def param_f():
-                # uses 2D Fourier coefficients
-                # sd - scale of the random numbers [0, 1)
-                return [real_image], lambda: real_image.view(real_img_shape)
-            return param_f
+            return Image(dtype='custom', image_f=lambda: real_image.view(real_img_shape), param_tensor=[real_image], reinit_f=lambda x, y: None)
         return starting_image
 
     def wrapper_select_dream_tasks_f(used_class):
@@ -176,6 +174,8 @@ class DisorderDream():
             start_img_value=start_img_value,
         )
 
+        dream_image_f = DisorderDream.starting_image_creator(detached_image=image)
+
         dream_module = CustomDreamDataModule(
             train_tasks_split=[[used_class]],
             select_dream_tasks_f=DisorderDream.wrapper_select_dream_tasks_f(used_class),
@@ -185,19 +185,26 @@ class DisorderDream():
             dream_threshold=dream_threshold,
             custom_f_steps=scheduler_steps,
             custom_f=self.scheduler_step if enable_scheduler else lambda: None,
-            param_f=DisorderDream.starting_image_creator(detached_image=image),
+            dream_image_f=dream_image_f,
+            #param_f=DisorderDream.starting_image_creator(detached_image=image),
             dreaming_batch_size=1,
             optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
-            enable_transforms=True,
+            enable_dream_transforms=True,
         )
 
-        constructed_dream = dream_module._generate_dreams_for_target(
+        task_index = 0
+        model.to(device).eval() # must be before rendervis_state or rendervis_state device can be on cpu
+        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index, layer_hook_obj=None)
+        rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
+        rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
+
+        constructed_dream = dream_module.generate_dreams_for_target(
             model, 
             used_class, 
             iterations=1, 
-            update_progress_f=lambda *args, **kwargs: None, 
-            task_index=0,
+            rendervis_state=rendervis_state,
+            task_index=task_index,
         )
         self._compare_orig_constructed(
             original_img=original_image,

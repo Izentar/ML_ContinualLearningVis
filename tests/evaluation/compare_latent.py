@@ -8,6 +8,10 @@ from utils.functional import dream_objective
 from loss_function.chiLoss import ChiLossBase
 import numpy as np
 from utils.functional.target_processing import target_processing_latent_binary_classification
+from dream.image import Image
+from utils.utils import parse_image_size
+from dream.custom_render import RenderVisState
+from torchvision import transforms as tr
 
 
 class CompareLatent():
@@ -24,14 +28,12 @@ class CompareLatent():
         self.point_from_model = []
         self.custom_loss_f = torch.nn.MSELoss() 
 
-    def param_f_image(image_size, dreaming_batch_size, **kwargs):
-        def param_f():
-            # uses 2D Fourier coefficients
-            # sd - scale of the random numbers [0, 1)
-            return param.image(
-                image_size, batch=dreaming_batch_size, sd=0.4, #fft=False
-            )
-        return param_f
+    def param_f_image(self, dtype, image_size, dreaming_batch_size, decorrelate, **kwargs):
+        channels, w, h = parse_image_size(image_size)
+        # uses 2D Fourier coefficients
+        # sd - scale of the random numbers [0, 1)
+        return Image(dtype=dtype, w=w, h=h, channels=channels, batch=dreaming_batch_size,
+            decorrelate=decorrelate)
 
     def wrapper_select_dream_tasks_f(used_class):
         def select_dream_tasks_f(tasks, task_index):
@@ -62,7 +64,7 @@ class CompareLatent():
             model, 
             used_class, 
             logger, 
-            dream_transform, 
+            dream_fetch_transform, 
             target_processing_f=None, 
             loss_f=None,
             enable_scheduler=True, 
@@ -70,6 +72,7 @@ class CompareLatent():
             dream_threshold=(1024*6,),
             loss_obj_step_sample=False,
             enable_transforms=True,
+            device='cuda:0',
         ):
         label = 'compare_latent'
 
@@ -95,9 +98,9 @@ class CompareLatent():
             objective_fun = dream_objective.dream_objective_latent_lossf_compare_creator(
                 loss_f=self.custom_loss_f,
                 latent_saver=self.point_from_model,
-                label=label,
-                logger=logger,
             )
+
+        dream_image_f = self.param_f_image
 
         dream_module = CustomDreamDataModule(
             train_tasks_split=[[used_class]],
@@ -108,20 +111,26 @@ class CompareLatent():
             dream_threshold=dream_threshold,
             custom_f_steps=scheduler_steps,
             custom_f=self.scheduler_step if enable_scheduler else lambda: None,
-            param_f=CompareLatent.param_f_image,
+            dream_image_f=dream_image_f,
             dreaming_batch_size=1,
             optimizer=self.get_dream_optim(),
-            empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
-            enable_transforms=enable_transforms
+            empty_dream_dataset=dream_sets.DreamDataset(transform=dream_fetch_transform),
+            enable_dream_transforms=enable_transforms
         )
 
-        model.to('cuda:0').eval()
-        constructed_dream = dream_module._generate_dreams_for_target(
+        task_index = 0
+
+        model.to(device).eval() # must be before rendervis_state or rendervis_state device can be on cpu
+        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index, layer_hook_obj=None)
+        rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
+        rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
+
+        constructed_dream = dream_module.generate_dreams_for_target(
             model, 
-            used_class, 
+            target=used_class, 
             iterations=1, 
-            update_progress_f=lambda *args, **kwargs: None, 
-            task_index=0,
+            rendervis_state=rendervis_state,
+            task_index=task_index,
         )
 
         self._log(constructed_dreams=constructed_dream, logger=logger, label=label)

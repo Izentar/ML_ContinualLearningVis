@@ -125,7 +125,13 @@ class RenderVisState():
         self._initval_optimizer = optimizer
         self._set_optimizer(optimizer)
         self._set_model(model)
-        self._initval_transform_f = transforms.copy()
+
+        if(transforms is None):
+            self._initval_transform_f = None
+        elif(not isinstance(transforms, list)):
+            self._initval_transform_f = [transforms]
+        else:
+            self._initval_transform_f = transforms.copy()
         self._set_transform_f(transforms)
         self._set_hook(hook)
 
@@ -276,11 +282,13 @@ class RenderVisState():
         return self._transform_f
     @transform_f.setter
     def transform_f(self, value):
-        self._initval_transform_f = value.copy()
+        self._initval_transform_f = value.copy() if isinstance(value, list) else [value]
         self._set_transform_f(value=value)
     def _set_transform_f(self, value):
         if value is None:
             value = transform.standard_transforms
+        if(not isinstance(value, list)):
+            value = [value]
         value = [tr.Lambda(lambda x: x.to(self.device))] + value.copy()
         if self.preprocess:
             if self.model._get_name() == "InceptionV1":
@@ -298,7 +306,7 @@ class RenderVisState():
         if new_size:
             _, w, h = parse_image_size(new_size)
             tmp = transform.compose(value)
-            if(self.display_additional_info):
+            if(self.display_additional_info and self.enable_transforms):
                 print(f"VIS: Image size before (up/down)sample - {tmp(self.optim_image.image()).shape}")
             value.append(
                 torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
@@ -335,7 +343,8 @@ def render_vis(
     
     images = []
     iterations = max(rd.thresholds)
-    progress_bar.setup_iteration(iterations=iterations)
+    if(progress_bar is not None):
+        progress_bar.setup_iteration(iterations=iterations)
     for i in range(1, iterations + 1):
         def closure():
             rd.optimizer.zero_grad()
@@ -356,9 +365,10 @@ def render_vis(
                     show(image)
             images.append(image)
 
-        progress_bar.update_iteration()
-        if i % refresh_fequency == 0:
-            progress_bar.refresh()
+        if(progress_bar is not None):
+            progress_bar.update_iteration()
+            if i % refresh_fequency == 0:
+                progress_bar.refresh()
 
     if save_image:
         export(rd.optim_image.image(), image_name)

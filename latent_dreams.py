@@ -491,7 +491,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             #loss_f=model.loss_f, 
             used_class=0, 
             logger=logger,
-            dream_transform=dreams_transforms,
+            dream_fetch_transform=dreams_transforms,
             target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
             loss_obj_step_sample=compare_latent_step_sample,
             enable_transforms=not args.disable_dream_transforms,

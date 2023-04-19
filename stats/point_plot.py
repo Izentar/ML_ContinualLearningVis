@@ -364,6 +364,7 @@ class PointPlot():
         nrows=1,
         ncols=1,
         alpha=0.4,
+        to_wandb=True,
     ):
         my_colors = colors_list[:2]
         legend_label = {}
@@ -406,17 +407,18 @@ class PointPlot():
             #    }
             ax.set_title(f'Class {cl}')
             plotter.schedule_flush(self, name=name, show=show, idx=idx, ftype=ftype)
-            set_legend(legend_label, ax, fig)
+            set_legend(legend_label, ax)
             #self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
 
-        plotter.force_flush(self, name, show, idx+1, ftype)
+        plotter.force_flush(self, name=name, show=show, idx=idx+1, ftype=ftype, to_wandb=to_wandb)
 
     def plot_std_mean(
         self, 
         std_mean_dict, 
         name='std-mean', 
         show=False, 
-        ftype='png'
+        ftype='png',
+        to_wandb=True,
     ):
         fig, ax = plt.subplots()
         my_colors = colors_list[:len(std_mean_dict)]
@@ -449,12 +451,12 @@ class PointPlot():
                 plot_index += 1
                 #if(idx1 + 1 < len(mean)):
                 #    ax.axhline(y=plot_index - 0.5, color='black')
-        set_legend(legend_label, ax, fig)
+        set_legend(legend_label, ax)
         ax.set_title('std-mean')
         plt.yticks(list(range(len(labels))), labels, rotation='horizontal')
         add_range = (maxi - mini) * border_range_scale
         plt.xlim([mini - add_range, maxi + add_range])
-        self.flush(fig, ax, name, show, idx=len(std_mean_dict), ftype=ftype)
+        self.flush(fig, ax, name, show, idx=len(std_mean_dict), ftype=ftype, to_wandb=to_wandb)
 
     def plot_mean_distance(
         self, 
@@ -463,6 +465,7 @@ class PointPlot():
         show=False, 
         ftype='png',
         markersize=2,
+        to_wandb=True
     ):
         fig, ax = plt.subplots()
         legend_label = {}
@@ -497,10 +500,10 @@ class PointPlot():
                 'plot': new_plot,
             }
 
-        set_legend(legend_label, ax, fig)
+        set_legend(legend_label, ax)
         ax.set_title(f'Distance of the means from each other')
         plt.yticks(list(range(len(y_labels))), y_labels, rotation='horizontal')
-        self.flush(fig, ax, name, show, idx=idx+1, ftype=ftype)
+        self.flush(fig, ax, name, show, idx=idx+1, ftype=ftype, to_wandb=to_wandb)
 
     def plot(
         self, 
@@ -635,7 +638,8 @@ class PointPlot():
         ftype='png',
         size_x=15.4,
         size_y=10.8,
-        precision=4
+        precision=4,
+        to_wandb=True,
     ):
         fig, ax = plt.subplots(figsize=(size_x,size_y))
         formated_matrix = []
@@ -653,7 +657,7 @@ class PointPlot():
         for (i, j), z in np.ndenumerate(formated_matrix):
             ax.text(j, i, np.format_float_positional(z, precision=precision), va='center', ha='center')
 
-        self.flush(fig, ax, name, show, idx=len(average_point_dist_from_means_dict), ftype=ftype)
+        self.flush(fig, ax, name, show, idx=len(average_point_dist_from_means_dict), ftype=ftype, to_wandb=to_wandb)
 
     def plot_bar(
         self, 

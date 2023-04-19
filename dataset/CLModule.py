@@ -168,30 +168,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if not (self.wandb_flushed):
             print('WARNING:\tdreaming images were not flushed by wandb.')
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None) -> None:
-        """Generate new dreams."""
-        dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
-
-        model_mode = model.training # from torch.nn.Module
-        if model_mode:
-            model.eval()
-
-        gather_to_invoke = []
-        name = f"dream_loss/run_{task_index}"
-        run_name = [name, name]
-        for l in layer_hook_obj:
-            if(hasattr(l, 'gather_loss')):
-                gather_to_invoke.append(l.gather_loss)
-        def inner_custom_loss_gather_f(loss):
-            for l in gather_to_invoke:
-                loss = l(loss)
-            return loss
-        
-        custom_loss_gather_f = utils.log_wandb_tensor_decorator(inner_custom_loss_gather_f, run_name, self.logger) if(self.logger is not None) else inner_custom_loss_gather_f
-
+    def get_rendervis(self, model, custom_loss_gather_f):
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
-        self.render_vis_display_additional_info = True
-        rendervis_state = RenderVisState(
+
+        return RenderVisState(
                 model=model,
                 optim_image=self.dream_image,
                 custom_f_steps=self.custom_f_steps,
@@ -202,12 +182,41 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 enable_transforms=self.enable_dream_transforms,
                 standard_image_size=self.standard_image_size,
                 custom_loss_gather_f=custom_loss_gather_f,
-                display_additional_info=self.render_vis_display_additional_info,
+                display_additional_info=True,
                 preprocess=False,
                 device=model.device,
             )
 
+    def get_custom_loss_gather_f(self, task_index, layer_hook_obj) -> tuple:
+        gather_to_invoke = []
+        name = f"dream_loss/run_{task_index}"
+        run_name = [name, name]
+        if(layer_hook_obj is not None):
+            for l in layer_hook_obj:
+                if(hasattr(l, 'gather_loss')):
+                    gather_to_invoke.append(l.gather_loss)
+        def inner_custom_loss_gather_f(loss):
+            for l in gather_to_invoke:
+                loss = l(loss)
+            return loss
+        
+        custom_loss_gather_f = utils.log_wandb_tensor_decorator(inner_custom_loss_gather_f, run_name, self.logger) if(self.logger is not None) else inner_custom_loss_gather_f
+        return custom_loss_gather_f, run_name
+
+
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None) -> None:
+        """Generate new dreams."""
+        dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
+
+        model_mode = model.training # from torch.nn.Module
+        if model_mode:
+            model.eval()
+
+        custom_loss_gather_f, run_name = self.get_custom_loss_gather_f(task_index=task_index, layer_hook_obj=layer_hook_obj)
+        rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
+        
         iterations = ceil(self.dreams_per_target / self.dreaming_batch_size)
+
         new_dreams, new_targets = self._generate_dreams(
             model=model,
             dream_targets=dream_targets, 
@@ -236,62 +245,42 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_dreams = []
         new_targets = []
 
-        if (self.progress_bar is not None):
-            self._generate_dreams_impl(
-                model=model, 
-                dream_targets=dream_targets, 
-                iterations=iterations, 
-                task_index=task_index,
-                new_dreams=new_dreams, 
-                new_targets=new_targets, 
-                progress=self.progress_bar,
-                layer_hook_obj=layer_hook_obj,
-                rendervis_state=rendervis_state,
-                run_name=run_name,
-            )
+        self._generate_dreams_impl(
+            model=model, 
+            dream_targets=dream_targets, 
+            iterations=iterations, 
+            task_index=task_index,
+            new_dreams=new_dreams, 
+            new_targets=new_targets, 
+            layer_hook_obj=layer_hook_obj,
+            rendervis_state=rendervis_state,
+            run_name=run_name,
+        )
+        if(self.progress_bar is not None):
             self.progress_bar.clear_dreaming()
-        else:
-            with Progress(
-                "[progress.description]{task.description}",
-                BarColumn(complete_style="magenta"),
-                MofNCompleteColumn(),
-                TimeElapsedColumn(),
-                TimeRemainingColumn(),
-            ) as progress:
-                self._generate_dreams_impl(
-                    model=model, 
-                    dream_targets=dream_targets, 
-                    iterations=iterations, 
-                    task_index=task_index,
-                    new_dreams=new_dreams, 
-                    new_targets=new_targets, 
-                    progress=progress,
-                    layer_hook_obj=layer_hook_obj,
-                    rendervis_state=rendervis_state,
-                    run_name=run_name,
-                )
         new_dreams = torch.cat(new_dreams)
         new_targets = torch.tensor(new_targets)
         return new_dreams, new_targets
 
-    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, progress, layer_hook_obj:list, rendervis_state, run_name:list[str]):
-        progress.setup_dreaming(dream_targets=dream_targets)
+    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, layer_hook_obj:list, rendervis_state, run_name:list[str]):
+        if(self.progress_bar is not None):
+            self.progress_bar.setup_dreaming(dream_targets=dream_targets)
         for target in sorted(dream_targets):
             if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
                 for l in layer_hook_obj:
                     l.set_current_class(target)
             run_name[0] = f"{run_name[1]}/target_{target}"
-            target_dreams = self._generate_dreams_for_target(
+            target_dreams = self.generate_dreams_for_target(
                 model=model, 
                 target=target, 
                 iterations=iterations, 
-                progress_bar=progress,
                 task_index=task_index,
                 rendervis_state=rendervis_state,
             )
             new_targets.extend([target] * target_dreams.shape[0])
             new_dreams.append(target_dreams)
-            progress.update_dreaming(0)
+            if(self.progress_bar is not None):
+                self.progress_bar.update_dreaming(0)
     
     def _log_target_dreams(self, new_dreams, target):
         if not self.fast_dev_run and self.logger is not None:
@@ -331,9 +320,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def _generate_dreams_for_target(self, model, target, iterations, progress_bar, task_index, rendervis_state):
+    def generate_dreams_for_target(self, model, target, iterations, task_index, rendervis_state):
         dreams = []
-        progress_bar.setup_repeat(target=target, iterations=iterations)
+        if(self.progress_bar is not None):
+            self.progress_bar.setup_repeat(target=target, iterations=iterations)
         for _ in range(iterations):
             target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
             rendervis_state.objective_f = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
@@ -342,15 +332,16 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 render_vis(
                     render_dataclass=rendervis_state,
                     show_image=False,
-                    progress_bar=progress_bar,
+                    progress_bar=self.progress_bar,
                     refresh_fequency=self.richbar_refresh_fequency,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
             numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
-            self.render_vis_display_additional_info = False
+            rendervis_state.display_additional_info = False
 
             dreams.append(numpy_render)
-            progress_bar.update_dreaming(1)
+            if(self.progress_bar is not None):
+                self.progress_bar.update_dreaming(1)
         target_dreams = torch.cat(dreams)
         self._log_target_dreams(target_dreams, target)
         return target_dreams

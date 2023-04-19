@@ -22,3 +22,6 @@ class CustomDreamDataModule(DreamDataModule):
 
     def setup_task_index(self, task_index: int, loop_index: int) -> None:
         raise Exception("Not implemented")
+
+    def next(self):
+        raise Exception("Not implemented")
