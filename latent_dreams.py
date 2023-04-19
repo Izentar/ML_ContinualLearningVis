@@ -176,6 +176,7 @@ def logic(args, log_args_to_wandb=True):
     sigma = 0.01
     rho = 1.
     wandb_offline = False if not args.fast_dev_run else True
+    wandb_mode = "online" if not args.fast_dev_run else "disabled"
     #wandb_offline = True
 
     optimizer = lambda param: torch.optim.Adam(param, lr=args.lr)
@@ -236,7 +237,7 @@ def logic(args, log_args_to_wandb=True):
     tags = []
     if args.fast_dev_run:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, name=wandb_run_name(args))
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args))
     if(log_args_to_wandb):
         log_to_wandb(args)
     progress_bar = CustomRichProgressBar()

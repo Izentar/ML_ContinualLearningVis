@@ -10,6 +10,8 @@ from utils.cyclic_buffer import CyclicBufferByClass
 from loss_function.chiLoss import ChiLossBase, DummyLoss
 from model.SAE import SAE_CIFAR
 from utils import utils
+import wandb
+import pandas as pd
 
 from config.default import datasets, datasets_map
 
@@ -395,6 +397,8 @@ class CLModelWithIslands(CLModel):
         self.alpha = alpha
         self.buff_on_same_device = buff_on_same_device
 
+        self._means_once = False
+
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self._loss_f(latent, y)
 
@@ -426,6 +430,51 @@ class CLModelWithIslands(CLModel):
         classified_to_class = self._loss_f.classify(latent)
         self.test_acc(classified_to_class, y)
         self.log("test_acc", self.test_acc)
+
+        if(not self._means_once):
+            new_means = {str(k): v for k, v in self.loss_f.cloud_data.mean().items()}
+            distance_key, dist_val = self._calc_distance_to_each_other(new_means)
+            table_distance = wandb.Table(columns=distance_key, data=[dist_val])
+            wandb.log({'chiloss/distance_to_means': table_distance})
+
+            means_val = self._parse_bar_plot(new_means)
+            for k, v in means_val.items():
+                table_means = wandb.Table(data=v, columns=['dimension', 'value'])
+                wandb.log({f'chiloss/means_cl-{k}': wandb.plot.bar(table_means, label='dimension', value='value', title=f"Class-{k}")})
+
+            new_std = {str(k): v for k, v in self.loss_f.cloud_data.std().items()}
+            std_key_class, std_val = self._parse_std(new_std)
+            table_std = wandb.Table(columns=std_key_class, data=[std_val])
+            wandb.log({'chiloss/std_for_classes': table_std})
+            
+            self._means_once = True
+
+    def _parse_std(self, data:dict):
+        key = []
+        value = []
+        for k, v in data.items():
+            for k2, v2 in enumerate(v):
+                key.append(f"cl={k}::dim={k2}")
+                value.append(v2)
+        return key, value
+
+    def _parse_bar_plot(self, data:dict):
+        vals = {}
+        for k, v in data.items():
+                vals[k] = []
+                for k2, v2 in enumerate(v):
+                    vals[k].append([k2, v2])
+        return vals
+
+    def _calc_distance_to_each_other(self, means):
+        pdist = torch.nn.PairwiseDistance(p=2)
+        keys = []
+        vals = []
+        for k, v in means.items():
+            for k2, v2 in means.items():
+                keys.append(f"{k}:{k2}")
+                vals.append(pdist(v, v2))
+        return keys, vals
 
     def training_step(self, batch, batch_idx):
         if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):
