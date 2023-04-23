@@ -105,6 +105,11 @@ after first epoch when dream batch is created.') ##**
 Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
     parser.add_argument("--advance_clear_dreams", action="store_true", help='If the dreams at the beginning of the advance loop should be cleared.')
     parser.add_argument("--decorrelate", action="store_true", help='If the dreams should be decorrelated.')
+    
+    parser.add_argument("--chiloss_sigma", type=float, default=0.01, help='How close points from latent space inside \
+current batch should be close to each other. Should be lesser than chiloss_rho.')
+    parser.add_argument("--chiloss_rho", type=float, default=1., help='How far means from different targets \
+should be appart from each other. Should be greather than chiloss_sigma.')
 
 
 

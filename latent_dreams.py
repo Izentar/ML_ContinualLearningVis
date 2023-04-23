@@ -155,8 +155,10 @@ def select_datasampler(dtype, main_split):
         )
 
     if(dtype == 'none'):
+        print('INFO: Selected None datasampler')
         return None
     elif(dtype == 'v2'):
+        print('INFO: Selected PairingBatchSamplerV2 datasampler')
         return inner
     else:
         raise Exception(f'Unknown type: {dtype}')
@@ -173,8 +175,6 @@ def logic(args, log_args_to_wandb=True):
         pl.seed_everything(args.seed)
 
     main_split = collect_main_split = 0.5
-    sigma = 0.01
-    rho = 1.
     wandb_offline = False if not args.fast_dev_run else True
     wandb_mode = "online" if not args.fast_dev_run else "disabled"
     #wandb_offline = True
@@ -309,8 +309,8 @@ def logic(args, log_args_to_wandb=True):
             attack_kwargs=attack_kwargs,
             dreams_with_logits=args.train_with_logits,
             dream_frequency=args.dream_frequency,
-            sigma=sigma,
-            rho=rho,
+            sigma=args.sigma,
+            rho=args.rho,
             norm_lambda=args.norm_lambda,
             hidden=args.number_of_classes,
             one_hot_means=one_hot_means,
