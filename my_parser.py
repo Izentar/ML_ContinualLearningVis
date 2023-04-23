@@ -107,10 +107,16 @@ Checks if the output image has the provided shape. Do not include batch here. De
     parser.add_argument("--decorrelate", action="store_true", help='If the dreams should be decorrelated.')
     
     parser.add_argument("--chiloss_sigma", type=float, default=0.01, help='How close points from latent space inside \
-current batch should be close to each other. Should be lesser than chiloss_rho.')
+current batch should be close to each other. Should be lesser than chiloss_rho. The smaller the less scattered points of the same class.')
     parser.add_argument("--chiloss_rho", type=float, default=1., help='How far means from different targets \
-should be appart from each other. Should be greather than chiloss_sigma.')
+should be appart from each other. Should be greather than chiloss_sigma. The larger it is, the more scattered the points of different classes.')
 
+    parser.add_argument("--use_input_img_var_reg_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
+    parser.add_argument("--use_var_img_reg_at", type=str, nargs='+', help='')
+    parser.add_argument("--use_l2_img_reg_at", type=str, nargs='+', help='')
+    parser.add_argument("--bn_reg_scale", type=float, default=1e2, help='')
+    parser.add_argument("--var_scale", type=float, default=2.5e-5, help='')
+    parser.add_argument("--l2_coeff", type=float, default=1e-05, help='')
 
 
     ######################################
@@ -172,7 +178,6 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--use_grad_activ_pruning_at", type=int, help='') ##**
     parser.add_argument("--grad_activ_pruning_percent", type=float, default=0.01, help='') ##**
     parser.add_argument("--ll_del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
-
 
     ######################################
     ######          other           ######

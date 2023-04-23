@@ -30,11 +30,13 @@ import datetime, glob
 
 from config.default import default_export_path, model_to_save_file_type
 from model.statistics import base as layer_stat_framework
+from loss_function import layer_loss
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
 from model.statistics.base import ModelLayerStatistics, unhook
 from colorama import Fore, Back, Style
 from collections.abc import Sequence
+from loss_function import image_regularization
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -93,6 +95,12 @@ class CLLoop(Loop):
         grad_pruning_percent=0.01,
         use_grad_activ_pruning_at=None,
         grad_activ_pruning_percent=0.01,
+        use_input_img_var_reg_at=False,
+        bn_reg_scale=1e2,
+        use_var_img_reg_at=False,
+        var_scale=2.5e-5,
+        use_l2_img_reg_at=False,
+        l2_coeff=1e-05,
     ) -> None:
         """
             epochs_per_task: list of epoches per task
@@ -104,6 +112,7 @@ class CLLoop(Loop):
                 all tasks are done.
         """
         super().__init__()
+
         self.num_tasks = len(epochs_per_task)
         self.num_loops = self.num_tasks if num_loops is None else num_loops
         self._epochs_per_task = epochs_per_task
@@ -156,6 +165,12 @@ class CLLoop(Loop):
         self.load_layer_stats = load_layer_stats
         self.save_layer_stats = save_layer_stats
         self.ll_scaling = ll_scaling
+        self.use_input_img_var_reg_at = use_input_img_var_reg_at
+        self.bn_reg_scale = bn_reg_scale
+        self.use_var_img_reg_at = use_var_img_reg_at
+        self.var_scale = var_scale
+        self.use_l2_img_reg_at = use_l2_img_reg_at
+        self.l2_coeff = l2_coeff
 
         for l in self._epochs_per_task:
             if((not isinstance(l, Sequence)) or len(l) < 1):
@@ -229,16 +244,17 @@ class CLLoop(Loop):
         self._try_save_model_layer_stats()
 
     def _try_generate_dream(self):
-        main_enable = utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop)
-        if main_enable:
+        if utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop):
             layer_hook_obj = []
-            loss_layer_handles = []
+            layer_handles = []
+            input_image_train_after_obj = []
+
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_stat_framework.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after, scaling=self.ll_scaling)
+                tmp = layer_loss.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after, scaling=self.ll_scaling)
                 layer_hook_obj.append(tmp)
-                loss_layer_handles.append(layer_stat_framework.hook_model_stats(
+                layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
                     fun=tmp.hook_fun, 
@@ -247,9 +263,9 @@ class CLLoop(Loop):
             if(utils.check_python_index(self.use_grad_pruning_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_stat_framework.LayerGradPruning(device=self.layer_stats_loss_device, percent=self.grad_pruning_percent)
+                tmp = layer_loss.LayerGradPruning(device=self.layer_stats_loss_device, percent=self.grad_pruning_percent)
                 layer_hook_obj.append(tmp)
-                loss_layer_handles.append(layer_stat_framework.hook_model_stats(
+                layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
                     fun=tmp.hook_fun, 
@@ -258,14 +274,30 @@ class CLLoop(Loop):
             if(utils.check_python_index(self.use_grad_activ_pruning_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_stat_framework.LayerGradActivationPruning(device=self.layer_stats_loss_device, percent=self.grad_activ_pruning_percent)
+                tmp = layer_loss.LayerGradActivationPruning(device=self.layer_stats_loss_device, percent=self.grad_activ_pruning_percent)
                 layer_hook_obj.append(tmp)
-                loss_layer_handles.append(utils.hook_model(
+                layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 
                     fun=tmp.hook_fun, 
                     hook_to=self.layer_stats_hook_to
                 ))
 
+            if(utils.check_python_index(self.use_input_img_var_reg_at, self.num_loops, self.current_loop)):
+                tmp = layer_loss.DeepInversionFeatureLoss(bn_reg_scale=self.bn_reg_scale)
+                input_image_train_after_obj.append(tmp)
+                layer_handles.append(utils.hook_model(
+                    model=self.trainer.lightning_module, 
+                    fun=tmp.hook_fun, 
+                    hook_to=['BatchNorm2d'] # only works for BatchNorm2d
+                ))
+
+            if(utils.check_python_index(self.use_var_img_reg_at, self.num_loops, self.current_loop)):
+                tmp = image_regularization.VariationRegularization(scale=self.var_scale)
+                input_image_train_after_obj.append(tmp)
+
+            if(utils.check_python_index(self.use_l2_img_reg_at, self.num_loops, self.current_loop)):
+                tmp = image_regularization.L2Regularization(coefficient=self.l2_coeff)
+                input_image_train_after_obj.append(tmp)
             
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             #self.trainer.datamodule.setup_task_index(self.current_task)
@@ -273,9 +305,10 @@ class CLLoop(Loop):
                 model=self.trainer.lightning_module, 
                 task_index=self.current_task, 
                 layer_hook_obj=layer_hook_obj,
+                input_image_train_after_obj=input_image_train_after_obj,
             )
-            if(len(loss_layer_handles) != 0):
-                for l in loss_layer_handles:
+            if(len(layer_handles) != 0):
+                for l in layer_handles:
                     unhook(l)
             print("DREAMING END")
 
@@ -372,6 +405,7 @@ class CLLoop(Loop):
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
 
         if(self.advance_clear_dreams):
+            print(f'INFO: Dreams cleared at loop {self.current_loop}, task {self.current_task}')
             self.trainer.datamodule.clear_dreams_dataset()
         self._try_generate_dream()
         self._update_data_passer()

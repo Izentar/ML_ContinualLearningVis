@@ -49,7 +49,7 @@ class BaseCLDataModule(LightningDataModule, ABC):
         """
         pass
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj=None) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj=None, input_image_train_after_obj=None) -> None:
         """
             Generate new dreams from the tasks.
         """
@@ -168,7 +168,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if not (self.wandb_flushed):
             print('WARNING:\tdreaming images were not flushed by wandb.')
 
-    def get_rendervis(self, model, custom_loss_gather_f):
+    def get_rendervis(self, model, custom_loss_gather_f, input_image_train_after_hook=None):
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
 
         return RenderVisState(
@@ -185,26 +185,26 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 display_additional_info=True,
                 preprocess=False,
                 device=model.device,
+                input_image_train_after_hook=input_image_train_after_hook
             )
 
-    def get_custom_loss_gather_f(self, task_index, layer_hook_obj) -> tuple:
+    def get_custom_loss_gather_f(self, task_index, *args) -> tuple:
         gather_to_invoke = []
         name = f"dream_loss/run_{task_index}"
         run_name = [name, name]
-        if(layer_hook_obj is not None):
-            for l in layer_hook_obj:
-                if(hasattr(l, 'gather_loss')):
-                    gather_to_invoke.append(l.gather_loss)
+        for arg in args:
+            if(arg is not None):
+                    if(hasattr(arg, 'gather_loss')):
+                        gather_to_invoke.append(arg.gather_loss)
         def inner_custom_loss_gather_f(loss):
             for l in gather_to_invoke:
                 loss = l(loss)
             return loss
         
         custom_loss_gather_f = utils.log_wandb_tensor_decorator(inner_custom_loss_gather_f, run_name, self.logger) if(self.logger is not None) else inner_custom_loss_gather_f
-        return custom_loss_gather_f, run_name
+        return custom_loss_gather_f, run_name        
 
-
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None, input_image_train_after_obj:list=None) -> None:
         """Generate new dreams."""
         dream_targets = self.select_dream_tasks_f(self.train_tasks_split, task_index)
 
@@ -212,8 +212,10 @@ class DreamDataModule(BaseCLDataModule, ABC):
         if model_mode:
             model.eval()
 
-        custom_loss_gather_f, run_name = self.get_custom_loss_gather_f(task_index=task_index, layer_hook_obj=layer_hook_obj)
-        rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
+        layer_hook_obj = layer_hook_obj if layer_hook_obj is not None else ()
+        input_image_train_after_obj = input_image_train_after_obj if input_image_train_after_obj is not None else ()
+        custom_loss_gather_f, run_name = self.get_custom_loss_gather_f(task_index, *layer_hook_obj, *input_image_train_after_obj)
+        rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f, input_image_train_after_hook=input_image_train_after_obj)
         
         iterations = ceil(self.dreams_per_target / self.dreaming_batch_size)
 
@@ -485,7 +487,7 @@ class CLDataModule(DreamDataModule):
         if(self.train_task is None or len(self.train_task) <= 0):
             raise Exception(f"Train task dataset not set properly. Used index '{self.current_task_index}' from '{len(self.train_datasets)}'")
 
-    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj=None) -> None:
+    def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj=None, input_image_train_after_obj=None) -> None:
         super().generate_synthetic_data(model=model, task_index=task_index, layer_hook_obj=layer_hook_obj)
         self.__setup_dream_dataset()
 
@@ -571,10 +573,12 @@ class CLDataModule(DreamDataModule):
         # need new label to not use this dataset but still keep CombinedLoader functionality
         if(utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop'])):
             normal_key = 'hidden_normal'
+            print("INFO: Normal dataloader is hidden.")
         else:
             print(f"Selected classes for normal dataloader: {normal_classes}")
 
         if dream_loader is not None:
+            print("INFO: Use dream dataloader.")
             loaders = {normal_key: normal_loader, "dream": dream_loader}
         else:
             loaders = {normal_key: normal_loader}

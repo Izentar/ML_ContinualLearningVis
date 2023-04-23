@@ -14,9 +14,11 @@ class SAE_CIFAR(nn.Module, ModelBase):
         self.conv_enc1 = nn.Conv2d(
             in_channels=3, out_channels=32, kernel_size=(3, 3), stride=(1, 1)
         )
+        self.bn1 = nn.BatchNorm2d(32)
         self.conv_enc2 = nn.Conv2d(
             in_channels=32, out_channels=64, kernel_size=(3, 3), stride=(1, 1)
         )
+        self.bn2 = nn.BatchNorm2d(64)
 
         self.relu = torch.nn.ReLU()
         self.relu_end = torch.nn.ReLU()
@@ -62,8 +64,8 @@ class SAE_CIFAR(nn.Module, ModelBase):
         return self.ln_encode_cl(x)
 
     def forward_encoder_hidden(self, x):
-        xe = self.relu(self.conv_enc1(x))
-        xe = self.relu(self.conv_enc2(xe))
+        xe = self.relu(self.bn1(self.conv_enc1(x)))
+        xe = self.relu(self.bn2(self.conv_enc2(xe)))
         conv_to_linear_shape = [xe.shape[0], xe.shape[1], xe.shape[2], xe.shape[3]] # 32 batch | 64 channels | 28 x | 28 y
 
         xe = xe.reshape(-1, conv_to_linear_shape[1] * conv_to_linear_shape[2] * conv_to_linear_shape[3])

@@ -107,6 +107,7 @@ class RenderVisState():
         enable_transforms=True,
         thresholds=None,
         device=None,
+        input_image_train_after_hook:list|None=None,
     ) -> None:
         self.preprocess = preprocess
         self.standard_image_size = standard_image_size
@@ -114,6 +115,7 @@ class RenderVisState():
         self.enable_transforms = enable_transforms
         self._set_thresholds(thresholds)
         self._set_custom_f_steps(custom_f_steps)
+        self.input_image_train_after_hook = input_image_train_after_hook
         
         self._set_forward_loss_hook(custom_loss_gather_f)
         self._set_advance_end_hook(custom_f)
@@ -252,6 +254,16 @@ class RenderVisState():
     def _set_forward_loss_hook(self, value):
         self._forward_loss_hook = empty_loss_f if value is None else value
 
+    @property
+    def input_image_train_after_hook(self):
+        return self._input_image_train_after_hooks
+    @input_image_train_after_hook.setter
+    def input_image_train_after_hook(self, value:list):
+        def inner(image):
+            for h in value:
+                image = h(image)
+            return image
+        self._input_image_train_after_hooks = inner if value is not None else lambda x: x
 
     @property
     def advance_end_hook(self):
@@ -348,7 +360,12 @@ def render_vis(
     for i in range(1, iterations + 1):
         def closure():
             rd.optimizer.zero_grad()
-            rd.model(rd.transform_f(rd.optim_image.image()))
+            rd.model.zero_grad()
+            image = rd.transform_f(rd.optim_image.image())
+
+            rd.model(image)
+            rd.input_image_train_after_hook(image)
+
             loss = rd.objective_f(rd.hook.get_output)
             loss = rd.forward_loss_hook(loss)
             loss.backward()

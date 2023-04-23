@@ -429,6 +429,13 @@ def logic(args, log_args_to_wandb=True):
         use_grad_activ_pruning_at=args.use_grad_activ_pruning_at,
         grad_activ_pruning_percent=args.grad_activ_pruning_percent,
         layer_loss_del_cov_after=args.ll_del_cov_after,
+
+        use_input_img_var_reg_at=args.use_input_img_var_reg_at,
+        bn_reg_scale=args.bn_reg_scale,
+        use_var_img_reg_at=args.use_var_img_reg_at,
+        var_scale=args.var_scale,
+        use_l2_img_reg_at=args.use_l2_img_reg_at,
+        l2_coeff=args.l2_coeff,
     )
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)
