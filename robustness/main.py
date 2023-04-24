@@ -40,7 +40,7 @@ def main(args, store=None):
     dataset = DATASETS[args.dataset](data_path)
 
     train_loader, val_loader = dataset.make_loaders(
-        args.workers, args.batch_size, data_aug=bool(args.data_aug)
+        args.workers, args.datamodule.batch_size, data_aug=bool(args.data_aug)
     )
 
     train_loader = helpers.DataPrefetcher(train_loader)

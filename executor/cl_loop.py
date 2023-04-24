@@ -61,14 +61,14 @@ class CLLoop(Loop):
         epochs_per_task: list[list[int]],
         reload_model_at: bool = False,
         reinit_model_at: bool = False,
-        export_path: Optional[str] = None,
+        save_export_path: Optional[str] = None,
+        load_export_path: Optional[str] = None,
         enable_dreams_gen_at:int=None,
         fast_dev_run_epochs=None,
         fast_dev_run=False,
         data_passer=None,
         num_loops=None,
         run_training_at=False,
-        early_finish_at=-1,
         weight_reset_sanity_check=False,
         enable_checkpoint:bool=False,
         save_trained_model:bool=False,
@@ -86,11 +86,11 @@ class CLLoop(Loop):
         layer_stats_flush_to_disk=False,
         layer_stats_loss_device='cuda:0',
         layer_stats_collect_device='cuda:0',
-        advance_clear_dreams=False,
-        layer_loss_del_cov_after=False,
+        clear_dreams_at=False,
+        layerloss_del_cov_after=False,
         save_layer_stats=None,
         load_layer_stats=None,
-        ll_scaling=0.01,
+        layerloss_scaling=0.01,
         use_grad_pruning_at=None,
         grad_pruning_percent=0.01,
         use_grad_activ_pruning_at=None,
@@ -104,7 +104,7 @@ class CLLoop(Loop):
     ) -> None:
         """
             epochs_per_task: list of epoches per task
-            export_path: save model parameters to path on current task
+            save_export_path: save model parameters to path on current task
 
             num_loops - if None then the same as num_tasks. It is used to loop over the num_tasks.
                 If num_loops == num_tasks then nothing is changed. 
@@ -120,8 +120,23 @@ class CLLoop(Loop):
         self.current_loop: int = 0
         self.previous_task:int = 0
         self.previous_loop:int = 0
-        self.export_path = Path(export_path) if export_path is not None else Path(default_export_path)
-        self.export_path.mkdir(parents=True, exist_ok=True)
+
+        # save_export_path
+        if save_export_path is not None:
+            self.save_export_path = Path(save_export_path)
+        elif load_export_path is not None:
+            self.save_export_path = Path(load_export_path)
+        else:
+            self.save_export_path = Path(default_export_path)
+
+        # load_export_path
+        if load_export_path is not None:
+            self.load_export_path = Path(load_export_path)
+        elif save_export_path is not None:
+            self.load_export_path = Path(save_export_path)
+        else:
+            self.load_export_path = Path(default_export_path)
+
         self.save_model_inner_path = Path(save_model_inner_path) if save_model_inner_path is not None else Path("")
         
         self.reload_model_at = reload_model_at
@@ -130,7 +145,6 @@ class CLLoop(Loop):
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
         self.run_training_at = run_training_at
-        self.early_finish_at = early_finish_at
         self.weight_reset_sanity_check = weight_reset_sanity_check
         self.enable_checkpoint = enable_checkpoint
         self.save_trained_model = save_trained_model
@@ -142,7 +156,7 @@ class CLLoop(Loop):
         self.use_layer_loss_at = use_layer_loss_at
         self.data_module = data_module
         self.progress_bar = progress_bar
-        self.advance_clear_dreams = advance_clear_dreams
+        self.clear_dreams_at = clear_dreams_at
         self.use_grad_pruning_at = use_grad_pruning_at
         self.grad_pruning_percent = grad_pruning_percent
         self.use_grad_activ_pruning_at = use_grad_activ_pruning_at
@@ -152,7 +166,7 @@ class CLLoop(Loop):
         self.data_passer = data_passer if data_passer is not None else {}
         self.custom_advance_f = None
         self.model_stats = None
-        self.layer_loss_del_cov_after = layer_loss_del_cov_after
+        self.layerloss_del_cov_after = layerloss_del_cov_after
 
         if utils.check_python_enabled(self.reinit_model_at) and utils.check_python_enabled(self.reload_model_at):
             raise Exception("ERROR: reinit_model_at and reload_model_at cannot be both true")
@@ -164,7 +178,7 @@ class CLLoop(Loop):
         self.layer_stats_collect_device = layer_stats_collect_device
         self.load_layer_stats = load_layer_stats
         self.save_layer_stats = save_layer_stats
-        self.ll_scaling = ll_scaling
+        self.layerloss_scaling = layerloss_scaling
         self.use_input_img_var_reg_at = use_input_img_var_reg_at
         self.bn_reg_scale = bn_reg_scale
         self.use_var_img_reg_at = use_var_img_reg_at
@@ -196,12 +210,6 @@ class CLLoop(Loop):
         self.data_passer['current_loop'] = self.current_loop
         self.data_passer['num_tasks'] = self.num_tasks
         self.data_passer['num_loops'] = self.num_loops
-        if(self.enable_data_parser):
-            self.data_passer['model_train_end_f'] = None
-            if (self.early_finish_at >= 0 and self.data_passer['current_loop'] >= self.early_finish_at):
-                self.data_passer['model_train_end_f'] = -1
-        else:
-            self.data_passer['model_train_end_f'] = None
         if(self.current_loop < self.num_loops):
             self.data_passer['epoch_per_task'] = self.epochs_per_task
 
@@ -252,7 +260,7 @@ class CLLoop(Loop):
             if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_loss.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layer_loss_del_cov_after, scaling=self.ll_scaling)
+                tmp = layer_loss.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layerloss_del_cov_after, scaling=self.layerloss_scaling)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
@@ -361,37 +369,37 @@ class CLLoop(Loop):
         else:
             self.custom_advance_f = lambda: print(f"{Fore.RED}INFO: SKIPPING ANY TRAINING at loop {self.current_loop}{Style.RESET_ALL}")
 
-    def _export_path_contains(self, other):
-        size = len(self.export_path.parents) + 1
-        if(self.export_path == other.parents[- size]):
+    def _export_path_contains(self, other, export_path):
+        size = len(export_path.parents) + 1
+        if(export_path == other.parents[- size]):
             return True
         return False
 
-    def _gen_folder_name_by_time(self, dtype:str=None):
+    def _gen_folder_name_by_time(self, export_path, dtype:str=None):
         folder = datetime.datetime.now().strftime("%d-%m-%Y")
         time = datetime.datetime.now().strftime("%H-%M-%S")
         if(dtype is None):
             dtype = ""
-        if(self._export_path_contains(self.save_model_inner_path)):
+        if(self._export_path_contains(self.save_model_inner_path, export_path=export_path)):
             ret = self.save_model_inner_path / dtype / folder
         else:
-            ret = self.export_path / self.save_model_inner_path / dtype / folder
+            ret = export_path / self.save_model_inner_path / dtype / folder
         ret.mkdir(parents=True, exist_ok=True)
         return ret, time
 
     def _try_save_dreams(self):
         if(self.save_dreams is not None and not self.fast_dev_run):
-            filepath, time = self._gen_folder_name_by_time(self.save_dreams)
+            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path, dtype=self.save_dreams)
             filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             Path.mkdir(filepath, parents=True, exist_ok=True)
             self.trainer.datamodule.save_dream_dataset(filepath / filename)
 
     def _try_load_dreams(self):
         if(self.load_dreams is not None):
-            if(self._export_path_contains(self.load_dreams)):
+            if(self._export_path_contains(self.load_dreams, self.load_export_path)):
                 find_path = self.load_dreams
             else:
-                find_path = self.export_path / self.load_dreams
+                find_path = self.load_export_path / self.load_dreams
             path = glob.glob(str(find_path), recursive=True)
             if('dreams.' not in self.load_dreams):
                 raise Exception(f'Unknown filename to load dreams. May be the wrong filetype. File: {find_path}')
@@ -404,7 +412,7 @@ class CLLoop(Loop):
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
 
-        if(self.advance_clear_dreams):
+        if(utils.check_python_index(self.clear_dreams_at, self.num_loops, self.current_loop)):
             print(f'INFO: Dreams cleared at loop {self.current_loop}, task {self.current_task}')
             self.trainer.datamodule.clear_dreams_dataset()
         self._try_generate_dream()
@@ -428,14 +436,14 @@ class CLLoop(Loop):
 
     def _try_export_model_checkpoint(self):
         if self.enable_checkpoint and not self.fast_dev_run:
-            filepath, time = self._gen_folder_name_by_time()
+            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path)
             self.trainer.save_checkpoint(
                 filepath / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             )
 
     def _try_save_trained_model(self):
         if(self.save_trained_model and not self.fast_dev_run):
-            filepath, time = self._gen_folder_name_by_time()
+            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path)
             self.trainer.save_checkpoint(
                 filepath / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
                 weights_only=True
@@ -443,10 +451,10 @@ class CLLoop(Loop):
 
     def _try_load_model(self):
         if(self.load_model is not None):
-            if(self._export_path_contains(self.load_model)):
+            if(self._export_path_contains(self.load_model, self.load_export_path)):
                 find_path = self.load_model
             else:
-                find_path = self.export_path / self.load_model
+                find_path = self.load_export_path / self.load_model
             path = glob.glob(str(find_path), recursive=True)
             if(len(path) != 1):
                 raise Exception(f'Cannot load model - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
@@ -515,7 +523,7 @@ class CLLoop(Loop):
             for k, v in self.model_stats.items():
                 stripped_dict[k] = v.get_const_data()
             Path(self.save_layer_stats).parent.mkdir(parents=True, exist_ok=True)
-            filepath, time = self._gen_folder_name_by_time()
+            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path)
             torch.save(stripped_dict, f=filepath / f'layer_stats.loop_{self.current_loop}.{self.save_layer_stats}.{time}.ls') 
     
     def _try_load_model_layer_stats(self, strict=True):

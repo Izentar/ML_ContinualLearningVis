@@ -370,8 +370,9 @@ class CLDataModule(DreamDataModule):
         num_workers=0,
         shuffle=True,
         steps_to_locate_mean = None,
-        dream_num_workers=0,
-        test_val_num_workers=0,
+        vis_num_workers=None,
+        test_num_workers=None,
+        val_num_workers=None,
         dream_shuffle=True,
         datasampler=None,
         root="data",
@@ -403,9 +404,10 @@ class CLDataModule(DreamDataModule):
         self.shuffle = shuffle
         self.steps_to_locate_mean = steps_to_locate_mean
 
-        self.dream_num_workers = dream_num_workers
+        self.vis_num_workers = vis_num_workers if vis_num_workers is not None else self.num_workers
         self.dream_shuffle = dream_shuffle if dream_shuffle else shuffle
-        self.test_val_num_workers = test_val_num_workers
+        self.test_num_workers = test_num_workers if test_num_workers is not None else self.num_workers
+        self.val_num_workers = val_num_workers if val_num_workers is not None else self.num_workers
         self.datasampler = datasampler if datasampler is not None else None
         self.root = root
         self.dream_batch_size = dream_batch_size
@@ -541,7 +543,7 @@ class CLDataModule(DreamDataModule):
             dream_loader = DataLoader(
                 self.dreams_dataset, # give full dataset, var classes is used to select classes
                 batch_size=self.batch_size if self.datasampler is None else 1, 
-                num_workers=self.dream_num_workers, 
+                num_workers=self.vis_num_workers, 
                 shuffle=shuffle if self.datasampler is None else False, 
                 pin_memory=True,
                 batch_sampler=self.datasampler(
@@ -591,7 +593,7 @@ class CLDataModule(DreamDataModule):
         return [
             DataLoader(dataset, 
             batch_size=self.batch_size if self.datasampler is None else 1, 
-            num_workers=self.test_val_num_workers, 
+            num_workers=self.val_num_workers, 
             pin_memory=True,
             batch_sampler=self.datasampler(
                 dataset=dataset, 
@@ -612,7 +614,7 @@ class CLDataModule(DreamDataModule):
         return DataLoader(
             full_dataset, 
             batch_size=self.batch_size if self.datasampler is None else 1, 
-            num_workers=self.test_val_num_workers,
+            num_workers=self.test_num_workers,
             pin_memory=True,
             batch_sampler=self.datasampler(
                 dataset=full_dataset, 
@@ -621,21 +623,6 @@ class CLDataModule(DreamDataModule):
                 batch_size=self.batch_size,
             ) if self.datasampler is not None else None
         )
-
-        #return DataLoader(
-        #    full_dataset, 
-        #    batch_size= 1, 
-        #    num_workers=self.test_val_num_workers,
-        #    pin_memory=True
-        #)
-
-    #def transform_targets(self, model, dream_target, task_index):
-    #    if self.steps_to_locate_mean is not None:
-    #        if not self.calculated_mean_std:
-    #            self.std, self.mean = self.__calculate_std_mean_multidim(model=model, task_index=task_index)
-    #        return self.target_processing_f(target=dream_target, model=model, mean=self.mean, std=self.std)
-
-    #    return self.target_processing_f(target=dream_target, model=model)
 
     def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
         """

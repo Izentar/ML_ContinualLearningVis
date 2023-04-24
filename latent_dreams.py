@@ -24,7 +24,6 @@ from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
 from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs, wandb_run_name
 
-from utils.load import try_load
 from config.default import robust_data_path
 from model.statistics.base import pca
 from collections.abc import Sequence
@@ -128,7 +127,7 @@ def param_f_create(ptype):
         return param_f
 
     
-    if(ptype == 'fft' or ptype == 'pixel'):
+    if(ptype == 'fft' or ptype == 'pixel' or ptype == 'custom'):
         return param_f_image
     elif(ptype == 'cppn'):
         return param_f_cppn
@@ -171,41 +170,32 @@ def model_summary(source_model):
 
 def logic(args, log_args_to_wandb=True):
     # normal dreaming
-    if(args.seed is not None):
-        pl.seed_everything(args.seed)
+    if(args.config.seed is not None):
+        pl.seed_everything(args.config.seed)
 
     main_split = collect_main_split = 0.5
     wandb_offline = False if not args.fast_dev_run else True
     wandb_mode = "online" if not args.fast_dev_run else "disabled"
     #wandb_offline = True
 
-    optimizer = lambda param: torch.optim.Adam(param, lr=args.lr)
-    #optimizer = lambda param: torch.optim.SGD(param, lr=1e-9, momentum=0.1, weight_decay=0.1)
-    #scheduler = None
-    scheduler = lambda optim: torch.optim.lr_scheduler.ExponentialLR(optim, gamma=0.1)
-    def reset_optim(optim, sched=None):
-        for g in optim.param_groups:
-            g['lr'] = args.lr
-
-    layer_stats_hook_to:list[str]|None=args.layer_stats_hook_to
     layer_stats_verbose=False
     layer_stats_flush_to_disk=False
     layer_stats_loss_device='cuda:0'
     layer_stats_collect_device='cuda:0'
     
     num_sanity_val_steps = 0
-    dream_optim = lambda params: torch.optim.Adam(params, lr=args.dream_lr)
+    dream_optim = lambda params: torch.optim.Adam(params, lr=args.datamodule.vis.optim.lr)
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
 
-    datasampler = select_datasampler(dtype=args.datasampler_type, main_split=main_split)
+    datasampler = select_datasampler(dtype=args.config.datasampler_type, main_split=main_split)
 
     attack_kwargs = attack_args_to_kwargs(args)
-    optim_params = optim_params_to_kwargs(args)
+    optimizer_params = optim_params_to_kwargs(args)
 
-    one_hot_means = get_one_hots(mytype='diagonal', size=args.number_of_classes)
+    one_hot_means = get_one_hots(mytype='diagonal', size=args.config.number_of_classes)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
-    dream_image_f = param_f_create(ptype=args.dream_image_type)
+    dream_image_f = param_f_create(ptype=args.datamodule.vis.image_type)
     render_transforms = None
     #render_transforms = [
     #    dream_tr.pad(4), 
@@ -255,26 +245,26 @@ def logic(args, log_args_to_wandb=True):
 
     #### setting in dream_obj_type a diversity type will extend time of dreaming significantly
     set_manager = FunConfigSetPredefined(
-        name_type=args.framework_type, 
-        mtype=args.model_type,
-        select_task_type=args.select_task_type,
-        target_processing_type=args.target_processing_type,
-        task_split_type=args.task_split_type,
-        otype=args.overlay_type,
+        name_type=args.config.framework_type, 
+        mtype=args.config.model_type,
+        select_task_type=args.config.select_task_type,
+        target_processing_type=args.config.target_processing_type,
+        task_split_type=args.config.task_split_type,
+        otype=args.config.overlay_type,
         #mtype='SAEGAUSS', 
         #mtype='RESNET18', 
-        dream_obj_type=args.dream_obj_type,
+        dream_obj_type=args.config.dream_obj_type,
         #dream_obj_type=["objective-channel", "OBJECTIVE-DLA-DIVERSITY-1", "OBJECTIVE-DLA-DIVERSITY-2", "OBJECTIVE-DLA-DIVERSITY-3"],
         logger=logger
     )
     set_manager.init_dream_objectives(logger=logger, label='dream')
     print(f"Selected configuration:\n{str(set_manager)}")
 
-    source_model = set_manager.model(num_classes=args.number_of_classes)
+    source_model = set_manager.model(num_classes=args.config.number_of_classes)
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
-    val_tasks_split = train_tasks_split = set_manager.task_split(args.number_of_classes, args.num_tasks)
+    val_tasks_split = train_tasks_split = set_manager.task_split(args.config.number_of_classes, args.config.num_tasks)
 
     #model_summary(source_model)
 
@@ -282,50 +272,44 @@ def logic(args, log_args_to_wandb=True):
         print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
     if(args.fast_dev_run):
-        args.dreams_per_target = 64
+        args.datamodule.vis.per_target = 64
 
-    dream_dataset_class = dream_sets.DreamDatasetWithLogits if args.train_with_logits else dream_sets.DreamDataset
-    dataset_class, dataset_class_labels = getDataset(args.dataset)
+    dataset_class, dataset_class_labels = getDataset(args.config.dataset)
 
     #if args.fast_dev_run:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
     check(split=train_tasks_split, 
-        num_classes=args.number_of_classes, 
-        num_tasks=args.num_tasks,
+        num_classes=args.config.number_of_classes, 
+        num_tasks=args.config.num_tasks,
         enable_robust=args.enable_robust,
     )
 
-    model = try_load(args.export_path, args.load_model)
-
-    if(model is None):
-        model = set_manager.model_overlay(
-            model=source_model,
-            load_model=args.load_model,
-            robust_dataset_name=args.dataset,
-            robust_data_path=robust_data_path,
-            num_tasks=args.num_tasks,
-            num_classes=args.number_of_classes,
-            attack_kwargs=attack_kwargs,
-            dreams_with_logits=args.train_with_logits,
-            dream_frequency=args.dream_frequency,
-            sigma=args.chiloss_sigma,
-            rho=args.chiloss_rho,
-            norm_lambda=args.norm_lambda,
-            hidden=args.number_of_classes,
-            one_hot_means=one_hot_means,
-            cyclic_latent_buffer_size_per_class=args.cyclic_latent_buffer_size_per_class,
-            loss_f=clModel_default_loss_f,
-            data_passer=data_passer,
-            optimizer_construct_type=args.optimizer_type,
-            scheduler_construct_type=args.scheduler_type,
-            scheduler_steps=args.train_scheduler_steps,
-            optimizer_restart_params_type=args.reset_optim_type,
-            optimizer_params=optim_params,
-            replace_layer=args.replace_layer,
-            replace_layer_from=torch.nn.ReLU,
-            replace_layer_to_f=lambda a, b, x: GaussA(30),
-        )
+    model = set_manager.model_overlay(
+        model=source_model,
+        load_model=args.loop.load.model,
+        robust_dataset_name=args.config.dataset,
+        robust_data_path=robust_data_path,
+        num_tasks=args.config.num_tasks,
+        num_classes=args.config.number_of_classes,
+        attack_kwargs=attack_kwargs,
+        sigma=args.loss.chi.sigma,
+        rho=args.loss.chi.rho,
+        norm_lambda=args.model.norm_lambda,
+        hidden=args.config.number_of_classes,
+        one_hot_means=one_hot_means,
+        loss_chi_buffer_size_per_class=args.loss.chi.buffer_size_per_class,
+        loss_f=clModel_default_loss_f,
+        data_passer=data_passer,
+        optimizer_construct_type=args.model.optim.type,
+        scheduler_type=args.model.scheduler.type,
+        scheduler_steps=args.model.scheduler_steps,
+        optimizer_restart_params_type=args.model.optim.reset_type,
+        optimizer_params=optimizer_params,
+        replace_layer=args.model.replace_layer,
+        replace_layer_from=torch.nn.ReLU,
+        replace_layer_to_f=lambda a, b, x: GaussA(30),
+    )
     print(f'MODEL TYPE: {model.get_obj_str_type()}')
 
     #from lucent.modelzoo.util import get_model_layers
@@ -341,35 +325,36 @@ def logic(args, log_args_to_wandb=True):
         data_transform=train_data_transform,
         train_tasks_split=train_tasks_split,
         dataset_class=dataset_class,
-        dreams_per_target=args.dreams_per_target,
+        dreams_per_target=args.datamodule.vis.per_target,
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
-        dream_image_type=args.dream_image_type,
+        dream_image_type=args.datamodule.vis.image_type,
         render_transforms=render_transforms,
         fast_dev_run=args.fast_dev_run,
         fast_dev_run_dream_threshold=args.fast_dev_run_dream_threshold,
-        dream_threshold=args.dream_threshold,
+        dream_threshold=args.datamodule.vis.threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_dataset_class(enable_robust=args.enable_robust, transform=dreams_transforms),
+        empty_dream_dataset=dream_sets.DreamDataset(enable_robust=args.enable_robust, transform=dreams_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
-        dreaming_batch_size=args.dreaming_batch_size,
+        dreaming_batch_size=args.datamodule.vis.batch_size,
         optimizer=dream_optim,
         logger=logger,
         dataset_class_labels=dataset_class_labels,
         datasampler=datasampler,
-        batch_size=args.batch_size,
-        enable_dream_transforms=not args.disable_dream_transforms,
-        shuffle=args.disable_shuffle,
-        dream_shuffle=args.disable_dream_shuffle,
-        num_workers=args.num_workers,
-        dream_num_workers=args.dream_num_workers,
-        test_val_num_workers=args.test_val_num_workers,
-        train_only_dream_batch_at=args.train_only_dream_batch_at,
-        standard_image_size=args.standard_image_size,
+        batch_size=args.datamodule.batch_size,
+        enable_dream_transforms=not args.datamodule.vis.disable_transforms,
+        shuffle=not args.datamodule.disable_shuffle,
+        dream_shuffle=not args.datamodule.vis.disable_shuffle,
+        num_workers=args.datamodule.num_workers,
+        vis_num_workers=args.datamodule.vis.num_workers,
+        test_num_workers=args.datamodule.test_num_workers,
+        val_num_workers=args.datamodule.val_num_workers,
+        train_only_dream_batch_at=args.datamodule.vis.only_vis_at,
+        standard_image_size=args.datamodule.vis.standard_image_size,
         data_passer=data_passer,
-        dream_decorrelate=args.decorrelate,
+        dream_decorrelate=args.datamodule.vis.decorrelate,
     )
     
 
@@ -379,7 +364,7 @@ def logic(args, log_args_to_wandb=True):
         callbacks=callbacks,
         fast_dev_run=args.fast_dev_run_batches if args.fast_dev_run else False, # error when multiple tasks - in new task 0 batches are done.
         limit_train_batches=args.fast_dev_run_batches if args.fast_dev_run else None,
-        gpus=None if args.cpu else "0,",
+        gpus=None if args.config.cpu else "0,",
         log_every_n_steps=1 if args.fast_dev_run else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )
@@ -393,49 +378,47 @@ def logic(args, log_args_to_wandb=True):
     
     internal_fit_loop = trainer.fit_loop
     custom_loop = CLLoop(
-        [args.epochs_per_task] * args.num_tasks, 
-        enable_dreams_gen_at=args.enable_dreams_gen_at,
+        [args.config.epochs_per_task] * args.config.num_tasks, 
+        enable_dreams_gen_at=args.datamodule.vis.generate_at,
         fast_dev_run_epochs=args.fast_dev_run_epochs,
         fast_dev_run=args.fast_dev_run,
         data_passer=data_passer,
-        num_loops=args.num_loops,
-        run_training_at=args.run_training_at,
-        early_finish_at=args.early_finish_at,
-        reload_model_at=args.reload_model_at,
-        reinit_model_at=args.reinit_model_at,
-        weight_reset_sanity_check=args.weight_reset_sanity_check,
-        enable_checkpoint=args.enable_checkpoint,
-        save_model_inner_path=args.save_model_inner_path,
-        save_trained_model=args.save_trained_model,
-        load_model=args.load_model,
-        export_path=args.export_path,
-        save_dreams=args.save_dreams,
-        load_dreams=args.load_dreams,
-        gather_layer_loss_at=args.gather_layer_loss_at,
-        use_layer_loss_at=args.use_layer_loss_at,
+        num_loops=args.loop.quantity,
+        run_training_at=args.loop.run_training_at,
+        reload_model_at=args.loop.reload_model_at,
+        reinit_model_at=args.loop.reinit_model_at,
+        weight_reset_sanity_check=args.loop.weight_reset_sanity_check,
+        enable_checkpoint=args.loop.save.enable_checkpoint,
+        save_model_inner_path=args.loop.save.model_inner_path,
+        save_trained_model=args.loop.save.model,
+        load_model=args.loop.load.model,
+        save_dreams=args.loop.save.dreams,
+        load_dreams=args.loop.load.dreams,
+        gather_layer_loss_at=args.loop.gather_layer_loss_at,
+        use_layer_loss_at=args.loop.use_layer_loss_at,
         data_module=cl_data_module,
         progress_bar=progress_bar,
-        layer_stats_hook_to=layer_stats_hook_to,
+        layer_stats_hook_to=args.loop.layer_stats_hook_to,
         layer_stats_verbose=layer_stats_verbose,
         layer_stats_flush_to_disk=layer_stats_flush_to_disk,
         layer_stats_loss_device=layer_stats_loss_device,
         layer_stats_collect_device=layer_stats_collect_device,
-        advance_clear_dreams=args.advance_clear_dreams,
-        save_layer_stats=args.save_layer_stats,
-        load_layer_stats=args.load_layer_stats,
-        ll_scaling=args.ll_scaling,
-        use_grad_pruning_at=args.use_grad_pruning_at,
-        grad_pruning_percent=args.grad_pruning_percent,
-        use_grad_activ_pruning_at=args.use_grad_activ_pruning_at,
-        grad_activ_pruning_percent=args.grad_activ_pruning_percent,
-        layer_loss_del_cov_after=args.ll_del_cov_after,
+        clear_dreams_at=args.loop.vis.clear_dataset_at,
+        save_layer_stats=args.loop.save_layer_stats,
+        load_layer_stats=args.loop.load_layer_stats,
+        layerloss_scaling=args.loop.layerloss.scaling,
+        use_grad_pruning_at=args.loop.use_grad_pruning_at,
+        grad_pruning_percent=args.loop.grad_pruning_percent,
+        use_grad_activ_pruning_at=args.loop.use_grad_activ_pruning_at,
+        grad_activ_pruning_percent=args.loop.grad_activ_pruning_percent,
+        layerloss_del_cov_after=args.loop.layerloss.del_cov_after,
 
-        use_input_img_var_reg_at=args.use_input_img_var_reg_at,
-        bn_reg_scale=args.bn_reg_scale,
-        use_var_img_reg_at=args.use_var_img_reg_at,
-        var_scale=args.var_scale,
-        use_l2_img_reg_at=args.use_l2_img_reg_at,
-        l2_coeff=args.l2_coeff,
+        use_input_img_var_reg_at=args.loop.vis.use_input_img_var_reg_at,
+        bn_reg_scale=args.loop.vis.bn_reg_scale,
+        use_var_img_reg_at=args.loop.vis.use_var_img_reg_at,
+        var_scale=args.loop.vis.var_scale,
+        use_l2_img_reg_at=args.loop.vis.use_l2_img_reg_at,
+        l2_coeff=args.loop.vis.l2_coeff,
     )
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)
@@ -444,7 +427,7 @@ def logic(args, log_args_to_wandb=True):
     trainer.test(model, datamodule=cl_data_module)
     cl_data_module.flush_wandb()
 
-    if(args.gather_layer_loss_at is not None):
+    if(args.loop.gather_layer_loss_at is not None):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
         plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model)
 
@@ -461,7 +444,7 @@ def logic(args, log_args_to_wandb=True):
     )
 
 def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, collect_main_split, logger, dreams_transforms, set_manager):
-    if(not args.compare_latent and not args.disorder_dream and not args.collect_stats):
+    if(not args.stat.compare_latent and not args.stat.disorder_dream and not args.stat.collect_stats):
         return
     collect_numb_of_points = 2500
     nrows = 4
@@ -471,7 +454,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
     start_img_value = 0.0
 
     transform = transforms.Compose([transforms.ToTensor()])
-    if(args.collect_stats):
+    if(args.stat.collect_stats):
         print('STATISTICS: Collecting model stats')
         dataset = dataset_class(root="./data", train=False, transform=transform)
         dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
@@ -482,7 +465,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             targets = dataset.targets
         collector_batch_sampler = PairingBatchSamplerV2(
                     dataset=dataset,
-                    batch_size=args.batch_size,
+                    batch_size=args.datamodule.batch_size,
                     shuffle=True,
                     classes=np.unique(targets),
                     main_class_split=collect_main_split,
@@ -492,7 +475,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             collector_batch_sampler=collector_batch_sampler,
             nrows=nrows, ncols=ncols, 
             logger=logger, attack_kwargs=attack_kwargs)
-    if(args.compare_latent):
+    if(args.stat.compare_latent):
         print('STATISTICS: Compare latent')
         compare_latent = CompareLatent()
         compare_latent(
@@ -503,9 +486,9 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             dream_fetch_transform=dreams_transforms,
             target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
             loss_obj_step_sample=compare_latent_step_sample,
-            enable_transforms=not args.disable_dream_transforms,
+            enable_transforms=not args.datamodule.vis.disable_transforms,
         )
-    if(args.disorder_dream):
+    if(args.stat.disorder_dream):
         print('STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
         dataset = dataset_class(root="./data", train=True, transform=transform)

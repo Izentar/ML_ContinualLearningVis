@@ -89,11 +89,9 @@ class CLModel(base.CLBase):
         self,
         model:nn.Module=None,
         loss_f:nn.Module=None,
-        load_model:bool=False,
         robust_dataset_name:str=None,
         robust_data_path:str=None,
         attack_kwargs:dict=None,
-        dreams_with_logits:bool=False,
         resume_path:str=None,
         enable_robust:bool=False,
         replace_layer=None,
@@ -103,31 +101,15 @@ class CLModel(base.CLBase):
         **kwargs
     ):
     
-        super().__init__(load_model=load_model, *args, **kwargs)
-
-        #if(load_model is None and (model is None or loss_f is None)):
-        #    raise Exception('Model or loss function not provided. This can be omnited only when loading model.')
+        super().__init__(*args, **kwargs)
 
         self.attack_kwargs = attack_kwargs
-        self.dreams_with_logits = dreams_with_logits
         self.enable_robust = enable_robust
         self.robust_data_path = robust_data_path
         self.robust_dataset_name = robust_dataset_name
         self.resume_path = resume_path
         self._robust_model_set = False
-        if(enable_robust):
-            robust_dataset = self._get_dataset_list(robust_dataset_name)[1](data_path=robust_data_path)
-            if(robust_dataset_name is not None and robust_data_path is not None and
-                robust_dataset is not None and attack_kwargs is not None):
-                print('INFO: Enabled robust model overlay')
-                self.model = model_utils.make_and_restore_model(
-                    arch=model, dataset=robust_dataset, resume_path=resume_path
-                )[0]
-                self._robust_model_set = True
-            else:
-                raise Exception('Robust selected but robust_dataset or attack_kwargs not provided.')
-        else:
-            self.model = model
+        self._setup_model(model=model, enable_robust=enable_robust, robust_data_path=robust_data_path)
 
         if(replace_layer):
             if(replace_layer_from is None or replace_layer_to_f is None):
@@ -140,6 +122,21 @@ class CLModel(base.CLBase):
 
         self.save_hyperparameters(ignore=['model', '_loss_f', 'optim_manager', 
         'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f'])
+
+    def _setup_model(self, model, enable_robust, robust_data_path):
+        if(enable_robust):
+            if(self.robust_dataset_name is not None and robust_data_path is not None):
+                robust_dataset = self._get_dataset_list(self.robust_dataset_name)[1](data_path=robust_data_path)
+                if(robust_dataset is not None and self.attack_kwargs is not None):
+                    print('INFO: Enabled robust model overlay')
+                    self.model = model_utils.make_and_restore_model(
+                        arch=model, dataset=robust_dataset, resume_path=self.resume_path
+                    )[0]
+                    self._robust_model_set = True
+                    return
+            raise Exception('Robust selected but robust_dataset or attack_kwargs not provided.')
+        else:
+            self.model = model
 
     @property
     def loss_f(self):
@@ -192,10 +189,7 @@ class CLModel(base.CLBase):
         return loss
 
     def training_step_dream(self, batch):
-        if self.dreams_with_logits:
-            x, logits, y = batch
-        else:
-            x, y = batch
+        x, y = batch
 
         if(self.enable_robust):
             model_out = self(
@@ -373,7 +367,7 @@ class CLModelWithIslands(CLModel):
     def __init__(
             self, 
             hidden, 
-            cyclic_latent_buffer_size_per_class, 
+            loss_chi_buffer_size_per_class, 
             num_classes, 
             *args, 
             buff_on_same_device=False,  
@@ -383,7 +377,7 @@ class CLModelWithIslands(CLModel):
             rho=1., 
             **kwargs
         ):
-        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=cyclic_latent_buffer_size_per_class)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=loss_chi_buffer_size_per_class)
         kwargs.pop('loss_f', None)
         super().__init__(
             loss_f=ChiLoss(sigma=sigma, rho=rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False),

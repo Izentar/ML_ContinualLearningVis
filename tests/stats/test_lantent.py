@@ -21,7 +21,7 @@ class TestCLModel(unittest.TestCase):
         epochs_per_task = 15
         dreams_per_target = 48
 
-        train_with_logits = True
+        dreams_with_logits = True
         train_normal_robustly = False
         train_dreams_robustly = False
         auxiliary_reconstruction = True
@@ -38,7 +38,7 @@ class TestCLModel(unittest.TestCase):
             "use_best": True,
         }
 
-        dream_dataset_class = dream_sets.DreamDatasetWithLogits if train_with_logits else dream_sets.DreamDataset
+        dream_dataset_class = dream_sets.DreamDatasetWithLogits if dreams_with_logits else dream_sets.DreamDataset
         dataset_class = getDataset(args_dataset)
         val_tasks_split = train_tasks_split = datMan.task_split_classic(num_classes, num_tasks)
         select_dream_tasks_f = datMan.select_task_decremental
@@ -52,7 +52,7 @@ class TestCLModel(unittest.TestCase):
             num_tasks=num_tasks,
             num_classes=num_classes,
             attack_kwargs=attack_kwargs,
-            dreams_with_logits=train_with_logits,
+            dreams_with_logits=dreams_with_logits,
             train_normal_robustly=train_normal_robustly,
             train_dreams_robustly=train_dreams_robustly,
         ).to('cpu')

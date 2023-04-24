@@ -7,10 +7,11 @@ def _search_kwargs(kwargs: dict, vals:list[str]):
             new_kwargs[k] = v
     return new_kwargs
 
-def default_reset_optim_init(lr, **kwargs):
-    def default_reset_optim(optim, sched=None):
+def default_reset_optim(lr, **kwargs):
+    def inner_default_reset_optim(optim, sched=None):
         for g in optim.param_groups:
             g['lr'] = lr
+    return inner_default_reset_optim
 
 def exponential_lr(**kwargs):
     new_kwargs = _search_kwargs(kwargs, ['gamma', 'last_epoch'])
@@ -35,7 +36,7 @@ class ModelOptimizerManager():
     }
 
     RESER_OPTIM = {
-        'DEFAULT': default_reset_optim_init
+        'DEFAULT': default_reset_optim
     }
 
     def __init__(

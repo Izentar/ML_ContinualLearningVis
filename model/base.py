@@ -14,11 +14,9 @@ class CLBase(LightningModule):
         self, 
         num_tasks:int, 
         num_classes:int, 
-        load_model:str=None,
-        dream_frequency:Union[int,list[int]]=1, 
         data_passer:dict=None, 
         optimizer_construct_type:str=None,
-        scheduler_construct_type:str=None,
+        scheduler_type:str=None,
         optimizer_restart_params_type:str=None,
         optimizer_params:dict=None,
         scheduler_steps:Sequence[int]=None,
@@ -27,30 +25,26 @@ class CLBase(LightningModule):
     ):
         '''
             optimizer_construct_type - function with signature fun(parameters)
-            scheduler_construct_type - function with signature fun(optim)
+            scheduler_type - function with signature fun(optim)
             optimizer_restart_params_type - function with signature fun(optimizer)
         '''
         super().__init__()
         # ignore *args, **kwargs
 
-        #if(load_model is None and (num_tasks is None or num_classes is None)):
-        #    raise Exception('Number of tasks or number of classes not provided. This can be omnited only when loading model.')
-
         # needed for pytorch lightning metadata save framework
         self.optimizer_construct_type = optimizer_construct_type
-        self.scheduler_construct_type = scheduler_construct_type
+        self.scheduler_type = scheduler_type
         self.optimizer_restart_params_type = optimizer_restart_params_type
         self.optimizer_params = optimizer_params
-        self.load_model = load_model
 
         self.optim_manager = ModelOptimizerManager(
             optimizer_type=optimizer_construct_type,
-            scheduler_type=scheduler_construct_type,
+            scheduler_type=scheduler_type,
             reset_optim_type=optimizer_restart_params_type,
         )
 
-        assert not (scheduler_construct_type is not None and optimizer_construct_type is None), "Scheduler should have optimizer"
-        if(scheduler_steps is not None and scheduler_construct_type is None):
+        assert not (scheduler_type is not None and optimizer_construct_type is None), "Scheduler should have optimizer"
+        if(scheduler_steps is not None and scheduler_type is None):
             print('WARNIGN: Using "scheduler_steps" but scheduler is not selected.')
 
         self.train_acc = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
@@ -62,8 +56,6 @@ class CLBase(LightningModule):
         self.num_classes = num_classes
         self.num_tasks = num_tasks
 
-        self.dream_frequency = dream_frequency if dream_frequency >= 1 else 1
-        print(f"Set dream frequency to: {self.dream_frequency}")
         self.data_passer = data_passer
         self.optimizer_construct_f = self.optim_manager.get_optimizer(**optimizer_params)
         self.scheduler_construct_f = self.optim_manager.get_scheduler(**optimizer_params)
@@ -81,11 +73,8 @@ class CLBase(LightningModule):
             return self.training_step_dream(batch["dream"])
 
         loss_normal = self.training_step_normal(batch["normal"])
-        if (isinstance(self.dream_frequency, list) and batch_idx in self.dream_frequency) or \
-            (isinstance(self.dream_frequency, int) and batch_idx % self.dream_frequency == 0):
-            loss_dream = self.training_step_dream(batch["dream"])
-            return loss_normal + loss_dream
-        return loss_normal
+        loss_dream = self.training_step_dream(batch["dream"])
+        return loss_normal + loss_dream
 
     def get_model_out_data(self, model_out):
         """
@@ -150,16 +139,6 @@ class CLBase(LightningModule):
             self.scheduler = self.scheduler_construct_f(optim)
         self.optimizer = optim
         return optim
-
-    def on_train_batch_start(self, batch, batch_idx):
-        return self.data_passer['model_train_end_f']
-
-        #if(self.data_passer is not None and 
-        #string in self.data_passer and 
-        #self.data_passer[string] >= 1 and 
-        #self.dream_only_once and 
-        #batch_idx >= 0):
-        #    return -1
 
     # training_epoch_end
     def training_epoch_end(self, output):

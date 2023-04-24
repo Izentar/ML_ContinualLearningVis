@@ -7,6 +7,7 @@ import glob
 import os
 from utils import utils
 import numpy as np
+import functools as ft
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -16,117 +17,123 @@ Validation dataset uses data from test dataset but divided into appropriate task
 Test dataset uses test data with only the classes used in previous tasks. 
 """)
 
-    parser.add_argument("--seed", type=int, help='Seed of the pytorch random number generator. Default None - random seed.') ##**
-    parser.add_argument("--run_training_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
-If True, run on all loops, if False, do not run. If "gather_layer_loss_at" is set, then it takes precedence.') ##**
-    parser.add_argument("--config", action="append", help='The config file(s) that should be used. The config file \
+    parser.add_argument("--config.seed", type=int, help='Seed of the pytorch random number generator. Default None - random seed.') ##**
+    parser.add_argument("--loop.run_training_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
+If True, run on all loops, if False, do not run. If "loop.gather_layer_loss_at" is set, then it takes precedence.') ##**
+    parser.add_argument("--config.load", action="append", help='The config file(s) that should be used. The config file \
 takes precedence over command line arguments. Config files will be applied in order of the declaration.')
-    parser.add_argument("--config_export", type=str, help='File where to export current config.')
-    parser.add_argument("--cpu", action="store_true")
-    parser.add_argument("-d", "--dataset", type=str) ##**
-    parser.add_argument("--early_finish_at", type=int, default=-1, help='Finish training loop at desired epoch. Default "-1"')
-    parser.add_argument("--disable_shuffle", action="store_false", help='Flag to shuffle train normal and dream datasets. If \
-flag "disable_dream_shuffle" is set then it takes precedence over this flag.')
-    parser.add_argument("--datasampler_type", type=str, default='none', help='''Select datasampler type.
+    parser.add_argument("--config.export", type=str, help='File where to export current config.')
+    parser.add_argument("--config.cpu", action="store_true")
+    parser.add_argument("-d", "--config.dataset", type=str) ##**
+    parser.add_argument("--config.datasampler_type", type=str, default='none', help='''Select datasampler type.
 Avaliable types are: 
 "none" - no datasampler.
 "v2" - datasampler where you can choose division into the majority class and other class in single batch.''')
-    parser.add_argument("--cyclic_latent_buffer_size_per_class", type=int, default=40, help='Size per class of the cyclic \
+    parser.add_argument("--loss.chi.buffer_size_per_class", type=int, default=40, help='Size per class of the cyclic \
 buffer used in island overlay for model.')
-    parser.add_argument("--train_with_logits", action="store_true", help='Use dataset with logits.')
-    parser.add_argument("--num_workers", type=int, default=4, help='Number of dataloader workers.')
-    parser.add_argument("--dream_num_workers", type=int, default=0, help='Number of dream dataloader workers.')
-    parser.add_argument("--test_val_num_workers", type=int, default=4, help='Number of test and validation dataloader workers.')
-    parser.add_argument("--save_trained_model", action="store_true", help='') ##**
-    parser.add_argument("--save_model_inner_path", type=str, help='') ##**
-    parser.add_argument("--load_model", type=str, help='') ##**
-    parser.add_argument("--enable_checkpoint", action="store_true", help='')
-    parser.add_argument("--optimizer_type", type=str, default='adam', help='')
-    parser.add_argument("--scheduler_type", type=str, default='none', help='Type of scheduler. Use "train_scheduler_steps" \
+
+    parser.add_argument("--datamodule.disable_shuffle", action="store_true", help='Flag to shuffle train normal and dream datasets. If \
+flag "dataloader_disable_dream_shuffle" is set then it takes precedence over this flag.')
+    # worker numbers
+    parser.add_argument("--datamodule.num_workers", type=int, default=4, help='Number of dataloader workers.')
+    parser.add_argument("--datamodule.vis.num_workers", type=int, help='Number of visualization dataloader workers.')
+    parser.add_argument("--datamodule.test_num_workers", type=int, help='Number of test dataloader workers.')
+    parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
+
+    parser.add_argument("--model.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.scheduler.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler_steps" \
 to choose epoch at which to call it.')
-    parser.add_argument("--reset_optim_type", type=str, default='default', help='')
-    parser.add_argument("--export_path", type=str, help='')
-    parser.add_argument("--save_dreams", type=str, help='') ##**
-    parser.add_argument("--load_dreams", type=str, help='') ##**
+    parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
+
+    parser.add_argument("--loop.save.model", action="store_true", help='Save model at the end of all training loops') ##**
+    parser.add_argument("--loop.save.model_inner_path", type=str, help='') ##**
+    parser.add_argument("--loop.load.model", type=str, help='') ##**
+    parser.add_argument("--loop.save.enable_checkpoint", action="store_true", help='')
+    parser.add_argument("--loop.save.export_path", type=str, help='')
+    parser.add_argument("--loop.load.export_path", type=str, help='')
+    parser.add_argument("--loop.save.dreams", type=str, help='') ##**
+    parser.add_argument("--loop.load.dreams", type=str, help='') ##**
     
     ######################################
     #####    numerical parameters   ######
     ######################################
-    parser.add_argument("--batch_size", type=int, default=32, help='Size of the batch.')
-    parser.add_argument("--num_tasks", type=int, default=1, help='How many tasks will be created')
-    parser.add_argument("--num_loops", type=int, default=1, help='How many loops will be traversed. \
+    parser.add_argument("--datamodule.batch_size", type=int, default=32, help='Size of the batch.')
+    parser.add_argument("--config.num_tasks", type=int, default=1, help='How many tasks will be created')
+    parser.add_argument("--loop.quantity", type=int, default=1, help='How many loops will be traversed. \
 Each new loop will increment current task index. If "num_loops">"num_tasks" then at each new loop \
 the last task in array will be used.') ##**
-    parser.add_argument("--epochs_per_task", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
+    parser.add_argument("--config.epochs_per_task", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
 Array size should be the same as num_loops for each loop.') ##**
-    parser.add_argument("--lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
-    parser.add_argument("--gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
-    parser.add_argument("--norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
-no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
-    parser.add_argument("--train_scheduler_steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
-at where to call scheduler, change learning rate. Use "scheduler_type" to enable scheduler.')
-    parser.add_argument("--number_of_classes", type=int, default=10, help='Number of classes model should output. \
+    parser.add_argument("--config.number_of_classes", type=int, default=10, help='Number of classes model should output. \
 If less than in dataset then model will be trained and validated only using this number of classes')
+
+    parser.add_argument("--optim.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
+    parser.add_argument("--optim.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
+
+    parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
+no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
+    parser.add_argument("--model.scheduler_steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
+at where to call scheduler, change learning rate. Use "model.scheduler.type" to enable scheduler.')
+    
 
     ######################################
     #####       configuration       ######
     ######################################
-    parser.add_argument("--framework_type", type=str, default='sae-chiloss', help='Framework type') ##**
-    parser.add_argument("--dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
-    parser.add_argument("--select_task_type", type=str, help='From utils.functional.select_task.py')
-    parser.add_argument("--target_processing_type", type=str, help='From utils.functional.target_processing.py')
-    parser.add_argument("--task_split_type", type=str, help='From utils.functional.task_split.py')
-    parser.add_argument("--overlay_type", type=str, help='Overlay type')
-    parser.add_argument("--model_type", type=str, help='Model type') ##**
+    parser.add_argument("--config.framework_type", type=str, default='sae-chiloss', help='Framework type') ##**
+    parser.add_argument("--config.dream_obj_type", nargs='+', type=str, help='Model objective funtions type. May be multiple')
+    parser.add_argument("--config.select_task_type", type=str, help='From utils.functional.select_task.py')
+    parser.add_argument("--config.target_processing_type", type=str, help='From utils.functional.target_processing.py')
+    parser.add_argument("--config.task_split_type", type=str, help='From utils.functional.task_split.py')
+    parser.add_argument("--config.overlay_type", type=str, help='Overlay type')
+    parser.add_argument("--config.model_type", type=str, help='Model type') ##**
 
     ######################################
     #####     dream parameters      ######
     ######################################
-    parser.add_argument("--enable_dreams_gen_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
+    parser.add_argument("--datamodule.vis.generate_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
-Without running this and running "run_training_at" will run only test. Use this with "train_only_dream_batch_at" to train only on dream batch.') ##**
-    parser.add_argument("--dreams_per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
-    parser.add_argument("--dreaming_batch_size", type=int, default=128, help='How many images \
+Without running this and running "loop.run_training_at" will run only test. Use this with "datamodule.vis.only_vis_at" to train only on dream batch.') ##**
+    parser.add_argument("--datamodule.vis.per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
+    parser.add_argument("--datamodule.vis.batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
-    parser.add_argument("--dream_lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
-    parser.add_argument("--dream_threshold", nargs='+', type=int, default=[1024, ], help='How many iterations should \
+    parser.add_argument("--datamodule.vis.optim.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
+    parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[1024, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
 images from the batch will be additionaly saved.')
-    parser.add_argument("--dream_frequency", type=int, default=1, help='How often dream images should be used during \
-training. The bigger value the lesser frequency.')
-    parser.add_argument("--disable_dream_transforms", action="store_true", help='Enable and add all default \
+    parser.add_argument("--datamodule.vis.disable_transforms", action="store_true", help='Enable and add all default \
 tranforms on dreamed images used in lucid framework in main function.') ##**
-    parser.add_argument("--disable_dream_shuffle", action="store_false", help='Flag to shuffle only train dream dataset')
-    parser.add_argument("--dream_image_type", type=str, default='fft', help='Type of image. Default \
-"fft"; "pixel"; "cppn"(does not use "dreaming_batch_size")')
-    parser.add_argument("--train_only_dream_batch_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
+    parser.add_argument("--datamodule.vis.disable_shuffle", action="store_true", help='Flag to shuffle only train dream dataset')
+    parser.add_argument("--datamodule.vis.image_type", type=str, default='fft', help='Type of image. Default \
+"fft"; "pixel"; "cppn"(does not use "datamodule.vis.batch_size")')
+    parser.add_argument("--datamodule.vis.only_vis_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.') ##**
-    parser.add_argument("--standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
+    parser.add_argument("--datamodule.vis.standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
 Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
-    parser.add_argument("--advance_clear_dreams", action="store_true", help='If the dreams at the beginning of the advance loop should be cleared.')
-    parser.add_argument("--decorrelate", action="store_true", help='If the dreams should be decorrelated.')
+    parser.add_argument("--loop.vis.clear_dataset_at", type=str, nargs='+', help='If the dreams at the beginning of the advance loop should be cleared.')
+    parser.add_argument("--datamodule.vis.decorrelate", action="store_true", help='If the dreams should be decorrelated.')
     
-    parser.add_argument("--chiloss_sigma", type=float, default=0.01, help='How close points from latent space inside \
-current batch should be close to each other. Should be lesser than chiloss_rho. The smaller the less scattered points of the same class.')
-    parser.add_argument("--chiloss_rho", type=float, default=1., help='How far means from different targets \
-should be appart from each other. Should be greather than chiloss_sigma. The larger it is, the more scattered the points of different classes.')
+    parser.add_argument("--loss.chi.sigma", type=float, default=0.01, help='How close points from latent space inside \
+current batch should be close to each other. Should be lesser than loss.chi.rho. The smaller the less scattered points of the same class.')
+    parser.add_argument("--loss.chi.rho", type=float, default=1., help='How far means from different targets \
+should be appart from each other. Should be greather than loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
 
-    parser.add_argument("--use_input_img_var_reg_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
-    parser.add_argument("--use_var_img_reg_at", type=str, nargs='+', help='')
-    parser.add_argument("--use_l2_img_reg_at", type=str, nargs='+', help='')
-    parser.add_argument("--bn_reg_scale", type=float, default=1e2, help='')
-    parser.add_argument("--var_scale", type=float, default=2.5e-5, help='')
-    parser.add_argument("--l2_coeff", type=float, default=1e-05, help='')
+    parser.add_argument("--loop.vis.use_input_img_var_reg_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
+    parser.add_argument("--loop.vis.use_var_img_reg_at", type=str, nargs='+', help='')
+    parser.add_argument("--loop.vis.use_l2_img_reg_at", type=str, nargs='+', help='')
+    parser.add_argument("--loop.vis.bn_reg_scale", type=float, default=1e2, help='')
+    parser.add_argument("--loop.vis.var_scale", type=float, default=2.5e-5, help='')
+    parser.add_argument("--loop.vis.l2_coeff", type=float, default=1e-05, help='')
 
 
     ######################################
     #####       model reinit        ######
     ######################################
-    parser.add_argument("--reload_model_at", nargs='+', type=str, help='Reload model weights after each main loop.\
+    parser.add_argument("--loop.reload_model_at", nargs='+', type=str, help='Reload model weights after each main loop.\
 Reloading means any weights that model had before training will be reloaded. Reload is done AFTER dream generation if turned on.') ##**
-    parser.add_argument("--reinit_model_at", nargs='+', type=str, help='Reset model after each main loop.\
+    parser.add_argument("--loop.reinit_model_at", nargs='+', type=str, help='Reset model after each main loop.\
 Model will have newly initialized weights after each main loop. Reinit is done AFTER dream generation if turned on.') ##**
-    parser.add_argument("--weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
+
+    parser.add_argument("--loop.weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
 
 
 
@@ -160,36 +167,38 @@ It ') ##**
     ######################################
     #####     layer statistics      ######
     ######################################
-    parser.add_argument("--gather_layer_loss_at", type=int, help='Gather layer statistics \
+    parser.add_argument("--loop.gather_layer_loss_at", type=int, help='Gather layer statistics \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--use_layer_loss_at", type=int, help='Use layer loss function \
+    parser.add_argument("--loop.use_layer_loss_at", type=int, help='Use layer loss function \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--save_layer_stats", type=str, help='Path where to save layer_stats.') ##**
-    parser.add_argument("--load_layer_stats", type=str, help='Path from where to load layer_stats.') ##**
-    parser.add_argument("--layer_stats_hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
+    parser.add_argument("--loop.save_layer_stats", type=str, help='Path where to save layer_stats.') ##**
+    parser.add_argument("--loop.load_layer_stats", type=str, help='Path from where to load layer_stats.') ##**
+    parser.add_argument("--loop.layer_stats_hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
 thrown, list of avaliable layers will be displayed.') ##**
-    parser.add_argument("--replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
-    parser.add_argument("--ll_scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
-    parser.add_argument("--use_grad_pruning_at", type=int, help='Use gradient pruning at.') ##**
-    parser.add_argument("--grad_pruning_percent", type=float, default=0.01,
+    parser.add_argument("--model.replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
+    parser.add_argument("--loop.layerloss.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
+    parser.add_argument("--loop.use_grad_pruning_at", type=int, help='Use gradient pruning at.') ##**
+    parser.add_argument("--loop.grad_pruning_percent", type=float, default=0.01,
         help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
-    parser.add_argument("--use_grad_activ_pruning_at", type=int, help='') ##**
-    parser.add_argument("--grad_activ_pruning_percent", type=float, default=0.01, help='') ##**
-    parser.add_argument("--ll_del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
+    parser.add_argument("--loop.use_grad_activ_pruning_at", type=int, help='') ##**
+    parser.add_argument("--loop.grad_activ_pruning_percent", type=float, default=0.01, help='') ##**
+    parser.add_argument("--loop.layerloss.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
 
     ######################################
     ######          other           ######
     ######################################
-    parser.add_argument("--run_config_folder", type=str, default='run_conf', 
-        help='Folder where to save and load argparse config for flags "config" and "config_export" ')
+    parser.add_argument("--config.save_folder", type=str, default='run_conf', 
+        help='Folder where to save and load argparse config for flags "config" and "config.export" ')
     parser.add_argument("--pca_estimate_rank", type=int, default=6, 
         help='Slighty overestimated rank of input matrix in PCA algorithm. Default is 6.')
-    parser.add_argument("--compare_latent", action="store_true", help='')
-    parser.add_argument("--disorder_dream", action="store_true", help='')
-    parser.add_argument("--collect_stats", action="store_true", help='')
+    parser.add_argument("--stat.compare_latent", action="store_true", help='')
+    parser.add_argument("--stat.disorder_dream", action="store_true", help='')
+    parser.add_argument("--stat.collect_stats", action="store_true", help='')
 
+
+    parser.add_argument("--test1.test2.test3", action="store_true", help='')
 
     args = parser.parse_args()
 
@@ -197,16 +206,65 @@ thrown, list of avaliable layers will be displayed.') ##**
     export_config(args)
 
     args = convert_args_str_to_list_int(args)
+
+    args = extend_namespace(args)
     
     return args, parser
 
+def extend_namespace(args):
+    namespace = vars(args)
+    new_dict = {}
+    for k in list(namespace.keys()):
+        if('.' in k):
+            data = k.split('.')
+            current = args
+            for d in data[:-1]:
+                if(hasattr(current, d)):
+                    if(isinstance(getattr(current, d), Namespace)):
+                        current = getattr(current, d)
+                    else:
+                        raise Exception(f'Bad name: {data} == {namespace[k]}. Search for {d}= in Namespace.')
+                else:
+                    setattr(current, d, Namespace())
+                    current = getattr(current, d)
+
+            setattr(current, data[-1], namespace[k])
+
+
+            ###
+            #data = k.split('.')
+            #current_dict = new_dict
+            #for d in data[:-1]:
+            #    if(d not in current_dict):
+            #        current_dict[k] = {}
+            #    else:
+            #        current_dict = current_dict[k]
+            #
+            #if(data[-1] not in current_dict):
+            #    current_dict[k] = namespace[k]
+            #else:
+            #    raise Exception('Data already in dictionary')
+
+            ###
+            #data = k.split('.')
+            #current = namespace[k]
+            #for d in reversed(data[1:]):
+            #    current = Namespace(**{d: current})
+            #setattr(args, data[0], current)
+            delattr(args, k) 
+
+    #print()
+    #print(args)
+    #exit()
+    return args
+
 def convert_args_str_to_list_int(args: Namespace):
     to_check = [
-        'run_training_at', 
-        'enable_dreams_gen_at', 
-        'train_only_dream_batch_at', 
-        'reload_model_at', 
-        'reinit_model_at',
+        'loop.run_training_at', 
+        'datamodule.vis.generate_at', 
+        'datamodule.vis.only_vis_at', 
+        'loop.reload_model_at', 
+        'loop.reinit_model_at',
     ]
     for k in to_check:
         v = args.__dict__[k]
@@ -247,8 +305,8 @@ def attack_args_to_kwargs(args):
 
 def optim_params_to_kwargs(args):
     return {
-        'lr': args.lr,
-        'gamma':args.gamma,
+        'lr': args.optim.lr,
+        'gamma':args.optim.gamma,
     }
 
 def log_to_wandb(args):
@@ -263,19 +321,19 @@ def log_to_wandb(args):
 def wandb_run_name(args):
     dream = "dull_"
     tr = ""
-    if(args.train_only_dream_batch_at is not None and args.train_only_dream_batch_at != False):
+    if(args.datamodule.vis.only_vis_at is not None and args.datamodule.vis.only_vis_at != False):
         dream = 'dream_'
-        if(args.disable_dream_transforms != True):
+        if(args.datamodule.vis.disable_transforms != True):
             tr = "tr_"
-    text = f"{args.model_type}_{dream}{tr}"
-    if(args.use_layer_loss_at is not None and args.train_only_dream_batch_at != False):
-        text = f"{text}ll{args.ll_scaling}_"
-    if(args.replace_layer):
+    text = f"{args.config.model_type}_{dream}{tr}"
+    if(args.loop.use_layer_loss_at is not None and args.datamodule.vis.only_vis_at != False):
+        text = f"{text}ll{args.loop.layerloss.scaling}_"
+    if(args.model.replace_layer):
         text = f"{text}replayer_"
-    if(args.use_grad_pruning_at is not None and args.use_grad_pruning_at != False):
-        text = f"{text}gp{args.grad_pruning_percent}_"
-    if(args.use_grad_activ_pruning_at is not None and args.use_grad_activ_pruning_at != False):
-        text = f"{text}gap{args.grad_activ_pruning_percent}_"
+    if(args.loop.use_grad_pruning_at is not None and args.loop.use_grad_pruning_at != False):
+        text = f"{text}gp{args.loop.grad_pruning_percent}_"
+    if(args.loop.use_grad_activ_pruning_at is not None and args.loop.use_grad_activ_pruning_at != False):
+        text = f"{text}gap{args.loop.grad_activ_pruning_percent}_"
     
     return f"{text}{np.random.randint(0, 5000)}"
 
@@ -283,9 +341,9 @@ def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
     """
         Load config file as defaults arguments. Arguments from command line have priority. 
     """
-    if args.config is not None:
-        for conf_fname in args.config:
-            folder = Path(args.run_config_folder)
+    if args.__dict__['config.load'] is not None:
+        for conf_fname in args.__dict__['config.load']:
+            folder = Path(args.__dict__['config.save_folder'])
             file = folder / conf_fname
             file = glob.glob(str(file), recursive=True)
             if(len(file) != 1):
@@ -298,21 +356,21 @@ def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
     return args
 
 def export_config(args: Namespace) -> None:
-    if args.config_export and not args.fast_dev_run:
+    if args.__dict__['config.export'] and not args.fast_dev_run:
         tmp_args = vars(args).copy()
-        del tmp_args['config_export']  # Do not dump value of conf_export flag
+        del tmp_args['config.export']  # Do not dump value of conf_export flag
         del tmp_args['config']  # Values already loaded
         del tmp_args['fast_dev_run']  # Fast dev run should not be present in config file
 
         # Remove all options that are corelated to saving and loading
-        del tmp_args['load_dreams']  
-        del tmp_args['save_dreams']  
-        del tmp_args['export_path'] 
-        del tmp_args['save_model_inner_path'] 
-        del tmp_args['load_model'] 
-        del tmp_args['save_trained_model'] 
-        del tmp_args['enable_checkpoint'] 
-        path = Path(args.run_config_folder) / args.config_export
+        del tmp_args['loop.load.dreams']  
+        del tmp_args['loop.save.dreams']  
+        del tmp_args['loop.export_path'] 
+        del tmp_args['loop.save.model_inner_path'] 
+        del tmp_args['loop.load.model'] 
+        del tmp_args['loop.save.model'] 
+        del tmp_args['loop.save.enable_checkpoint'] 
+        path = Path(args.__dict__['config.save_folder']) / args.config.export
         Path.mkdir(path.parent, parents=True, exist_ok=True)
         dump = json.dumps(tmp_args,  indent=4, sort_keys=True)
         with open(path, 'w') as f:
