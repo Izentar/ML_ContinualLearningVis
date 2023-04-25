@@ -32,6 +32,7 @@ import wandb
 from dream.image import Image
 from utils import utils
 from model.activation_layer import GaussA
+from argparse import Namespace
 
 def data_transform():
     return transforms.Compose(
@@ -174,17 +175,11 @@ def logic(args, log_args_to_wandb=True):
         pl.seed_everything(args.config.seed)
 
     main_split = collect_main_split = 0.5
-    wandb_offline = False if not args.fast_dev_run else True
-    wandb_mode = "online" if not args.fast_dev_run else "disabled"
+    wandb_offline = False if not args.fast_dev_run.flag else True
+    wandb_mode = "online" if not args.fast_dev_run.flag else "disabled"
     #wandb_offline = True
-
-    layer_stats_verbose=False
-    layer_stats_flush_to_disk=False
-    layer_stats_loss_device='cuda:0'
-    layer_stats_collect_device='cuda:0'
     
     num_sanity_val_steps = 0
-    dream_optim = lambda params: torch.optim.Adam(params, lr=args.datamodule.vis.optim.lr)
     train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
 
@@ -225,7 +220,7 @@ def logic(args, log_args_to_wandb=True):
     data_passer = {}
 
     tags = []
-    if args.fast_dev_run:
+    if args.fast_dev_run.flag:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args))
     if(log_args_to_wandb):
@@ -246,7 +241,7 @@ def logic(args, log_args_to_wandb=True):
     #### setting in dream_obj_type a diversity type will extend time of dreaming significantly
     set_manager = FunConfigSetPredefined(
         name_type=args.config.framework_type, 
-        mtype=args.config.model_type,
+        mtype=args.model.type,
         select_task_type=args.config.select_task_type,
         target_processing_type=args.config.target_processing_type,
         task_split_type=args.config.task_split_type,
@@ -271,12 +266,12 @@ def logic(args, log_args_to_wandb=True):
     if(args.enable_robust):
         print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
-    if(args.fast_dev_run):
+    if(args.fast_dev_run.flag):
         args.datamodule.vis.per_target = 64
 
     dataset_class, dataset_class_labels = getDataset(args.config.dataset)
 
-    #if args.fast_dev_run:
+    #if args.fast_dev_run.flag:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
     check(split=train_tasks_split, 
@@ -322,39 +317,30 @@ def logic(args, log_args_to_wandb=True):
     
 
     cl_data_module = CLDataModule(
+        cfg_vis=CLDataModule.Visualization(**{k: v for k, v in vars(args.datamodule.vis).items() if not isinstance(v, Namespace)}),
         data_transform=train_data_transform,
         train_tasks_split=train_tasks_split,
         dataset_class=dataset_class,
-        dreams_per_target=args.datamodule.vis.per_target,
         val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
-        dream_image_type=args.datamodule.vis.image_type,
         render_transforms=render_transforms,
-        fast_dev_run=args.fast_dev_run,
-        fast_dev_run_dream_threshold=args.fast_dev_run_dream_threshold,
-        dream_threshold=args.datamodule.vis.threshold,
+        fast_dev_run=args.fast_dev_run.flag,
+        fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
         empty_dream_dataset=dream_sets.DreamDataset(enable_robust=args.enable_robust, transform=dreams_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
-        dreaming_batch_size=args.datamodule.vis.batch_size,
-        optimizer=dream_optim,
+        optimizer=lambda params: torch.optim.Adam(params, lr=args.datamodule.vis.optim.lr),
         logger=logger,
         dataset_class_labels=dataset_class_labels,
         datasampler=datasampler,
         batch_size=args.datamodule.batch_size,
-        enable_dream_transforms=not args.datamodule.vis.disable_transforms,
         shuffle=not args.datamodule.disable_shuffle,
-        dream_shuffle=not args.datamodule.vis.disable_shuffle,
         num_workers=args.datamodule.num_workers,
-        vis_num_workers=args.datamodule.vis.num_workers,
         test_num_workers=args.datamodule.test_num_workers,
         val_num_workers=args.datamodule.val_num_workers,
-        train_only_dream_batch_at=args.datamodule.vis.only_vis_at,
-        standard_image_size=args.datamodule.vis.standard_image_size,
         data_passer=data_passer,
-        dream_decorrelate=args.datamodule.vis.decorrelate,
     )
     
 
@@ -362,10 +348,10 @@ def logic(args, log_args_to_wandb=True):
         max_epochs=-1,  # This value doesn't matter
         logger=logger,
         callbacks=callbacks,
-        fast_dev_run=args.fast_dev_run_batches if args.fast_dev_run else False, # error when multiple tasks - in new task 0 batches are done.
-        limit_train_batches=args.fast_dev_run_batches if args.fast_dev_run else None,
+        fast_dev_run=args.fast_dev_run.batches if args.fast_dev_run.flag else False, # error when multiple tasks - in new task 0 batches are done.
+        limit_train_batches=args.fast_dev_run.batches if args.fast_dev_run.flag else None,
         gpus=None if args.config.cpu else "0,",
-        log_every_n_steps=1 if args.fast_dev_run else 50,
+        log_every_n_steps=1 if args.fast_dev_run.flag else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )
     progress_bar._init_progress(trainer)
@@ -373,52 +359,17 @@ def logic(args, log_args_to_wandb=True):
     #WandbLogger.log("model/sigmaParams": )
     
 
-    print(f"Fast dev run is {args.fast_dev_run}")
-
+    print(f"Fast dev run is {args.fast_dev_run.flag}")
     
     internal_fit_loop = trainer.fit_loop
     custom_loop = CLLoop(
-        [args.config.epochs_per_task] * args.config.num_tasks, 
-        enable_dreams_gen_at=args.datamodule.vis.generate_at,
-        fast_dev_run_epochs=args.fast_dev_run_epochs,
-        fast_dev_run=args.fast_dev_run,
+        plan=[args.loop.schedule] * args.config.num_tasks,
+        args=args,
+        fast_dev_run_epochs=args.fast_dev_run.epochs,
+        fast_dev_run=args.fast_dev_run.flag,
         data_passer=data_passer,
-        num_loops=args.loop.quantity,
-        run_training_at=args.loop.run_training_at,
-        reload_model_at=args.loop.reload_model_at,
-        reinit_model_at=args.loop.reinit_model_at,
-        weight_reset_sanity_check=args.loop.weight_reset_sanity_check,
-        enable_checkpoint=args.loop.save.enable_checkpoint,
-        save_model_inner_path=args.loop.save.model_inner_path,
-        save_trained_model=args.loop.save.model,
-        load_model=args.loop.load.model,
-        save_dreams=args.loop.save.dreams,
-        load_dreams=args.loop.load.dreams,
-        gather_layer_loss_at=args.loop.gather_layer_loss_at,
-        use_layer_loss_at=args.loop.use_layer_loss_at,
         data_module=cl_data_module,
         progress_bar=progress_bar,
-        layer_stats_hook_to=args.loop.layer_stats_hook_to,
-        layer_stats_verbose=layer_stats_verbose,
-        layer_stats_flush_to_disk=layer_stats_flush_to_disk,
-        layer_stats_loss_device=layer_stats_loss_device,
-        layer_stats_collect_device=layer_stats_collect_device,
-        clear_dreams_at=args.loop.vis.clear_dataset_at,
-        save_layer_stats=args.loop.save_layer_stats,
-        load_layer_stats=args.loop.load_layer_stats,
-        layerloss_scaling=args.loop.layerloss.scaling,
-        use_grad_pruning_at=args.loop.use_grad_pruning_at,
-        grad_pruning_percent=args.loop.grad_pruning_percent,
-        use_grad_activ_pruning_at=args.loop.use_grad_activ_pruning_at,
-        grad_activ_pruning_percent=args.loop.grad_activ_pruning_percent,
-        layerloss_del_cov_after=args.loop.layerloss.del_cov_after,
-
-        use_input_img_var_reg_at=args.loop.vis.use_input_img_var_reg_at,
-        bn_reg_scale=args.loop.vis.bn_reg_scale,
-        use_var_img_reg_at=args.loop.vis.use_var_img_reg_at,
-        var_scale=args.loop.vis.var_scale,
-        use_l2_img_reg_at=args.loop.vis.use_l2_img_reg_at,
-        l2_coeff=args.loop.vis.l2_coeff,
     )
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)
@@ -427,7 +378,7 @@ def logic(args, log_args_to_wandb=True):
     trainer.test(model, datamodule=cl_data_module)
     cl_data_module.flush_wandb()
 
-    if(args.loop.gather_layer_loss_at is not None):
+    if(args.loop.layer_stats.use_at is not None):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
         plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model)
 

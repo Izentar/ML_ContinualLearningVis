@@ -9,7 +9,6 @@ class ResNet18(nn.Module, ModelBase):
         super().__init__()
 
         self.resnet = resnet18(num_classes=num_classes)
-        #replace_layer(self, 'self', torch.nn.ReLU, lambda a, b, x: torch.nn.LeakyReLU(negative_slope=0.05, inplace=x.inplace))
 
     def forward(self, x, **kwargs):
         return self.resnet(x)

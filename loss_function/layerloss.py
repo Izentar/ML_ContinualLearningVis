@@ -13,7 +13,7 @@ class LayerBase():
             self.current_cl = cl
         self.new_cl = True
 
-class LayerLoss(LayerBase):
+class MeanNorm(LayerBase):
     def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
         super().__init__(device=device)
 
@@ -21,7 +21,7 @@ class LayerLoss(LayerBase):
         self.scaling = scaling
         self.del_cov_after = del_cov_after
         self._name_gather_check = {}
-        print(f'LAYER_LOSS: Scaling {self.scaling}')    
+        print(f'LAYERLOSS::MEAN_NORM: Scaling {self.scaling}')    
     
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):

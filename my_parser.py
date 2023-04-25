@@ -7,7 +7,9 @@ import glob
 import os
 from utils import utils
 import numpy as np
-import functools as ft
+from typing import Union, Optional
+from dataclasses import dataclass
+from config.default import default_export_path
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -18,7 +20,8 @@ Test dataset uses test data with only the classes used in previous tasks.
 """)
 
     parser.add_argument("--config.seed", type=int, help='Seed of the pytorch random number generator. Default None - random seed.') ##**
-    parser.add_argument("--loop.run_training_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
+    parser.add_argument("--config.folder", type=str, default='runs/', help='Root forlder of the runs.') ##**
+    parser.add_argument("--loop.train_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
 If True, run on all loops, if False, do not run. If "loop.gather_layer_loss_at" is set, then it takes precedence.') ##**
     parser.add_argument("--config.load", action="append", help='The config file(s) that should be used. The config file \
 takes precedence over command line arguments. Config files will be applied in order of the declaration.')
@@ -59,10 +62,10 @@ to choose epoch at which to call it.')
     ######################################
     parser.add_argument("--datamodule.batch_size", type=int, default=32, help='Size of the batch.')
     parser.add_argument("--config.num_tasks", type=int, default=1, help='How many tasks will be created')
-    parser.add_argument("--loop.quantity", type=int, default=1, help='How many loops will be traversed. \
+    parser.add_argument("--loop.num_loops", type=int, default=1, help='How many loops will be traversed. \
 Each new loop will increment current task index. If "num_loops">"num_tasks" then at each new loop \
 the last task in array will be used.') ##**
-    parser.add_argument("--config.epochs_per_task", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
+    parser.add_argument("--loop.schedule", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
 Array size should be the same as num_loops for each loop.') ##**
     parser.add_argument("--config.number_of_classes", type=int, default=10, help='Number of classes model should output. \
 If less than in dataset then model will be trained and validated only using this number of classes')
@@ -85,14 +88,14 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
     parser.add_argument("--config.target_processing_type", type=str, help='From utils.functional.target_processing.py')
     parser.add_argument("--config.task_split_type", type=str, help='From utils.functional.task_split.py')
     parser.add_argument("--config.overlay_type", type=str, help='Overlay type')
-    parser.add_argument("--config.model_type", type=str, help='Model type') ##**
+    parser.add_argument("--model.type", type=str, help='Model type') ##**
 
     ######################################
     #####     dream parameters      ######
     ######################################
-    parser.add_argument("--datamodule.vis.generate_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
+    parser.add_argument("--loop.vis.generate_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
-Without running this and running "loop.run_training_at" will run only test. Use this with "datamodule.vis.only_vis_at" to train only on dream batch.') ##**
+Without running this and running "loop.train_at" will run only test. Use this with "datamodule.vis.only_vis_at" to train only on dream batch.') ##**
     parser.add_argument("--datamodule.vis.per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
     parser.add_argument("--datamodule.vis.batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
@@ -128,9 +131,9 @@ should be appart from each other. Should be greather than loss.chi.sigma. The la
     ######################################
     #####       model reinit        ######
     ######################################
-    parser.add_argument("--loop.reload_model_at", nargs='+', type=str, help='Reload model weights after each main loop.\
+    parser.add_argument("--loop.model.reload_at", nargs='+', type=str, help='Reload model weights after each main loop.\
 Reloading means any weights that model had before training will be reloaded. Reload is done AFTER dream generation if turned on.') ##**
-    parser.add_argument("--loop.reinit_model_at", nargs='+', type=str, help='Reset model after each main loop.\
+    parser.add_argument("--loop.model.reinit_at", nargs='+', type=str, help='Reset model after each main loop.\
 Model will have newly initialized weights after each main loop. Reinit is done AFTER dream generation if turned on.') ##**
 
     parser.add_argument("--loop.weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
@@ -140,11 +143,11 @@ Model will have newly initialized weights after each main loop. Reinit is done A
     ######################################
     #####       fast dev run        ######
     ######################################
-    parser.add_argument("-f", "--fast-dev-run", action="store_true", help='Use to fast check for errors in code.\
+    parser.add_argument("-f", "--fast_dev_run.flag", action="store_true", help='Use to fast check for errors in code.\
 It ') ##**
-    parser.add_argument("--fast_dev_run_batches", type=int, default=30, help='')
-    parser.add_argument("--fast_dev_run_epochs", type=int, default=1, help='')
-    parser.add_argument("--fast_dev_run_dream_threshold", nargs='+', type=int, default=[32], help='')
+    parser.add_argument("--fast_dev_run.batches", type=int, default=30, help='')
+    parser.add_argument("--fast_dev_run.epochs", type=int, default=1, help='')
+    parser.add_argument("--fast_dev_run.vis_threshold", nargs='+', type=int, default=[32], help='')
 
 
     ######################################
@@ -167,24 +170,36 @@ It ') ##**
     ######################################
     #####     layer statistics      ######
     ######################################
-    parser.add_argument("--loop.gather_layer_loss_at", type=int, help='Gather layer statistics \
+    parser.add_argument("--loop.layer_stats.use_at", type=int, help='Gather layer statistics \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.use_layer_loss_at", type=int, help='Use layer loss function \
+    parser.add_argument("--loop.layerloss.mean_norm.use_at", type=int, help='Use layer loss function \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.save_layer_stats", type=str, help='Path where to save layer_stats.') ##**
-    parser.add_argument("--loop.load_layer_stats", type=str, help='Path from where to load layer_stats.') ##**
-    parser.add_argument("--loop.layer_stats_hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
+    parser.add_argument("--loop.save.layer_stats", type=str, help='Path where to save layer_stats.') ##**
+    parser.add_argument("--loop.load.layer_stats", type=str, help='Path from where to load layer_stats.') ##**
+    parser.add_argument("--loop.layer_stats.hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
 thrown, list of avaliable layers will be displayed.') ##**
+    parser.add_argument("--loop.layerloss.mean_norm.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.layerloss.grad_pruning.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
     parser.add_argument("--model.replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
-    parser.add_argument("--loop.layerloss.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
-    parser.add_argument("--loop.use_grad_pruning_at", type=int, help='Use gradient pruning at.') ##**
-    parser.add_argument("--loop.grad_pruning_percent", type=float, default=0.01,
+    parser.add_argument("--loop.layerloss.mean_norm.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
+    parser.add_argument("--loop.layerloss.grad_pruning.use_at", type=int, help='Use gradient pruning at.') ##**
+    parser.add_argument("--loop.layerloss.grad_pruning.percent", type=float, default=0.01,
         help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
-    parser.add_argument("--loop.use_grad_activ_pruning_at", type=int, help='') ##**
-    parser.add_argument("--loop.grad_activ_pruning_percent", type=float, default=0.01, help='') ##**
-    parser.add_argument("--loop.layerloss.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
+    parser.add_argument("--loop.layerloss.grad_activ_pruning.use_at", type=int, help='') ##**
+    parser.add_argument("--loop.layerloss.grad_activ_pruning.percent", type=float, default=0.01, help='') ##**
+    parser.add_argument("--loop.layerloss.mean_norm.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
+
+    parser.add_argument("--loop.layerloss.mean_norm.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.layerloss.grad_pruning.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.layer_stats.device", type=str, default='cuda', help='')
+
+
+
+
 
     ######################################
     ######          other           ######
@@ -197,9 +212,6 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--stat.disorder_dream", action="store_true", help='')
     parser.add_argument("--stat.collect_stats", action="store_true", help='')
 
-
-    parser.add_argument("--test1.test2.test3", action="store_true", help='')
-
     args = parser.parse_args()
 
     args = load_config(args, parser)
@@ -211,9 +223,9 @@ thrown, list of avaliable layers will be displayed.') ##**
     
     return args, parser
 
+
 def extend_namespace(args):
     namespace = vars(args)
-    new_dict = {}
     for k in list(namespace.keys()):
         if('.' in k):
             data = k.split('.')
@@ -229,42 +241,17 @@ def extend_namespace(args):
                     current = getattr(current, d)
 
             setattr(current, data[-1], namespace[k])
-
-
-            ###
-            #data = k.split('.')
-            #current_dict = new_dict
-            #for d in data[:-1]:
-            #    if(d not in current_dict):
-            #        current_dict[k] = {}
-            #    else:
-            #        current_dict = current_dict[k]
-            #
-            #if(data[-1] not in current_dict):
-            #    current_dict[k] = namespace[k]
-            #else:
-            #    raise Exception('Data already in dictionary')
-
-            ###
-            #data = k.split('.')
-            #current = namespace[k]
-            #for d in reversed(data[1:]):
-            #    current = Namespace(**{d: current})
-            #setattr(args, data[0], current)
             delattr(args, k) 
 
-    #print()
-    #print(args)
-    #exit()
     return args
 
 def convert_args_str_to_list_int(args: Namespace):
     to_check = [
-        'loop.run_training_at', 
-        'datamodule.vis.generate_at', 
+        'loop.train_at', 
+        'loop.vis.generate_at', 
         'datamodule.vis.only_vis_at', 
-        'loop.reload_model_at', 
-        'loop.reinit_model_at',
+        'loop.model.reload_at', 
+        'loop.model.reinit_at',
     ]
     for k in to_check:
         v = args.__dict__[k]
@@ -325,15 +312,15 @@ def wandb_run_name(args):
         dream = 'dream_'
         if(args.datamodule.vis.disable_transforms != True):
             tr = "tr_"
-    text = f"{args.config.model_type}_{dream}{tr}"
-    if(args.loop.use_layer_loss_at is not None and args.datamodule.vis.only_vis_at != False):
-        text = f"{text}ll{args.loop.layerloss.scaling}_"
+    text = f"{args.model.type}_{dream}{tr}"
+    if(args.loop.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
+        text = f"{text}ll_mean_norm{args.loop.layerloss.scaling}_"
     if(args.model.replace_layer):
         text = f"{text}replayer_"
-    if(args.loop.use_grad_pruning_at is not None and args.loop.use_grad_pruning_at != False):
-        text = f"{text}gp{args.loop.grad_pruning_percent}_"
-    if(args.loop.use_grad_activ_pruning_at is not None and args.loop.use_grad_activ_pruning_at != False):
-        text = f"{text}gap{args.loop.grad_activ_pruning_percent}_"
+    if(args.loop.layerloss.grad_pruning.use_at is not None and args.loop.layerloss.grad_pruning.use_at != False):
+        text = f"{text}gp{args.loop.layerloss.grad_pruning.percent}_"
+    if(args.loop.layerloss.grad_activ_pruning.use_at is not None and args.loop.layerloss.grad_activ_pruning.use_at != False):
+        text = f"{text}gap{args.loop.layerloss.grad_activ_pruning.percent}_"
     
     return f"{text}{np.random.randint(0, 5000)}"
 

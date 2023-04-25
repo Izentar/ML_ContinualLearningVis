@@ -175,3 +175,6 @@ def _get_model_hierarchy(model, tree_name:str, model_names:list[str], separator=
         model_names.append(new_tree_name)
         _get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
     return model_names
+
+def get_obj_dict(obj, reject_from: object):
+    return {k: v for k, v in vars(obj).items() if not isinstance(v, reject_from)}

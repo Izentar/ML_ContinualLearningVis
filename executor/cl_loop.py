@@ -16,7 +16,7 @@
 # https://github.com/PyTorchLightning/pytorch-lightning/blob/master/pl_examples/loop_examples/kfold.py
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pytorch_lightning.loops.base import Loop
 from pytorch_lightning.loops.fit_loop import FitLoop
@@ -30,13 +30,16 @@ import datetime, glob
 
 from config.default import default_export_path, model_to_save_file_type
 from model.statistics import base as layer_stat_framework
-from loss_function import layer_loss
+from loss_function import layerloss
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
 from model.statistics.base import ModelLayerStatistics, unhook
 from colorama import Fore, Back, Style
 from collections.abc import Sequence
 from loss_function import image_regularization
+
+from dataclasses import dataclass, field
+from argparse import Namespace
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -54,145 +57,215 @@ from loss_function import image_regularization
 #        return self.on_run_end(...)                                   #
 ########################################################################
 
-
 class CLLoop(Loop):
+    @dataclass
+    class Config():
+        plan: list[list[int]]
+        schedule: list[int]
+        num_tasks: Union[int, None] = field(default=None, init=False)
+        num_loops: Union[int, None] = None
+        train_at: Union[str, bool, int, list[str], list[bool], list[int], None] = True
+        weight_reset_sanity_check: bool = False
+
+        def __post_init__(self):
+            self.num_tasks = len(self.plan)
+            self.num_loops = self.num_tasks if self.num_loops is None else self.num_loops
+
+    @dataclass
+    class Visualization():
+        generate_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        clear_dataset_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        use_input_img_var_reg_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        bn_reg_scale: float = 1e2
+        use_var_img_reg_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        var_scale: float = 2.5e-5
+        use_l2_img_reg_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        l2_coeff: float = 1e-05
+
+    @dataclass
+    class Model():
+        reload_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        reinit_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+
+    @dataclass
+    class Save():
+        enable_checkpoint: bool = False
+        model_inner_path: str = None
+        model: bool = False
+        dreams: str = None
+        layer_stats: str = None
+        export_path: Optional[str] = None
+
+        def __post_init__(self):
+            self.model_inner_path = Path(self.model_inner_path) if self.model_inner_path is not None else Path("")
+            if self.export_path is not None:
+                self.export_path = Path(self.export_path)
+            else:
+                self.export_path = Path(default_export_path)
+
+    @dataclass
+    class Load():
+        model: str = None
+        dreams: str = None
+        layer_stats: str = None
+        export_path: Optional[str] = None
+
+        def __post_init__(self):
+            self.model = Path(self.model) if self.model is not None else self.model
+            self.dreams = Path(self.dreams) if self.dreams is not None else self.dreams
+            if self.export_path is not None:
+                self.export_path = Path(self.export_path)
+            else:
+                self.export_path = Path(default_export_path)
+        
+    @dataclass
+    class LayerStats():
+        use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+        hook_to: Union[list[str], None] = False
+        device: str = 'cuda'
+        flush_to_disk: bool = False
+        verbose: bool = False
+
+    @dataclass
+    class LayerLoss():
+        @dataclass
+        class MeanNorm():
+            scaling: float = 0.01
+            del_cov_after: bool =False
+            use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+            hook_to: Union[list[str], None] = False
+            device: str = 'cuda'
+
+        @dataclass
+        class GradPruning():
+            use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+            percent: float = 0.01
+            hook_to: Union[list[str], None] = False
+            device: str = 'cuda'
+
+        @dataclass
+        class GradActivePruning():
+            use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+            percent: float = 0.01
+            hook_to: Union[list[str], None] = False
+            device: str = 'cuda'
+
+    CONFIG_MAP = {
+        'vis': Visualization,
+        'model': Model,
+        'save': Save,
+        'load': Load,
+        'mean_norm': LayerLoss.MeanNorm,
+        'grad_pruning': LayerLoss.GradPruning,
+        'grad_activ_pruning': LayerLoss.GradActivePruning,
+        'layer_stats': LayerStats,
+        'cfg': Config,
+    }
+
     def __init__(
         self,
-        epochs_per_task: list[list[int]],
-        reload_model_at: bool = False,
-        reinit_model_at: bool = False,
-        save_export_path: Optional[str] = None,
-        load_export_path: Optional[str] = None,
-        enable_dreams_gen_at:int=None,
+        plan: list[list[int]],
+        cfg_map: dict = None,
+        args = None,
         fast_dev_run_epochs=None,
         fast_dev_run=False,
         data_passer=None,
-        num_loops=None,
-        run_training_at=False,
         weight_reset_sanity_check=False,
-        enable_checkpoint:bool=False,
-        save_trained_model:bool=False,
-        save_model_inner_path:str=None,
-        load_model:str=None,
-        save_dreams:str=None,
-        load_dreams:str=None,
-        gather_layer_loss_at:int=None,
-        use_layer_loss_at:int=None,
-        layer_dataloader=None,
         data_module=None,
         progress_bar=None,
-        layer_stats_hook_to:list[str]|None=False,
-        layer_stats_verbose=False,
-        layer_stats_flush_to_disk=False,
-        layer_stats_loss_device='cuda:0',
-        layer_stats_collect_device='cuda:0',
-        clear_dreams_at=False,
-        layerloss_del_cov_after=False,
-        save_layer_stats=None,
-        load_layer_stats=None,
-        layerloss_scaling=0.01,
-        use_grad_pruning_at=None,
-        grad_pruning_percent=0.01,
-        use_grad_activ_pruning_at=None,
-        grad_activ_pruning_percent=0.01,
-        use_input_img_var_reg_at=False,
-        bn_reg_scale=1e2,
-        use_var_img_reg_at=False,
-        var_scale=2.5e-5,
-        use_l2_img_reg_at=False,
-        l2_coeff=1e-05,
     ) -> None:
         """
-            epochs_per_task: list of epoches per task
+            plan: list of epoches per task
             save_export_path: save model parameters to path on current task
 
-            num_loops - if None then the same as num_tasks. It is used to loop over the num_tasks.
-                If num_loops == num_tasks then nothing is changed. 
-                It can be used to loop more than the num_tasks after 
+            num_loops - if None then the same as cfg.num_tasks. It is used to loop over the cfg.num_tasks.
+                If num_loops == cfg.num_tasks then nothing is changed. 
+                It can be used to loop more than the cfg.num_tasks after 
                 all tasks are done.
         """
         super().__init__()
 
-        self.num_tasks = len(epochs_per_task)
-        self.num_loops = self.num_tasks if num_loops is None else num_loops
-        self._epochs_per_task = epochs_per_task
+        self._map_cfg(args=args, cfg_map=cfg_map, plan=plan)
+
         self.current_task: int = 0
         self.current_loop: int = 0
         self.previous_task:int = 0
         self.previous_loop:int = 0
-
-        # save_export_path
-        if save_export_path is not None:
-            self.save_export_path = Path(save_export_path)
-        elif load_export_path is not None:
-            self.save_export_path = Path(load_export_path)
-        else:
-            self.save_export_path = Path(default_export_path)
-
-        # load_export_path
-        if load_export_path is not None:
-            self.load_export_path = Path(load_export_path)
-        elif save_export_path is not None:
-            self.load_export_path = Path(save_export_path)
-        else:
-            self.load_export_path = Path(default_export_path)
-
-        self.save_model_inner_path = Path(save_model_inner_path) if save_model_inner_path is not None else Path("")
         
-        self.reload_model_at = reload_model_at
-        self.reinit_model_at = reinit_model_at
-        self.enable_dreams_gen_at = enable_dreams_gen_at
         self.fast_dev_run_epochs = fast_dev_run_epochs
         self.fast_dev_run = fast_dev_run
-        self.run_training_at = run_training_at
         self.weight_reset_sanity_check = weight_reset_sanity_check
-        self.enable_checkpoint = enable_checkpoint
-        self.save_trained_model = save_trained_model
-        self.load_model = Path(load_model) if load_model is not None else load_model
-        self.save_dreams = save_dreams
-        self.load_dreams = Path(load_dreams) if load_dreams is not None else load_dreams
-        self.gather_layer_loss_at = gather_layer_loss_at
-        self.layer_dataloader = layer_dataloader
-        self.use_layer_loss_at = use_layer_loss_at
         self.data_module = data_module
         self.progress_bar = progress_bar
-        self.clear_dreams_at = clear_dreams_at
-        self.use_grad_pruning_at = use_grad_pruning_at
-        self.grad_pruning_percent = grad_pruning_percent
-        self.use_grad_activ_pruning_at = use_grad_activ_pruning_at
-        self.grad_activ_pruning_percent = grad_activ_pruning_percent
 
         self.enable_data_parser = data_passer is not None
         self.data_passer = data_passer if data_passer is not None else {}
         self.custom_advance_f = None
         self.model_stats = None
-        self.layerloss_del_cov_after = layerloss_del_cov_after
 
-        if utils.check_python_enabled(self.reinit_model_at) and utils.check_python_enabled(self.reload_model_at):
-            raise Exception("ERROR: reinit_model_at and reload_model_at cannot be both true")
+        if utils.check_python_enabled(self.cfg_model.reinit_at) and utils.check_python_enabled(self.cfg_model.reload_at):
+            raise Exception("ERROR: cfg_model.reinit_at and cfg_model.reload_at cannot be both true")
 
-        self.layer_stats_hook_to = layer_stats_hook_to
-        self.layer_stats_verbose = layer_stats_verbose
-        self.layer_stats_flush_to_disk = layer_stats_flush_to_disk
-        self.layer_stats_loss_device = layer_stats_loss_device
-        self.layer_stats_collect_device = layer_stats_collect_device
-        self.load_layer_stats = load_layer_stats
-        self.save_layer_stats = save_layer_stats
-        self.layerloss_scaling = layerloss_scaling
-        self.use_input_img_var_reg_at = use_input_img_var_reg_at
-        self.bn_reg_scale = bn_reg_scale
-        self.use_var_img_reg_at = use_var_img_reg_at
-        self.var_scale = var_scale
-        self.use_l2_img_reg_at = use_l2_img_reg_at
-        self.l2_coeff = l2_coeff
-
-        for l in self._epochs_per_task:
+        for l in self.cfg.plan:
             if((not isinstance(l, Sequence)) or len(l) < 1):
-                raise Exception(f'Bad epochs_per_task: {self._epochs_per_task}')
+                raise Exception(f'Bad plan: {self.cfg.plan}')
+
+    def _map_cfg(self, args, cfg_map:dict, plan):
+        if(args is None and cfg_map is None):
+            raise Exception(f"No config provided.")
+        if(cfg_map is not None):
+            for k in cfg_map.keys():
+                if(k not in self.CONFIG_MAP):
+                    raise Exception(f"Unknown config map key: {k}")
+
+        if(args is not None):
+            not_from = Namespace
+            cfg = utils.get_obj_dict(args.loop, not_from)
+            if('plan' in cfg):
+                self.cfg = CLLoop.Config(
+                    **cfg
+                )
+            else:
+                self.cfg = CLLoop.Config(
+                    plan=plan, **cfg
+                )
+            self.cfg_vis=CLLoop.Visualization(
+                **utils.get_obj_dict(args.loop.vis, not_from)
+            )
+            self.cfg_model=CLLoop.Model(
+                **utils.get_obj_dict(args.loop.model, not_from)
+            )
+            self.cfg_save=CLLoop.Save(
+                **utils.get_obj_dict(args.loop.save, not_from)
+            )
+            self.cfg_load=CLLoop.Load(
+                **utils.get_obj_dict(args.loop.load, not_from)
+            )
+            self.cfg_mean_norm=CLLoop.LayerLoss.MeanNorm(
+                **utils.get_obj_dict(args.loop.layerloss.mean_norm, not_from)
+            )
+            self.cfg_grad_pruning=CLLoop.LayerLoss.GradPruning(
+                **utils.get_obj_dict(args.loop.layerloss.grad_pruning, not_from)
+            )
+            self.cfg_grad_activ_pruning=CLLoop.LayerLoss.GradActivePruning(
+                **utils.get_obj_dict(args.loop.layerloss.grad_activ_pruning, not_from)
+            )
+            self.cfg_layer_stats=CLLoop.LayerStats(
+                **utils.get_obj_dict(args.loop.layer_stats, not_from)
+            )
+
+        if(cfg_map is not None):
+            for k, cfg_class in self.CONFIG_MAP.items():
+                name = f'cfg_{k}' if 'cfg' not in k else 'cfg'
+                if(k not in cfg_map):
+                    if(args is None): # setup if not set
+                        setattr(self, name, cfg_class())
+                else: # override
+                    setattr(self, name, cfg_map[k])
 
     @property
     def done(self) -> bool:
-        return self.current_loop >= self.num_loops
+        return self.current_loop >= self.cfg.num_loops
 
     def connect(self, fit_loop: FitLoop) -> None:
         self.fit_loop = fit_loop
@@ -202,16 +275,14 @@ class CLLoop(Loop):
         self.current_task = 0
         self.current_loop = 0
         self.fit_loop.reset()
-        #if self.trainer.fast_dev_run:
-        #    self.num_tasks = fast_dev_run_config["num_tasks"]
 
     def _update_data_passer(self):
         self.data_passer['current_task'] = self.current_task
         self.data_passer['current_loop'] = self.current_loop
-        self.data_passer['num_tasks'] = self.num_tasks
-        self.data_passer['num_loops'] = self.num_loops
-        if(self.current_loop < self.num_loops):
-            self.data_passer['epoch_per_task'] = self.epochs_per_task
+        self.data_passer['num_tasks'] = self.cfg.num_tasks
+        self.data_passer['num_loops'] = self.cfg.num_loops
+        if(self.current_loop < self.cfg.num_loops):
+            self.data_passer['epoch_per_task'] = self.epoch_num
 
     def on_run_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_tasks` from the `BaseCLDataModule` instance and store the
@@ -219,12 +290,12 @@ class CLLoop(Loop):
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
         self._try_load_model()
         self.trainer.datamodule.setup_tasks()
-        if(utils.check_python_enabled(self.reload_model_at)):
+        if(utils.check_python_enabled(self.cfg_model.reload_at)):
             # need deepcopy, because state_dict reference the tensor, not its copy
             self.lightning_module_state_dict = deepcopy(self.trainer.lightning_module.state_dict())
             if(self.weight_reset_sanity_check):
                 self.state_dict_sanity_check_val = self.trainer.lightning_module.model.get_objective_layer().weight.cpu()  
-        if(utils.check_python_enabled(self.reinit_model_at)):
+        if(utils.check_python_enabled(self.cfg_model.reinit_at)):
             if(self.weight_reset_sanity_check):
                 self.state_dict_sanity_check_val = self.trainer.lightning_module.model.get_objective_layer().weight.cpu() 
         self._update_data_passer()
@@ -242,56 +313,56 @@ class CLLoop(Loop):
         self.model_stats, _ = layer_stat_framework.collect_model_layer_stats(
             model=self.trainer.lightning_module,
             single_dataloader=dataloader,
-            device=self.layer_stats_collect_device,
-            hook_verbose=self.layer_stats_verbose,
+            device=self.cfg_layer_stats.device,
+            hook_verbose=self.cfg_layer_stats.verbose,
             progress_bar=self.progress_bar,
-            flush_to_disk=self.layer_stats_flush_to_disk,
-            hook_to=self.layer_stats_hook_to,
+            flush_to_disk=self.cfg_layer_stats.flush_to_disk,
+            hook_to=self.cfg_layer_stats.hook_to,
             fast_dev_run=self.fast_dev_run,
         )
         self._try_save_model_layer_stats()
 
     def _try_generate_dream(self):
-        if utils.check_python_index(self.enable_dreams_gen_at, self.num_loops, self.current_loop):
+        if utils.check_python_index(self.cfg_vis.generate_at, self.cfg.num_loops, self.current_loop):
             layer_hook_obj = []
             layer_handles = []
             input_image_train_after_obj = []
 
-            if(utils.check_python_index(self.use_layer_loss_at, self.num_loops, self.current_loop)):
+            if(utils.check_python_index(self.cfg_mean_norm.use_at, self.cfg.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_loss.LayerLoss(device=self.layer_stats_loss_device, del_cov_after=self.layerloss_del_cov_after, scaling=self.layerloss_scaling)
+                tmp = layerloss.MeanNorm(device=self.cfg_mean_norm.device, del_cov_after=self.cfg_mean_norm.del_cov_after, scaling=self.cfg_mean_norm.scaling)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
                     fun=tmp.hook_fun, 
-                    hook_to=self.layer_stats_hook_to
+                    hook_to=self.cfg_mean_norm.hook_to
                 ))
-            if(utils.check_python_index(self.use_grad_pruning_at, self.num_loops, self.current_loop)):
+            if(utils.check_python_index(self.cfg_grad_pruning.use_at, self.cfg.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_loss.LayerGradPruning(device=self.layer_stats_loss_device, percent=self.grad_pruning_percent)
+                tmp = layerloss.LayerGradPruning(device=self.cfg_grad_pruning.device, percent=self.cfg_grad_pruning.percent)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
                     fun=tmp.hook_fun, 
-                    hook_to=self.layer_stats_hook_to
+                    hook_to=self.cfg_grad_pruning.hook_to
                 ))
-            if(utils.check_python_index(self.use_grad_activ_pruning_at, self.num_loops, self.current_loop)):
+            if(utils.check_python_index(self.cfg_grad_activ_pruning.use_at, self.cfg.num_loops, self.current_loop)):
                 print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
                 self._try_load_model_layer_stats()
-                tmp = layer_loss.LayerGradActivationPruning(device=self.layer_stats_loss_device, percent=self.grad_activ_pruning_percent)
+                tmp = layerloss.LayerGradActivationPruning(device=self.cfg_grad_activ_pruning.device, percent=self.cfg_grad_activ_pruning.percent)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 
                     fun=tmp.hook_fun, 
-                    hook_to=self.layer_stats_hook_to
+                    hook_to=self.cfg_grad_activ_pruning.hook_to
                 ))
 
-            if(utils.check_python_index(self.use_input_img_var_reg_at, self.num_loops, self.current_loop)):
-                tmp = layer_loss.DeepInversionFeatureLoss(bn_reg_scale=self.bn_reg_scale)
+            if(utils.check_python_index(self.cfg_vis.use_input_img_var_reg_at, self.cfg.num_loops, self.current_loop)):
+                tmp = layerloss.DeepInversionFeatureLoss(bn_reg_scale=self.cfg_vis.bn_reg_scale)
                 input_image_train_after_obj.append(tmp)
                 layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 
@@ -299,12 +370,12 @@ class CLLoop(Loop):
                     hook_to=['BatchNorm2d'] # only works for BatchNorm2d
                 ))
 
-            if(utils.check_python_index(self.use_var_img_reg_at, self.num_loops, self.current_loop)):
-                tmp = image_regularization.VariationRegularization(scale=self.var_scale)
+            if(utils.check_python_index(self.cfg_vis.use_var_img_reg_at, self.cfg.num_loops, self.current_loop)):
+                tmp = image_regularization.VariationRegularization(scale=self.cfg_vis.var_scale)
                 input_image_train_after_obj.append(tmp)
 
-            if(utils.check_python_index(self.use_l2_img_reg_at, self.num_loops, self.current_loop)):
-                tmp = image_regularization.L2Regularization(coefficient=self.l2_coeff)
+            if(utils.check_python_index(self.cfg_vis.use_l2_img_reg_at, self.cfg.num_loops, self.current_loop)):
+                tmp = image_regularization.L2Regularization(coefficient=self.cfg_vis.l2_coeff)
                 input_image_train_after_obj.append(tmp)
             
             print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
@@ -332,38 +403,38 @@ class CLLoop(Loop):
 
     def _try_reset_model(self):
         # restore the original weights + optimizers and schedulers.
-        if utils.check_python_index(self.reload_model_at, self.num_loops, self.current_loop):
+        if utils.check_python_index(self.cfg_model.reload_at, self.cfg.num_loops, self.current_loop):
             print('INFO: Model reloaded.')
             self.trainer.lightning_module.load_state_dict(
                 self.lightning_module_state_dict, strict=True
             )
             self.trainer.strategy.setup_optimizers(self.trainer)
             self._model_weigth_sanity_check()
-        if utils.check_python_index(self.reinit_model_at, self.num_loops, self.current_loop):
+        if utils.check_python_index(self.cfg_model.reinit_at, self.cfg.num_loops, self.current_loop):
             print('INFO: Model reinit.')
             self.trainer.lightning_module.init_weights()
             self._model_weigth_sanity_check()
 
     @property
-    def epochs_per_task(self):
+    def epoch_num(self):
         if(self.fast_dev_run and self.fast_dev_run_epochs is not None):
             return self.fast_dev_run_epochs
-        if(len(self._epochs_per_task[self.current_task]) <= self.current_loop):
-            tmp = self._epochs_per_task[self.current_task][-1]
+        if(len(self.cfg.plan[self.current_task]) <= self.current_loop):
+            tmp = self.cfg.plan[self.current_task][-1]
             print(f'WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list index out of range.')
             return tmp
-        return self._epochs_per_task[self.current_task][self.current_loop]
+        return self.cfg.plan[self.current_task][self.current_loop]
 
     def _setup_loop(self):
         # Set the max number of epochs for this task
-        max_epochs = self.epochs_per_task
+        max_epochs = self.epoch_num
         self.replace(
             fit_loop=FitLoop(max_epochs=max_epochs)
         )
-        if(utils.check_python_index(self.gather_layer_loss_at, self.num_loops, self.current_loop)):
+        if(utils.check_python_index(self.cfg_layer_stats.use_at, self.cfg.num_loops, self.current_loop)):
             print("INFO: HOOKING UP LOOP TO GATHER STATISTICS")
             self.custom_advance_f = self._gather_model_layer_stats_advance_f # run custon data gathering loop
-        elif(utils.check_python_index(self.run_training_at, self.num_loops, self.current_loop)):
+        elif(utils.check_python_index(self.cfg.train_at, self.cfg.num_loops, self.current_loop)):
             print("INFO: HOOKING UP NORMAL LOOP")
             self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
         else:
@@ -380,28 +451,28 @@ class CLLoop(Loop):
         time = datetime.datetime.now().strftime("%H-%M-%S")
         if(dtype is None):
             dtype = ""
-        if(self._export_path_contains(self.save_model_inner_path, export_path=export_path)):
-            ret = self.save_model_inner_path / dtype / folder
+        if(self._export_path_contains(self.cfg_save.model_inner_path, export_path=export_path)):
+            ret = self.cfg_save.model_inner_path / dtype / folder
         else:
-            ret = export_path / self.save_model_inner_path / dtype / folder
+            ret = export_path / self.cfg_save.model_inner_path / dtype / folder
         ret.mkdir(parents=True, exist_ok=True)
         return ret, time
 
     def _try_save_dreams(self):
-        if(self.save_dreams is not None and not self.fast_dev_run):
-            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path, dtype=self.save_dreams)
+        if(self.cfg_save.dreams is not None and not self.fast_dev_run):
+            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path, dtype=self.cfg_save.dreams)
             filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             Path.mkdir(filepath, parents=True, exist_ok=True)
             self.trainer.datamodule.save_dream_dataset(filepath / filename)
 
     def _try_load_dreams(self):
-        if(self.load_dreams is not None):
-            if(self._export_path_contains(self.load_dreams, self.load_export_path)):
-                find_path = self.load_dreams
+        if(self.cfg_load.dreams is not None):
+            if(self._export_path_contains(self.cfg_load.dreams, self.cfg_load.export_path)):
+                find_path = self.cfg_load.dreams
             else:
-                find_path = self.load_export_path / self.load_dreams
+                find_path = self.cfg_load.export_path / self.cfg_load.dreams
             path = glob.glob(str(find_path), recursive=True)
-            if('dreams.' not in self.load_dreams):
+            if('dreams.' not in self.cfg_load.dreams):
                 raise Exception(f'Unknown filename to load dreams. May be the wrong filetype. File: {find_path}')
             if(len(path) != 1):
                 raise Exception(f'Cannot load dreams - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
@@ -412,7 +483,7 @@ class CLLoop(Loop):
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
 
-        if(utils.check_python_index(self.clear_dreams_at, self.num_loops, self.current_loop)):
+        if(utils.check_python_index(self.cfg_vis.clear_dataset_at, self.cfg.num_loops, self.current_loop)):
             print(f'INFO: Dreams cleared at loop {self.current_loop}, task {self.current_task}')
             self.trainer.datamodule.clear_dreams_dataset()
         self._try_generate_dream()
@@ -430,31 +501,31 @@ class CLLoop(Loop):
     def _next(self) -> None:
         self.previous_task = self.current_task
         self.previous_loop = self.current_loop
-        self.current_task += 1 if self.current_task < self.num_tasks - 1 else 0
+        self.current_task += 1 if self.current_task < self.cfg.num_tasks - 1 else 0
         self.current_loop += 1
         self._update_data_passer()
 
     def _try_export_model_checkpoint(self):
-        if self.enable_checkpoint and not self.fast_dev_run:
-            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path)
+        if self.cfg_save.enable_checkpoint and not self.fast_dev_run:
+            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path)
             self.trainer.save_checkpoint(
                 filepath / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
             )
 
     def _try_save_trained_model(self):
-        if(self.save_trained_model and not self.fast_dev_run):
-            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path)
+        if(self.cfg_save.model and not self.fast_dev_run):
+            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path)
             self.trainer.save_checkpoint(
                 filepath / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
                 weights_only=True
             )
 
     def _try_load_model(self):
-        if(self.load_model is not None):
-            if(self._export_path_contains(self.load_model, self.load_export_path)):
-                find_path = self.load_model
+        if(self.cfg_load.model is not None):
+            if(self._export_path_contains(self.cfg_load.model, self.cfg_load.export_path)):
+                find_path = self.cfg_load.model
             else:
-                find_path = self.load_export_path / self.load_model
+                find_path = self.cfg_load.export_path / self.cfg_load.model
             path = glob.glob(str(find_path), recursive=True)
             if(len(path) != 1):
                 raise Exception(f'Cannot load model - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
@@ -518,26 +589,26 @@ class CLLoop(Loop):
         return self.__dict__[key]
 
     def _try_save_model_layer_stats(self):
-        if(self.model_stats is not None and self.save_layer_stats is not None and not self.fast_dev_run):
+        if(self.model_stats is not None and self.cfg_save.layer_stats is not None and not self.fast_dev_run):
             stripped_dict = {}
             for k, v in self.model_stats.items():
                 stripped_dict[k] = v.get_const_data()
-            Path(self.save_layer_stats).parent.mkdir(parents=True, exist_ok=True)
-            filepath, time = self._gen_folder_name_by_time(export_path=self.save_export_path)
-            torch.save(stripped_dict, f=filepath / f'layer_stats.loop_{self.current_loop}.{self.save_layer_stats}.{time}.ls') 
+            Path(self.cfg_save.layer_stats).parent.mkdir(parents=True, exist_ok=True)
+            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path)
+            torch.save(stripped_dict, f=filepath / f'layer_stats.loop_{self.current_loop}.{self.cfg_save.layer_stats}.{time}.ls') 
     
     def _try_load_model_layer_stats(self, strict=True):
-        if(self.load_layer_stats is not None):
+        if(self.cfg_load.layer_stats is not None):
             if(self.model_stats is None):
                 self.model_stats = ModelLayerStatistics(
                     model=self.trainer.lightning_module,
-                    device=self.layer_stats_collect_device,
-                    hook_verbose=self.layer_stats_verbose,
-                    flush_to_disk=self.layer_stats_flush_to_disk,
-                    hook_to=self.layer_stats_hook_to,
+                    device=self.cfg_layer_stats.device,
+                    hook_verbose=self.cfg_layer_stats.verbose,
+                    flush_to_disk=self.cfg_layer_stats.flush_to_disk,
+                    hook_to=self.cfg_layer_stats.hook_to,
                 )
                 self.model_stats.unhook()
-            loaded = torch.load(self.load_layer_stats)
+            loaded = torch.load(self.cfg_load.layer_stats)
             self.model_stats.set_layer_stats_from(loaded)
             self.model_stats = self.model_stats.get_stats()
             

@@ -18,7 +18,7 @@ class TestCLModel(unittest.TestCase):
         pl.seed_everything(42)
         num_tasks = 5
         num_classes = num_tasks * 10
-        epochs_per_task = 15
+        plan = 15
         dreams_per_target = 48
 
         dreams_with_logits = True
@@ -72,7 +72,7 @@ class TestCLModelWithReconstruction(unittest.TestCase):
         pl.seed_everything(42)
         num_tasks = 5
         num_classes = num_tasks * 10
-        epochs_per_task = 15
+        plan = 15
         dreams_per_target = 48
 
         dreams_with_logits = True

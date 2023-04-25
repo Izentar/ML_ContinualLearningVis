@@ -24,6 +24,8 @@ from abc import ABC, abstractmethod
 from utils.data_manipulation import get_target_from_dataset
 from model import base
 from utils import utils
+from dataclasses import dataclass
+from typing import Union
 
 
 class BaseCLDataModule(LightningDataModule, ABC):
@@ -56,15 +58,36 @@ class BaseCLDataModule(LightningDataModule, ABC):
         pass
 
 class DreamDataModule(BaseCLDataModule, ABC):
+    @dataclass
+    class Visualization():
+        per_target: int
+        threshold: list
+        image_type: str = 'fft'
+        batch_size: int = 8
+        disable_transforms: bool = False
+        only_vis_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        standard_image_size: Union[int, list, None] = None
+        decorrelate: bool = True
+
+        def __post_init__(self):
+            self.transforms = not self.disable_transforms
+
+            self.threshold = self.threshold if isinstance(self.threshold, tuple) or isinstance(self.threshold, list) else (self.threshold, )
+
+        def post_init_DreamDataModule(self, image_size):
+            self.standard_image_size = self.standard_image_size if self.standard_image_size is not None else image_size
+
+        @dataclass
+        class Optim():
+            lr: float = 1e-3
+        
     def __init__(self,
         train_tasks_split,
         select_dream_tasks_f,
         dream_objective_f,
-        dreams_per_target,
-        dream_threshold,
         dream_image_f,
         target_processing_f,
-        dreaming_batch_size=8,
+        cfg_vis: Visualization,
         max_logged_dreams_per_target=8, 
         fast_dev_run:bool=False,
         fast_dev_run_dream_threshold=None,
@@ -77,13 +100,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         dataset_class_labels=None,
         custom_f_steps=(0,),
         custom_f=lambda *args: None,
-        enable_dream_transforms:bool=True,
-        train_only_dream_batch_at:bool=False,
         richbar_refresh_fequency:int=50,
-        standard_image_size=None,
         data_passer=None,
-        dream_decorrelate=True,
-        dream_image_type:str='fft',
     ):
         """
         Args:
@@ -96,41 +114,37 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 The default function do nothing to targets. 
         """
         super().__init__()
+        self.cfg_vis = cfg_vis
+        self.cfg_vis.post_init_DreamDataModule(image_size)
+
+
         self.train_tasks_split = train_tasks_split
         self.select_dream_tasks_f = select_dream_tasks_f
         self.target_processing_f = target_processing_f
-        self.dreams_per_target = dreams_per_target
-        self.dreaming_batch_size = dreaming_batch_size
         self.dream_objective_f = dream_objective_f
         self.max_logged_dreams_per_target = max_logged_dreams_per_target
         self.progress_bar = progress_bar
-        self.enable_dream_transforms = enable_dream_transforms
 
         self.dreams_dataset = empty_dream_dataset
         self.calculated_mean_std = False
-        self.dream_decorrelate = dream_decorrelate
-        self.dream_image_type = dream_image_type
 
         self.fast_dev_run_dream_threshold = fast_dev_run_dream_threshold if isinstance(fast_dev_run_dream_threshold, tuple) or isinstance(fast_dev_run_dream_threshold, list) else (fast_dev_run_dream_threshold, )
-        self.dream_threshold = dream_threshold if isinstance(dream_threshold, tuple) or isinstance(dream_threshold, list) else (dream_threshold, )
         self.fast_dev_run = fast_dev_run
         self.optimizer = optimizer
         self.logger = logger
         self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if dataset_class_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
         self.render_transforms = render_transforms
         self.dream_image = dream_image_f(
-            dtype=self.dream_image_type, 
+            dtype=self.cfg_vis.image_type, 
             image_size=image_size, 
-            dreaming_batch_size=dreaming_batch_size, 
-            decorrelate=dream_decorrelate
+            dreaming_batch_size=self.cfg_vis.batch_size, 
+            decorrelate=self.cfg_vis.decorrelate
         )
         
         self.dataset_class_labels = dataset_class_labels
         self.custom_f_steps = custom_f_steps
         self.custom_f = custom_f
-        self.train_only_dream_batch_at = train_only_dream_batch_at
         self.richbar_refresh_fequency = richbar_refresh_fequency
-        self.standard_image_size = standard_image_size if standard_image_size is not None else image_size
         self.data_passer = data_passer
 
         print(f"Train task split: {self.train_tasks_split}")
@@ -169,7 +183,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             print('WARNING:\tdreaming images were not flushed by wandb.')
 
     def get_rendervis(self, model, custom_loss_gather_f, input_image_train_after_hook=None):
-        thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.dream_threshold
+        thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.cfg_vis.threshold
 
         return RenderVisState(
                 model=model,
@@ -179,8 +193,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 optimizer=self.optimizer,
                 transforms=self.render_transforms,
                 thresholds=thresholds,
-                enable_transforms=self.enable_dream_transforms,
-                standard_image_size=self.standard_image_size,
+                enable_transforms=self.cfg_vis.transforms,
+                standard_image_size=self.cfg_vis.standard_image_size,
                 custom_loss_gather_f=custom_loss_gather_f,
                 display_additional_info=True,
                 preprocess=False,
@@ -217,7 +231,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         custom_loss_gather_f, run_name = self.get_custom_loss_gather_f(task_index, *layer_hook_obj, *input_image_train_after_obj)
         rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f, input_image_train_after_hook=input_image_train_after_obj)
         
-        iterations = ceil(self.dreams_per_target / self.dreaming_batch_size)
+        iterations = ceil(self.cfg_vis.per_target / self.cfg_vis.batch_size)
 
         new_dreams, new_targets = self._generate_dreams(
             model=model,
@@ -360,23 +374,34 @@ class DreamDataModule(BaseCLDataModule, ABC):
         return self.train_tasks_split[task_number]
 
 class CLDataModule(DreamDataModule):
+    @dataclass
+    class Visualization(DreamDataModule.Visualization):
+        num_workers: int = None
+        disable_shuffle: bool = True
+
+        def __post_init__(self):
+            super().__post_init__()
+            self.shuffle = not self.disable_shuffle
+
+        def post_init_CLDataModule(self, shuffle, num_workers):
+            self.num_workers = self.num_workers if self.num_workers is not None else num_workers
+            self.shuffle = self.shuffle if self.shuffle is not None else shuffle
+
     def __init__(
         self,
         dataset_class,
         data_transform,
+        cfg_vis: Visualization,
         val_tasks_split=None,
         batch_size=32,
         dream_batch_size=8,
         num_workers=0,
         shuffle=True,
         steps_to_locate_mean = None,
-        vis_num_workers=None,
         test_num_workers=None,
         val_num_workers=None,
-        dream_shuffle=True,
         datasampler=None,
         root="data",
-        dream_decorrelate=True,
         **kwargs
     ):
         """
@@ -396,16 +421,16 @@ class CLDataModule(DreamDataModule):
                         classes_frequency=[1 / len(classes)] * len(classes)
                     )
         """
-        super().__init__(**kwargs)
+        super().__init__(cfg_vis=cfg_vis, **kwargs)
+        self.cfg_vis.post_init_CLDataModule(shuffle, num_workers)
+
         self.val_tasks_split = (val_tasks_split if val_tasks_split is not None else self.train_tasks_split)
 
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
         self.steps_to_locate_mean = steps_to_locate_mean
-
-        self.vis_num_workers = vis_num_workers if vis_num_workers is not None else self.num_workers
-        self.dream_shuffle = dream_shuffle if dream_shuffle else shuffle
+        
         self.test_num_workers = test_num_workers if test_num_workers is not None else self.num_workers
         self.val_num_workers = val_num_workers if val_num_workers is not None else self.num_workers
         self.datasampler = datasampler if datasampler is not None else None
@@ -512,7 +537,7 @@ class CLDataModule(DreamDataModule):
 
     def _check_dream_dataset_setup(self) -> bool:
         inner_check = bool(
-            utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop'])
+            utils.check_python_index(self.cfg_vis.only_vis_at, self.data_passer['num_loops'], self.data_passer['current_loop'])
         )
         if(self.dream_dataset_for_current_task is None and inner_check):
             raise Exception("Dream dataset not properly set. Try call before 'generate_synthetic_data' or 'next' or 'setup_task_index'")
@@ -525,14 +550,14 @@ class CLDataModule(DreamDataModule):
             Returns the dictionary of :
             - "normal": normal_loader
             - "dream": dream_loader [Optional position]
-            - "hidden_normal": optional normal_loader if option train_only_dream_batch_at is set.
+            - "hidden_normal": optional normal_loader if option cfg_vis.only_vis_at is set.
         """
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
         if self._check_dream_dataset_setup():
             # first loop is always False. After accumulating dreams this dataloader will be used.
-            shuffle = self.dream_shuffle if self.datasampler is None else False
+            shuffle = self.cfg_vis.shuffle if self.datasampler is None else False
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
             dream_tasks_classes = self._get_all_prev_dream_classes()
             print(f"Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}")
@@ -543,12 +568,12 @@ class CLDataModule(DreamDataModule):
             dream_loader = DataLoader(
                 self.dreams_dataset, # give full dataset, var classes is used to select classes
                 batch_size=self.batch_size if self.datasampler is None else 1, 
-                num_workers=self.vis_num_workers, 
+                num_workers=self.cfg_vis.num_workers, 
                 shuffle=shuffle if self.datasampler is None else False, 
                 pin_memory=True,
                 batch_sampler=self.datasampler(
                     dataset=self.dreams_dataset , # give full dataset, var classes is used to select classes
-                    shuffle=self.dream_shuffle,
+                    shuffle=self.cfg_vis.shuffle,
                     classes=dream_tasks_classes, # all classes that were dream of at least once
                     batch_size=self.dream_batch_size,
                 ) if self.datasampler is not None else None
@@ -573,7 +598,7 @@ class CLDataModule(DreamDataModule):
 
         normal_key = "normal"
         # need new label to not use this dataset but still keep CombinedLoader functionality
-        if(utils.check_python_index(self.train_only_dream_batch_at, self.data_passer['num_loops'], self.data_passer['current_loop'])):
+        if(utils.check_python_index(self.cfg_vis.only_vis_at, self.data_passer['num_loops'], self.data_passer['current_loop'])):
             normal_key = 'hidden_normal'
             print("INFO: Normal dataloader is hidden.")
         else:
