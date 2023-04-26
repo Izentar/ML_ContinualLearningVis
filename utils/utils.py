@@ -176,5 +176,21 @@ def _get_model_hierarchy(model, tree_name:str, model_names:list[str], separator=
         _get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
     return model_names
 
-def get_obj_dict(obj, reject_from: object):
-    return {k: v for k, v in vars(obj).items() if not isinstance(v, reject_from)}
+def get_obj_dict(args, reject_from: object, accept_only: list = None):
+    ret = {k: v for k, v in vars(args).items() if not isinstance(v, reject_from)}
+    if(accept_only is not None):
+        for k in list(ret.keys()):
+            if(k not in accept_only):
+                ret.pop(k, None)
+    return ret
+
+def get_obj_dict_dataclass(args, reject_from: object, dataclass):
+    fn = dataclass.__init__
+    return get_obj_dict(args, reject_from, accept_only=fn.__code__.co_varnames[:fn.__code__.co_argcount])
+
+def search_kwargs(kwargs: dict, vals:list[str]):
+    new_kwargs = {}
+    for k, v in kwargs.items():
+        if(k in vals):
+            new_kwargs[k] = v
+    return new_kwargs

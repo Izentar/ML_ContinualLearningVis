@@ -1,11 +1,5 @@
 import torch
-
-def _search_kwargs(kwargs: dict, vals:list[str]):
-    new_kwargs = {}
-    for k, v in kwargs.items():
-        if(k in vals):
-            new_kwargs[k] = v
-    return new_kwargs
+from utils.utils import search_kwargs
 
 def default_reset_optim(lr, **kwargs):
     def inner_default_reset_optim(optim, sched=None):
@@ -14,14 +8,14 @@ def default_reset_optim(lr, **kwargs):
     return inner_default_reset_optim
 
 def exponential_lr(**kwargs):
-    new_kwargs = _search_kwargs(kwargs, ['gamma', 'last_epoch'])
+    new_kwargs = search_kwargs(kwargs, ['gamma', 'last_epoch'])
     return lambda optim: torch.optim.lr_scheduler.ExponentialLR(optim, new_kwargs)
 
 def none(**kwargs):
     return None
 
 def adam(**kwargs):
-    new_kwargs = _search_kwargs(kwargs, ['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
+    new_kwargs = search_kwargs(kwargs, ['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
     return lambda param: torch.optim.Adam(param, **new_kwargs)
 
 
@@ -41,9 +35,9 @@ class ModelOptimizerManager():
 
     def __init__(
         self,
-        optimizer_type:str,
-        scheduler_type:str,
-        reset_optim_type:str,
+        optimizer_type: str = None,
+        scheduler_type: str = None,
+        reset_optim_type: str = None,
     ) -> None:
         self.optimizer_type = optimizer_type
         self.scheduler_type = scheduler_type

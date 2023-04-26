@@ -40,6 +40,7 @@ from loss_function import image_regularization
 
 from dataclasses import dataclass, field
 from argparse import Namespace
+from utils import setup_args
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -162,10 +163,23 @@ class CLLoop(Loop):
         'cfg': Config,
     }
 
+    VAR_MAP = {
+        'config': 'cfg',
+        'vis': 'cfg_vis',
+        'model': 'cfg_model',
+        'save': 'cfg_save',
+        'load': 'cfg_load',
+        'layerloss.mean_norm': 'cfg_mean_norm',
+        'layerloss.grad_pruning': 'cfg_grad_pruning',
+        'layerloss.grad_activ_pruning': 'cfg_grad_activ_pruning',
+        'layer_stats': 'cfg_layer_stats',
+    }
+
     def __init__(
         self,
         plan: list[list[int]],
         cfg_map: dict = None,
+        var_map: dict = None,
         args = None,
         fast_dev_run_epochs=None,
         fast_dev_run=False,
@@ -185,7 +199,7 @@ class CLLoop(Loop):
         """
         super().__init__()
 
-        self._map_cfg(args=args, cfg_map=cfg_map, plan=plan)
+        self._map_cfg(args=args, cfg_map=cfg_map, plan=plan, var_map=var_map)
 
         self.current_task: int = 0
         self.current_loop: int = 0
@@ -210,58 +224,46 @@ class CLLoop(Loop):
             if((not isinstance(l, Sequence)) or len(l) < 1):
                 raise Exception(f'Bad plan: {self.cfg.plan}')
 
-    def _map_cfg(self, args, cfg_map:dict, plan):
-        if(args is None and cfg_map is None):
-            raise Exception(f"No config provided.")
-        if(cfg_map is not None):
-            for k in cfg_map.keys():
-                if(k not in self.CONFIG_MAP):
-                    raise Exception(f"Unknown config map key: {k}")
+    def _map_cfg(self, args, cfg_map:dict, plan, var_map):
+        setup_args.check(self, args, cfg_map)
 
         if(args is not None):
             not_from = Namespace
             cfg = utils.get_obj_dict(args.loop, not_from)
             if('plan' in cfg):
-                self.cfg = CLLoop.Config(
+                self.cfg = self.CONFIG_MAP['cfg'](
                     **cfg
                 )
             else:
-                self.cfg = CLLoop.Config(
+                self.cfg = self.CONFIG_MAP['cfg'](
                     plan=plan, **cfg
                 )
-            self.cfg_vis=CLLoop.Visualization(
+            self.cfg_vis=self.CONFIG_MAP['vis'](
                 **utils.get_obj_dict(args.loop.vis, not_from)
             )
-            self.cfg_model=CLLoop.Model(
+            self.cfg_model=self.CONFIG_MAP['model'](
                 **utils.get_obj_dict(args.loop.model, not_from)
             )
-            self.cfg_save=CLLoop.Save(
+            self.cfg_save=self.CONFIG_MAP['save'](
                 **utils.get_obj_dict(args.loop.save, not_from)
             )
-            self.cfg_load=CLLoop.Load(
+            self.cfg_load=self.CONFIG_MAP['load'](
                 **utils.get_obj_dict(args.loop.load, not_from)
             )
-            self.cfg_mean_norm=CLLoop.LayerLoss.MeanNorm(
+            self.cfg_mean_norm=self.CONFIG_MAP['mean_norm'](
                 **utils.get_obj_dict(args.loop.layerloss.mean_norm, not_from)
             )
-            self.cfg_grad_pruning=CLLoop.LayerLoss.GradPruning(
+            self.cfg_grad_pruning=self.CONFIG_MAP['grad_pruning'](
                 **utils.get_obj_dict(args.loop.layerloss.grad_pruning, not_from)
             )
-            self.cfg_grad_activ_pruning=CLLoop.LayerLoss.GradActivePruning(
+            self.cfg_grad_activ_pruning=self.CONFIG_MAP['grad_activ_pruning'](
                 **utils.get_obj_dict(args.loop.layerloss.grad_activ_pruning, not_from)
             )
-            self.cfg_layer_stats=CLLoop.LayerStats(
+            self.cfg_layer_stats=self.CONFIG_MAP['layer_stats'](
                 **utils.get_obj_dict(args.loop.layer_stats, not_from)
             )
 
-        if(cfg_map is not None):
-            for k, cfg_class in self.CONFIG_MAP.items():
-                name = f'cfg_{k}' if 'cfg' not in k else 'cfg'
-                if(k not in cfg_map):
-                    if(args is None): # setup if not set
-                        setattr(self, name, cfg_class())
-                else: # override
-                    setattr(self, name, cfg_map[k])
+        setup_args.setup_map(self, args, cfg_map, var_map)
 
     @property
     def done(self) -> bool:

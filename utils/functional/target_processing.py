@@ -12,6 +12,7 @@ def target_processing_latent_binary_classification(target, model):
     return out
 
 def target_processing_default(target, model):
+    # if autograd error 'Found dtype Int but expected Float', check other config framework parameters, good example "cl-sae-crossentropy"
     return torch.tensor(target, dtype=torch.int32)
 
 def target_processing_latent_decode(target, model):

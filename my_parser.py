@@ -32,7 +32,7 @@ takes precedence over command line arguments. Config files will be applied in or
 Avaliable types are: 
 "none" - no datasampler.
 "v2" - datasampler where you can choose division into the majority class and other class in single batch.''')
-    parser.add_argument("--loss.chi.buffer_size_per_class", type=int, default=40, help='Size per class of the cyclic \
+    parser.add_argument("--model.latent.buffer.size_per_class", type=int, default=40, help='Size per class of the cyclic \
 buffer used in island overlay for model.')
 
     parser.add_argument("--datamodule.disable_shuffle", action="store_true", help='Flag to shuffle train normal and dream datasets. If \
@@ -44,7 +44,7 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
 
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
-    parser.add_argument("--model.scheduler.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler_steps" \
+    parser.add_argument("--model.scheduler.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
 to choose epoch at which to call it.')
     parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
 
@@ -67,15 +67,16 @@ Each new loop will increment current task index. If "num_loops">"num_tasks" then
 the last task in array will be used.') ##**
     parser.add_argument("--loop.schedule", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
 Array size should be the same as num_loops for each loop.') ##**
-    parser.add_argument("--config.number_of_classes", type=int, default=10, help='Number of classes model should output. \
+    parser.add_argument("--model.num_classes", type=int, default=10, help='Number of classes model should output. \
 If less than in dataset then model will be trained and validated only using this number of classes')
+    parser.add_argument("--model.latent.size", type=int)
 
-    parser.add_argument("--optim.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
-    parser.add_argument("--optim.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
+    parser.add_argument("--model.optim.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
+    parser.add_argument("--model.optim.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
 
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
-    parser.add_argument("--model.scheduler_steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
+    parser.add_argument("--model.scheduler.steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
 at where to call scheduler, change learning rate. Use "model.scheduler.type" to enable scheduler.')
     
 
@@ -115,10 +116,10 @@ Checks if the output image has the provided shape. Do not include batch here. De
     parser.add_argument("--loop.vis.clear_dataset_at", type=str, nargs='+', help='If the dreams at the beginning of the advance loop should be cleared.')
     parser.add_argument("--datamodule.vis.decorrelate", action="store_true", help='If the dreams should be decorrelated.')
     
-    parser.add_argument("--loss.chi.sigma", type=float, default=0.01, help='How close points from latent space inside \
-current batch should be close to each other. Should be lesser than loss.chi.rho. The smaller the less scattered points of the same class.')
-    parser.add_argument("--loss.chi.rho", type=float, default=1., help='How far means from different targets \
-should be appart from each other. Should be greather than loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
+    parser.add_argument("--model.loss.chi.sigma", type=float, default=0.01, help='How close points from latent space inside \
+current batch should be close to each other. Should be lesser than model.loss.chi.rho. The smaller the less scattered points of the same class.')
+    parser.add_argument("--model.loss.chi.rho", type=float, default=1., help='How far means from different targets \
+should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
 
     parser.add_argument("--loop.vis.use_input_img_var_reg_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
     parser.add_argument("--loop.vis.use_var_img_reg_at", type=str, nargs='+', help='')
@@ -126,6 +127,8 @@ should be appart from each other. Should be greather than loss.chi.sigma. The la
     parser.add_argument("--loop.vis.bn_reg_scale", type=float, default=1e2, help='')
     parser.add_argument("--loop.vis.var_scale", type=float, default=2.5e-5, help='')
     parser.add_argument("--loop.vis.l2_coeff", type=float, default=1e-05, help='')
+
+    parser.add_argument("--datamodule.optim.dtype", type=str, default='adam', help='')
 
 
     ######################################
@@ -153,19 +156,22 @@ It ') ##**
     ######################################
     ######         robust           ######
     ######################################
-    parser.add_argument("--enable_robust", action="store_true", help='Enable robust training.')
-    parser.add_argument("--attack_constraint", type=str, default="2", help='')
-    parser.add_argument("--attack_eps", type=float, default=0.5, help='')
-    parser.add_argument("--attack_step_size", type=float, default=1.5, help='')
-    parser.add_argument("--attack_iterations", type=int, default=10, help='')
-    parser.add_argument("--attack_random_start", type=int, default=0, help='')
-    parser.add_argument("--attack_random_restarts", type=int, default=0, help='')
-    parser.add_argument("--attack_custom_loss", type=str, help='') # default None
-    parser.add_argument("--attack_use_worst", action="store_false", help='')
-    parser.add_argument("--attack_with_latent", action="store_true", help='')
-    parser.add_argument("--attack_fake_relu", action="store_true", help='')
-    parser.add_argument("--attack_no_relu", action="store_true", help='')
-    parser.add_argument("--attack_make_adv", action="store_true", help='') # required
+    parser.add_argument("--model.robust.enable", action="store_true", help='Enable robust training.')
+    parser.add_argument("--model.robust.data_path", type=str, default="./data", help='')
+    parser.add_argument("--model.robust.dataset_name", type=str, help='')
+    parser.add_argument("--model.robust.resume_path", type=str, help='')
+    parser.add_argument("--model.robust.kwargs.constraint", type=str, default="2", help='')
+    parser.add_argument("--model.robust.kwargs.eps", type=float, default=0.5, help='')
+    parser.add_argument("--model.robust.kwargs.step_size", type=float, default=1.5, help='')
+    parser.add_argument("--model.robust.kwargs.iterations", type=int, default=10, help='')
+    parser.add_argument("--model.robust.kwargs.random_start", type=int, default=0, help='')
+    parser.add_argument("--model.robust.kwargs.random_restart", type=int, default=0, help='')
+    parser.add_argument("--model.robust.kwargs.custom_loss", type=str, help='') # default None
+    parser.add_argument("--model.robust.kwargs.use_worst", action="store_false", help='')
+    parser.add_argument("--model.robust.kwargs.with_latent", action="store_true", help='')
+    parser.add_argument("--model.robust.kwargs.fake_relu", action="store_true", help='')
+    parser.add_argument("--model.robust.kwargs.no_relu", action="store_true", help='')
+    parser.add_argument("--model.robust.kwargs.make_adversary", action="store_true", help='') # required
 
     ######################################
     #####     layer statistics      ######
@@ -183,7 +189,7 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--loop.layerloss.mean_norm.hook_to", nargs='+', type=str)
     parser.add_argument("--loop.layerloss.grad_pruning.hook_to", nargs='+', type=str)
     parser.add_argument("--loop.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
-    parser.add_argument("--model.replace_layer", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
+    parser.add_argument("--model.layer_replace.enable", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
     parser.add_argument("--loop.layerloss.mean_norm.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
     parser.add_argument("--loop.layerloss.grad_pruning.use_at", type=int, help='Use gradient pruning at.') ##**
     parser.add_argument("--loop.layerloss.grad_pruning.percent", type=float, default=0.01,
@@ -272,29 +278,23 @@ def convert_args_str_to_list_int(args: Namespace):
     return args
 
 def attack_args_to_kwargs(args):
-    if(args.enable_robust):
+    if(args.model.robust.enable):
         return {
-            "constraint": args.attack_constraint,
-            "eps": args.attack_eps,
-            "step_size": args.attack_step_size,
-            "iterations": args.attack_iterations,
-            "random_start": args.attack_random_start,
-            "custom_loss": args.attack_custom_loss,
-            "random_restarts": args.attack_random_restarts,
-            "use_best": args.attack_use_worst,
-            'with_latent': args.attack_with_latent,
-            'fake_relu': args.attack_fake_relu,
-            'no_relu':args.attack_no_relu,
-            'make_adv':args.attack_make_adv,
+            "constraint": args.model.robust.kwargs.constraint,
+            "eps": args.model.robust.kwargs.eps,
+            "step_size": args.model.robust.kwargs.step_size,
+            "iterations": args.model.robust.kwargs.iterations,
+            "random_start": args.model.robust.kwargs.random_start,
+            "custom_loss": args.model.robust.kwargs.custom_loss,
+            "random_restarts": args.model.robust.kwargs.random_restart,
+            "use_best": args.model.robust.kwargs.use_worst,
+            'with_latent': args.model.robust.kwargs.with_latent,
+            'fake_relu': args.model.robust.kwargs.fake_relu,
+            'no_relu':args.model.robust.kwargs.no_relu,
+            'make_adv':args.model.robust.kwargs.make_adversary,
         }
     else:
         return {}
-
-def optim_params_to_kwargs(args):
-    return {
-        'lr': args.optim.lr,
-        'gamma':args.optim.gamma,
-    }
 
 def log_to_wandb(args):
     #if(wandb.run is not None): # does not work
@@ -315,7 +315,7 @@ def wandb_run_name(args):
     text = f"{args.model.type}_{dream}{tr}"
     if(args.loop.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
         text = f"{text}ll_mean_norm{args.loop.layerloss.scaling}_"
-    if(args.model.replace_layer):
+    if(args.model.layer_replace.enable):
         text = f"{text}replayer_"
     if(args.loop.layerloss.grad_pruning.use_at is not None and args.loop.layerloss.grad_pruning.use_at != False):
         text = f"{text}gp{args.loop.layerloss.grad_pruning.percent}_"

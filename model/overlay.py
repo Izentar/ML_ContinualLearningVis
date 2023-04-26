@@ -14,127 +14,104 @@ import wandb
 import pandas as pd
 
 from config.default import datasets, datasets_map
-
-class SAE_standalone(base.CLBase):
-    def __init__(self, num_classes, loss_f=None, reconstruction_loss_f=None, enable_robust=False, *args, **kwargs):
-        super().__init__(num_classes=num_classes, *args, **kwargs)
-
-        self.model = SAE_CIFAR(num_classes)
-        self.enable_robust = enable_robust
-
-        self._loss_f = loss_f if loss_f is not None else cross_entropy
-        self.reconstruction_loss_f = reconstruction_loss_f if reconstruction_loss_f is not None else mse_loss
-
-    def training_step_normal(self, batch):
-        x, y = batch
-        y_hat, y_reconstruction = self(x)
-        loss_classification = self._loss_f(y_hat, y)
-        loss_reconstruction = self.reconstruction_loss_f(y_reconstruction, Variable(x))
-        alpha = 0.05
-        loss = alpha * loss_classification + (1 - alpha) * loss_reconstruction
-        self.log("train_loss/total", loss)
-        self.log("train_loss/classification", loss_classification)
-        self.log("train_loss/reconstrucion", loss_reconstruction)
-        self.train_acc(y_hat, y)
-        self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
-        return loss
-
-    def training_step_dream(self, batch):
-        x, y = batch
-        y_hat, y_reconstruction = self(x)
-        loss_classification = self._loss_f(y_hat, y)
-        loss_reconstruction = self.reconstruction_loss_f(y_reconstruction, Variable(x))
-        alpha = 0.05
-        loss = alpha * loss_classification + (1 - alpha) * loss_reconstruction
-        self.log("train_loss_dream/total", loss)
-        self.log("train_loss_dream/classification", loss_classification)
-        self.log("train_loss_dream/reconstrucion", loss_reconstruction)
-        self.train_acc_dream(y_hat, y)
-        self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
-        return loss
-
-    def validation_step(self, batch, batch_idx, dataloader_idx):
-        x, y = batch
-        y_hat, _ = self(x)
-        val_loss = self._loss_f(y_hat, y)
-        self.log("val_last_step_loss", val_loss, on_epoch=True)
-        valid_acc = self.valid_accs[dataloader_idx]
-        valid_acc(y_hat, y)
-        self.log("valid_step_acc", valid_acc)
-
-    def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat, _ = self(x)
-        test_loss = self._loss_f(y_hat, y)
-        self.log("test_loss", test_loss, on_step=True)
-        self.test_acc(y_hat, y)
-        self.log("test_step_acc", self.test_acc)
-
-    def get_objective_target_name(self) -> str:
-        return "model.fc"
-
-    def get_root_objective_target(self): 
-        if(self.enable_robust):
-            return "model.model." + self.model.model.get_root_name()
-        return "model." + self.model.get_root_name()
-
-    def forward(self, *args):
-        return self.model(*args)
-
-    def name(self):
-        return str(self.model.__class__.__name__)
+from dataclasses import dataclass, field
+from utils.utils import search_kwargs
 
 class CLModel(base.CLBase):
+    @dataclass
+    class Robust():
+        dataset_name: str = None
+        data_path: str = None
+        resume_path: str = None
+        enable: bool = False
+
+        @dataclass
+        class Kwargs():
+            constraint: int = 2
+            eps: float = 0.5
+            step_size: float = 1.5
+            iterations: int = 10
+            random_start: int = 0
+            random_restart: int = 0
+            custom_loss: float = None
+            use_worst: bool = True
+            with_latent: bool = False
+            fake_relu: bool = False
+            no_relu: bool = False
+            make_adversary: bool = False
+
+    @dataclass
+    class LayerReplace():
+        enable: bool = False
+        source: object = None
+        destination_f: 'function' = None
+
     def __init__(
         self,
         model:nn.Module=None,
         loss_f:nn.Module=None,
-        robust_dataset_name:str=None,
-        robust_data_path:str=None,
-        attack_kwargs:dict=None,
-        resume_path:str=None,
-        enable_robust:bool=False,
-        replace_layer=None,
-        replace_layer_from=None,
-        replace_layer_to_f=None,
         *args, 
         **kwargs
-    ):
-    
+    ):    
         super().__init__(*args, **kwargs)
 
-        self.attack_kwargs = attack_kwargs
-        self.enable_robust = enable_robust
-        self.robust_data_path = robust_data_path
-        self.robust_dataset_name = robust_dataset_name
-        self.resume_path = resume_path
         self._robust_model_set = False
-        self._setup_model(model=model, enable_robust=enable_robust, robust_data_path=robust_data_path)
+        self._setup_model(model=model)
 
-        if(replace_layer):
-            if(replace_layer_from is None or replace_layer_to_f is None):
-                raise Exception(f'replace_layer_from is None: {replace_layer_from is None} or replace_layer_to_f is None: {replace_layer_to_f is None}')
-            print(f'INFO: Replacing layer from "{replace_layer_from.__class__.__name__}d"')
-            utils.replace_layer(self, 'model', replace_layer_from, replace_layer_to_f)
+        if(self.cfg_layer_replace.enable):
+            if(self.cfg_layer_replace.source is None or self.cfg_layer_replace.destination_f is None):
+                raise Exception(f'replace_layer_from is None: {self.cfg_layer_replace.source is None} or cfg_layer_replace.destination_f is None: {self.cfg_layer_replace.destination_f is None}')
+            print(f'INFO: Replacing layer from "{self.cfg_layer_replace.source.__class__.__name__}d"')
+            utils.replace_layer(self, 'model', self.cfg_layer_replace.source, self.cfg_layer_replace.destination_f)
             
-        self._loss_f = loss_f if isinstance(loss_f, ChiLossBase) else DummyLoss(loss_f)
+        self._loss_f = DummyLoss(loss_f)
         print(f"INFO: Using loss {str(self._loss_f)}")
 
         self.save_hyperparameters(ignore=['model', '_loss_f', 'optim_manager', 
         'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f'])
 
-    def _setup_model(self, model, enable_robust, robust_data_path):
-        if(enable_robust):
-            if(self.robust_dataset_name is not None and robust_data_path is not None):
-                robust_dataset = self._get_dataset_list(self.robust_dataset_name)[1](data_path=robust_data_path)
-                if(robust_dataset is not None and self.attack_kwargs is not None):
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'robust': CLModel.Robust,
+            'robust_kwargs': CLModel.Robust.Kwargs,
+            'layer_replace': CLModel.LayerReplace,
+        })
+
+        b.update({
+            'robust': 'cfg_robust',
+            'robust_kwargs': 'cfg_robust_kwargs',
+            'layer_replace': 'cfg_layer_replace',
+        })
+        return a, b
+
+    def _map_from_args(self, args, not_from):
+        super()._map_from_args(args, not_from)
+
+        self.cfg_robust = self.CONFIG_MAP['robust'](
+            **utils.get_obj_dict(args.model.robust, not_from)
+        )
+
+        self.cfg_robust_kwargs = self.CONFIG_MAP['robust_kwargs'](
+            **utils.get_obj_dict(args.model.robust.kwargs, not_from)
+        )
+
+        self.cfg_layer_replace = self.CONFIG_MAP['layer_replace'](
+            **utils.get_obj_dict(args.model.layer_replace, not_from)
+        )
+
+    def _setup_model(self, model):
+        if(self.cfg_robust.enable):
+            if(self.cfg_robust.dataset_name is not None and self.cfg_robust.data_path is not None):
+                robust_dataset = self._get_dataset_list(self.cfg_robust.dataset_name)[1](data_path=self.cfg_robust.data_path)
+                if(robust_dataset is not None and self.cfg_robust.enable):
                     print('INFO: Enabled robust model overlay')
                     self.model = model_utils.make_and_restore_model(
-                        arch=model, dataset=robust_dataset, resume_path=self.resume_path
+                        arch=model, dataset=robust_dataset, resume_path=self.cfg_robust.resume_path
                     )[0]
                     self._robust_model_set = True
                     return
-            raise Exception('Robust selected but robust_dataset or attack_kwargs not provided.')
+            raise Exception('Robust selected but robust_dataset not provided.')
         else:
             self.model = model
 
@@ -158,9 +135,9 @@ class CLModel(base.CLBase):
     def training_step_normal(self, batch):
         x, y = batch
 
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             model_out = self(
-                x, target=y, **self.attack_kwargs
+                x, target=y, **vars(self.cfg_robust_kwargs)
             )
         else:
             model_out = self(x)
@@ -191,9 +168,9 @@ class CLModel(base.CLBase):
     def training_step_dream(self, batch):
         x, y = batch
 
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             model_out = self(
-                x, target=y, **self.attack_kwargs
+                x, target=y, **vars(self.cfg_robust_kwargs)
             )
         else:
             model_out = self(x)
@@ -226,9 +203,9 @@ class CLModel(base.CLBase):
         latent, _ = self.get_model_out_data(model_out)
         val_loss = cross_entropy(self._loss_f.classify(latent), y)
         self.log("val_last_step_loss", val_loss, on_epoch=True)
-        valid_acc = self.valid_accs[dataloader_idx]
+        valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(latent, y)
-        self.log("valid_step_acc", valid_acc)
+        self.log("valid_step_acc", valid_acc.compute())
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -240,22 +217,22 @@ class CLModel(base.CLBase):
         self.log("test_step_acc", self.test_acc)
 
     def get_objective_target_name(self) -> str:
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             return "model.model." + self.model.model.get_objective_layer_name()
         return "model." + self.model.get_objective_layer_name()
 
     def get_objective_layer(self):
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             return self.model.model.get_objective_layer()
         return self.model.get_objective_layer()
 
     def get_objective_layer_output_shape(self):
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             return self.model.model.get_objective_layer_output_shape()
         return self.model.get_objective_layer_output_shape()
 
     def get_root_objective_target(self): 
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             return "model.model." + self.model.model.get_root_name()
         return "model." + self.model.get_root_name()
 
@@ -272,17 +249,89 @@ class CLModel(base.CLBase):
         if(not self._robust_model_set):
             self.model._initialize_weights()
 
-class CLModelIslandsTest(CLModel):
-    def __init__(self, *args, hidden=10, num_classes=10, one_hot_means=None, size_per_class=40, **kwargs):
-        kwargs.pop('loss_f', None)
-        super().__init__(num_classes=num_classes, *args, loss_f=torch.nn.MSELoss(), **kwargs)
-        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=size_per_class)
+class CLLatent(CLModel):
+    @dataclass
+    class Latent():
+        size: int = None
+
+        def post_init_Latent(self, num_classes):
+            self.size = self.size if self.size is not None else num_classes
+
+        @dataclass
+        class Buffer():
+            size_per_class: int = 40
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cfg_latent.post_init_Latent(self.cfg.num_classes)
         
-        self.one_hot_means = one_hot_means
-        self._loss_f = OneHot(one_hot_means, self.cyclic_latent_buffer, loss_f=self._loss_f)
+
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'latent': CLLatent.Latent,
+            'latent_buffer': CLLatent.Latent.Buffer,
+        })
+
+        b.update({
+            'latent': 'cfg_latent',
+            'latent.buffer': 'cfg_latent_buffer',
+        })
+        return a, b
+
+    def _map_from_args(self, args, not_from):
+        super()._map_from_args(args, not_from)
+
+        self.cfg_latent = self.CONFIG_MAP['latent'](
+            **utils.get_obj_dict(args.model.latent, not_from)
+        )
+
+        self.cfg_latent_buffer = self.CONFIG_MAP['latent_buffer'](
+            **utils.get_obj_dict(args.model.latent.buffer, not_from)
+        )
+
+class CLModelIslandsOneHot(CLLatent):
+    @dataclass
+    class Latent(CLLatent.Latent):
+        @dataclass
+        class OneHot():
+            one_hot_means: list = None
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop('loss_f', None)
+        super().__init__(*args, loss_f=torch.nn.MSELoss(), **kwargs)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
+        
+        self._loss_f = OneHot(self.cfg_onehot.one_hot_means, self.cyclic_latent_buffer, loss_f=self._loss_f)
 
         self.valid_correct = 0
         self.valid_all = 0
+
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'onehot': CLModelIslandsOneHot.Latent.OneHot,
+            'cfg': CLModelIslandsOneHot.Config,
+            'latent': CLModelIslandsOneHot.Latent,
+        })
+
+        b.update({
+            'onehot': 'cfg_onehot',
+            'latent': 'cfg_latent',
+        })
+        return a, b
+
+    def _map_from_args(self, args, not_from):
+        super()._map_from_args(args, not_from)
+
+        self.cfg_onehot = self.CONFIG_MAP['onehot'](
+            **utils.get_obj_dict(args.model.latent.onehot, not_from)
+        )
+
+        #self.cfg_latent = self.CONFIG_MAP['latent'](
+        #    **utils.get_obj_dict(args.model.latent, not_from)
+        #)
+
 
     def call_loss(self, input, target, train, **kwargs):
         return self._loss_f(input, target, train)
@@ -329,9 +378,9 @@ class CLModelIslandsTest(CLModel):
         self.log("val_last_step_loss", val_loss, on_epoch=True)
 
         classified_to_class = self._loss_f.classify(y_model)
-        valid_acc = self.valid_accs[dataloader_idx]
+        valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(classified_to_class, y)
-        self.log("valid_acc", valid_acc)
+        self.log("valid_acc", valid_acc.compute())
 
     def valid_to_class(self, classified_to_class, y):
         uniq = torch.unique(classified_to_class)
@@ -359,45 +408,63 @@ class CLModelIslandsTest(CLModel):
         self.log("test_step_acc", self.test_acc)
 
     def get_obj_str_type(self) -> str:
-        if(self.enable_robust):
+        if(self.cfg_robust.enable):
             return 'CLModelIslandsTest_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__
         return 'CLModelIslandsTest_' + type(self).__qualname__ + '_' + type(self.model).__qualname__
 
-class CLModelWithIslands(CLModel):
+class CLModelWithIslands(CLLatent):
+    @dataclass
+    class Config(CLModel.Config):        
+        num_classes: int
+        norm_lambda: float = 0.
+
+    @dataclass
+    class Loss():
+        @dataclass
+        class Chi():
+            sigma: float = 0.2
+            rho: float = 0.2
+
     def __init__(
             self, 
-            hidden, 
-            loss_chi_buffer_size_per_class, 
-            num_classes, 
             *args, 
             buff_on_same_device=False,  
-            alpha=0.0, 
-            norm_lambda=0.001, 
-            sigma=0.2, 
-            rho=1., 
             **kwargs
         ):
-        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=num_classes, dimensions=hidden, size_per_class=loss_chi_buffer_size_per_class)
-        kwargs.pop('loss_f', None)
-        super().__init__(
-            loss_f=ChiLoss(sigma=sigma, rho=rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False),
-            num_classes=num_classes,
-            *args, 
-            **kwargs
-        )
+        super().__init__(*args, **kwargs)
+        self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
+        self._loss_f = ChiLoss(sigma=self.cfg_loss_chi.sigma, rho=self.cfg_loss_chi.rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
         
         self.norm = l2_latent_norm
-        self.norm_lambda = norm_lambda
-        self.alpha = alpha
         self.buff_on_same_device = buff_on_same_device
 
         self._means_once = False
 
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'cfg': CLModelWithIslands.Config,
+            'latent': CLModelWithIslands.Latent,
+            'loss_chi': CLModelWithIslands.Loss.Chi,
+        })
+        b.update({
+            'latent': 'cfg_latent',
+            'loss.chi': 'cfg_loss_chi',
+        })
+        return a, b
+
+    def _map_from_args(self, args, not_from):
+        super()._map_from_args(args, not_from)
+
+        self.cfg_loss_chi = self.CONFIG_MAP['loss_chi'](
+            **utils.get_obj_dict(args.model.loss.chi, not_from)
+        )
+
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self._loss_f(latent, y)
 
-        if(self.norm_lambda != 0.):
-            norm = self.norm(latent, self.norm_lambda)
+        if(self.cfg.norm_lambda != 0.):
+            norm = self.norm(latent, self.cfg.norm_lambda)
             self.log(f"{log_label}/norm", norm)
             loss += norm
         self.log(f"{log_label}/island", loss)
@@ -410,9 +477,9 @@ class CLModelWithIslands(CLModel):
         latent, _ = self.get_model_out_data(model_out)
         val_loss = self._loss_f(latent, y, train=False)
         self.log("val_last_step_loss", val_loss, on_epoch=True)
-        valid_acc = self.valid_accs[dataloader_idx]
+        valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(self._loss_f.classify(latent), y)
-        self.log("valid_acc", valid_acc)
+        self.log("valid_acc", valid_acc.compute())
 
     def test_step(self, batch, batch_idx):
         x, y = batch

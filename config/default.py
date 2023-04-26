@@ -158,7 +158,6 @@ datasets_map = {
 
 default_export_path = './model_save/'
 model_to_save_file_type = 775
-robust_data_path = "./data"
 tmp_stat_folder = 'tmp/stats/'
 
 colors_list = ('r', 'g', 'b', 'c', 'k', 'm', 'y', 'indianred', 'salmon', 'darkkhaki', 'violet')

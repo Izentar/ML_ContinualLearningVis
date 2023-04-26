@@ -10,7 +10,7 @@ from typing import Union
 from model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
 from model.vgg import vgg11_bn
 from model.ResNet import ResNet18, Resnet20C100
-from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsTest
+from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsOneHot
 from model.DLA import DLA
 
 class FunConfigSetBase():
@@ -37,7 +37,7 @@ class FunConfigSetBase():
     GET_OVERLAY = {
         'CL-MODEL': CLModel,
         'CL-MODEL-ISLAND': CLModelWithIslands,
-        'CL-MODEL-ISLAND-TEST': CLModelIslandsTest,
+        'CL-MODEL-ISLAND-ONEHOT': CLModelIslandsOneHot,
     }
     
     def __init__(
@@ -174,7 +174,8 @@ class FunConfigSet(FunConfigSetBase):
             if(fun_name in FunConfigSet.SPECIFIC_COMBINATIONS):
                 rule_name = FunConfigSet.SPECIFIC_COMBINATIONS[fun_name]
                 if(rule_name not in self.rule_buffer):
-                    raise Exception(f"Broken rule: {fun_name}::{rule_name}\nBuffer: {self.rule_buffer}")
+                    raise Exception(f"Could not find rule / broken rule (type of AA can only \
+connect to BB AA::BB): {fun_name}::{rule_name}\nName {rule_name} could not be found in {self.rule_buffer}")
 
     def dream_objective(self, *args, **kwargs):
         return self.dream_obj_manager(*args, **kwargs)

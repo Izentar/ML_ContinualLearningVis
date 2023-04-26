@@ -22,9 +22,8 @@ from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
-from my_parser import arg_parser, log_to_wandb, attack_args_to_kwargs, optim_params_to_kwargs, wandb_run_name
+from my_parser import arg_parser, log_to_wandb, wandb_run_name
 
-from config.default import robust_data_path
 from model.statistics.base import pca
 from collections.abc import Sequence
 from utils.utils import parse_image_size
@@ -33,6 +32,7 @@ from dream.image import Image
 from utils import utils
 from model.activation_layer import GaussA
 from argparse import Namespace
+from model.overlay import CLModel
 
 def data_transform():
     return transforms.Compose(
@@ -185,10 +185,7 @@ def logic(args, log_args_to_wandb=True):
 
     datasampler = select_datasampler(dtype=args.config.datasampler_type, main_split=main_split)
 
-    attack_kwargs = attack_args_to_kwargs(args)
-    optimizer_params = optim_params_to_kwargs(args)
-
-    one_hot_means = get_one_hots(mytype='diagonal', size=args.config.number_of_classes)
+    one_hot_means = get_one_hots(mytype='diagonal', size=args.model.num_classes)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
     dream_image_f = param_f_create(ptype=args.datamodule.vis.image_type)
     render_transforms = None
@@ -255,15 +252,15 @@ def logic(args, log_args_to_wandb=True):
     set_manager.init_dream_objectives(logger=logger, label='dream')
     print(f"Selected configuration:\n{str(set_manager)}")
 
-    source_model = set_manager.model(num_classes=args.config.number_of_classes)
+    source_model = set_manager.model(num_classes=args.model.num_classes)
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
-    val_tasks_split = train_tasks_split = set_manager.task_split(args.config.number_of_classes, args.config.num_tasks)
+    val_tasks_split = train_tasks_split = set_manager.task_split(args.model.num_classes, args.config.num_tasks)
 
     #model_summary(source_model)
 
-    if(args.enable_robust):
+    if(args.model.robust.enable):
         print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
     if(args.fast_dev_run.flag):
@@ -275,35 +272,26 @@ def logic(args, log_args_to_wandb=True):
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
     check(split=train_tasks_split, 
-        num_classes=args.config.number_of_classes, 
+        num_classes=args.model.num_classes, 
         num_tasks=args.config.num_tasks,
-        enable_robust=args.enable_robust,
+        enable_robust=args.model.robust.enable,
     )
 
     model = set_manager.model_overlay(
         model=source_model,
-        load_model=args.loop.load.model,
-        robust_dataset_name=args.config.dataset,
-        robust_data_path=robust_data_path,
-        num_tasks=args.config.num_tasks,
-        num_classes=args.config.number_of_classes,
-        attack_kwargs=attack_kwargs,
-        sigma=args.loss.chi.sigma,
-        rho=args.loss.chi.rho,
-        norm_lambda=args.model.norm_lambda,
-        hidden=args.config.number_of_classes,
-        one_hot_means=one_hot_means,
-        loss_chi_buffer_size_per_class=args.loss.chi.buffer_size_per_class,
         loss_f=clModel_default_loss_f,
         data_passer=data_passer,
-        optimizer_construct_type=args.model.optim.type,
-        scheduler_type=args.model.scheduler.type,
-        scheduler_steps=args.model.scheduler_steps,
-        optimizer_restart_params_type=args.model.optim.reset_type,
-        optimizer_params=optimizer_params,
-        replace_layer=args.model.replace_layer,
-        replace_layer_from=torch.nn.ReLU,
-        replace_layer_to_f=lambda a, b, x: GaussA(30),
+        args=args,
+        var_map={
+            'onehot.one_hot_means': one_hot_means,
+        },
+        cfg_map={
+            'layer_replace': CLModel.LayerReplace(
+                enable=args.model.layer_replace.enable,
+                source=torch.nn.ReLU,
+                destination_f=lambda a, b, x: GaussA(30),
+            ) 
+        },
     )
     print(f'MODEL TYPE: {model.get_obj_str_type()}')
 
@@ -317,30 +305,26 @@ def logic(args, log_args_to_wandb=True):
     
 
     cl_data_module = CLDataModule(
-        cfg_vis=CLDataModule.Visualization(**{k: v for k, v in vars(args.datamodule.vis).items() if not isinstance(v, Namespace)}),
         data_transform=train_data_transform,
-        train_tasks_split=train_tasks_split,
         dataset_class=dataset_class,
-        val_tasks_split=val_tasks_split,
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
         render_transforms=render_transforms,
         fast_dev_run=args.fast_dev_run.flag,
         fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_sets.DreamDataset(enable_robust=args.enable_robust, transform=dreams_transforms),
+        empty_dream_dataset=dream_sets.DreamDataset(enable_robust=args.model.robust.enable, transform=dreams_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
-        optimizer=lambda params: torch.optim.Adam(params, lr=args.datamodule.vis.optim.lr),
         logger=logger,
-        dataset_class_labels=dataset_class_labels,
         datasampler=datasampler,
-        batch_size=args.datamodule.batch_size,
-        shuffle=not args.datamodule.disable_shuffle,
-        num_workers=args.datamodule.num_workers,
-        test_num_workers=args.datamodule.test_num_workers,
-        val_num_workers=args.datamodule.val_num_workers,
         data_passer=data_passer,
+        args=args,
+        var_map={
+            'config.dataset_labels': dataset_class_labels,
+            'config.train_tasks_split': train_tasks_split,
+            'config.val_tasks_split': val_tasks_split
+        },
     )
     
 
@@ -385,7 +369,7 @@ def logic(args, log_args_to_wandb=True):
     collect_model_information(
         args=args,
         model=model, 
-        attack_kwargs=attack_kwargs, 
+        attack_kwargs=vars(args.model.robust.kwargs), 
         dataset_class=dataset_class, 
         train_tasks_split=train_tasks_split, 
         collect_main_split=collect_main_split, 
@@ -459,7 +443,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
 
 def extract_data_from_key(data:dict) -> dict:
     """
-        Get dict like [(torch_size, class_number)] and extract it as [torch_size][class_number]
+        Get dict like [(torch_size, num_classes)] and extract it as [torch_size][num_classes]
     """
     new = dict()
     for k, v in data.items():

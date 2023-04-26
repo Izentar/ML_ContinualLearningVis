@@ -9,63 +9,114 @@ from typing import Union, Sequence
 from abc import abstractmethod
 from utils.functional.model_optimizer import ModelOptimizerManager
 
+from dataclasses import dataclass, field
+from argparse import Namespace
+from utils import utils, setup_args
+
+
 class CLBase(LightningModule):
+    @dataclass
+    class Config():
+        num_classes: int
+        type: str # not used but required for now
+
+    @dataclass
+    class Optimizer():        
+        type: str = 'adam'
+        reset_type: str = None
+        lr: float = 1e-3
+        gamma: float = 1.
+
+    @dataclass
+    class Scheduler():
+        type: str = None
+        steps: Sequence[int] = None
+
+        def __post_init__(self):
+            self.steps = self.steps if self.steps is not None else (None, )
+
     def __init__(
         self, 
-        num_tasks:int, 
-        num_classes:int, 
         data_passer:dict=None, 
-        optimizer_construct_type:str=None,
-        scheduler_type:str=None,
-        optimizer_restart_params_type:str=None,
-        optimizer_params:dict=None,
-        scheduler_steps:Sequence[int]=None,
-        *args, 
-        **kwargs
+        args=None,
+        cfg_map=None,
+        var_map=None,
+        #*aargs,
+        #**akwargs,
     ):
         '''
-            optimizer_construct_type - function with signature fun(parameters)
-            scheduler_type - function with signature fun(optim)
-            optimizer_restart_params_type - function with signature fun(optimizer)
+            Optimizer.type - function with signature fun(parameters)
+            Scheduler.type - function with signature fun(optim)
+            Optimizer.reset_type - function with signature fun(optimizer)
         '''
+        self.CONFIG_MAP, self.VAR_MAP = self._get_config_maps()
+
         super().__init__()
+        self._map_cfg(args=args, cfg_map=cfg_map, var_map=var_map)
         # ignore *args, **kwargs
 
-        # needed for pytorch lightning metadata save framework
-        self.optimizer_construct_type = optimizer_construct_type
-        self.scheduler_type = scheduler_type
-        self.optimizer_restart_params_type = optimizer_restart_params_type
-        self.optimizer_params = optimizer_params
-
         self.optim_manager = ModelOptimizerManager(
-            optimizer_type=optimizer_construct_type,
-            scheduler_type=scheduler_type,
-            reset_optim_type=optimizer_restart_params_type,
+            optimizer_type=self.cfg_optim.type,
+            scheduler_type=self.cfg_sched.type,
+            reset_optim_type=self.cfg_optim.reset_type,
         )
 
-        assert not (scheduler_type is not None and optimizer_construct_type is None), "Scheduler should have optimizer"
-        if(scheduler_steps is not None and scheduler_type is None):
-            print('WARNIGN: Using "scheduler_steps" but scheduler is not selected.')
+        assert not (self.cfg_sched.type is not None and self.cfg_optim.type is None), "Scheduler should have optimizer"
+        if(self.cfg_sched.steps is not None and self.cfg_sched.type is None):
+            print('WARNIGN: Using "cfg_sched.steps" but scheduler is not selected.')
 
-        self.train_acc = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
-        self.train_acc_dream = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
-        self.valid_accs = nn.ModuleList(
-            [torchmetrics.Accuracy(task='multiclass', num_classes=num_classes) for _ in range(num_tasks)]
-        )
-        self.test_acc = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
-        self.num_classes = num_classes
-        self.num_tasks = num_tasks
+        self.train_acc = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
+        self.train_acc_dream = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
+        self._valid_accs = nn.ModuleDict()
+        self.test_acc = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
+        self.num_classes = self.cfg.num_classes
 
         self.data_passer = data_passer
-        self.optimizer_construct_f = self.optim_manager.get_optimizer(**optimizer_params)
-        self.scheduler_construct_f = self.optim_manager.get_scheduler(**optimizer_params)
-        self.optimizer_restart_params_f = self.optim_manager.get_reset_optimizer_f(**optimizer_params)
+        self.optimizer_construct_f = self.optim_manager.get_optimizer(**vars(self.cfg_optim))
+        self.scheduler_construct_f = self.optim_manager.get_scheduler(**vars(self.cfg_optim))
+        self.optimizer_restart_params_f = self.optim_manager.get_reset_optimizer_f(**vars(self.cfg_optim))
 
         self.scheduler = None
         self.optimizer = None
 
-        self.scheduler_steps = scheduler_steps if scheduler_steps is not None else (None, )
+    def _get_config_maps(self):
+        return {
+            'optim': CLBase.Optimizer,
+            'sched': CLBase.Scheduler,
+            'cfg': CLBase.Config,
+        },{
+            'optimizer': 'cfg_optim',
+            'scheduler': 'cfg_sched',
+            'config': 'cfg',
+        }
     
+    def _map_from_args(self, args, not_from):
+        if(args is not None):
+            self.cfg = self.CONFIG_MAP['cfg'](
+                **utils.get_obj_dict_dataclass(args.model, not_from, self.CONFIG_MAP['cfg'])
+            )
+            self.cfg_optim=self.CONFIG_MAP['optim'](
+                **utils.get_obj_dict(args.model.optim, not_from)
+            )
+            self.cfg_sched=self.CONFIG_MAP['sched'](
+                **utils.get_obj_dict(args.model.scheduler, not_from)
+            )
+
+    def _map_cfg(self, args, cfg_map:dict, var_map:dict):
+        setup_args.check(self, args, cfg_map)
+        not_from = Namespace
+        self._map_from_args(args, not_from)
+        setup_args.setup_map(self, args, cfg_map, var_map)
+
+    def valid_accs(self, idx):
+        # use metric.compute(), because self.log() did not registered this module :(
+        try:
+            return self._valid_accs[str(idx)]
+        except KeyError:
+            tmp = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes).to(self.device)
+            self._valid_accs[str(idx)] = tmp
+            return tmp
+
     def training_step(self, batch, batch_idx):
         if "dream" not in batch:
             return self.training_step_normal(batch["normal"])
@@ -144,14 +195,14 @@ class CLBase(LightningModule):
     def training_epoch_end(self, output):
         # OK
         #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.current_epoch {self.current_epoch}")
-        #print(f"self.data_passer['epoch_per_task'] {self.data_passer['epoch_per_task']}, self.scheduler_steps {self.scheduler_steps}")
+        #print(f"self.data_passer['epoch_per_task'] {self.data_passer['epoch_per_task']}, self.cfg_sched.steps {self.cfg_sched.steps}")
         if(self.scheduler is not None):
             if(self.current_epoch >= self.data_passer['epoch_per_task'] - 1):
                 self.optimizer_restart_params_f(self.optimizer)
                 self.scheduler = self.scheduler_construct_f(self.optimizer)
                 print(f'Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.scheduler._last_lr}')
                 return
-            if(self.current_epoch in self.scheduler_steps):
+            if(self.current_epoch in self.cfg_sched.steps):
                 self.scheduler.step()
                 print(f"Changed learning rate to: {self.scheduler._last_lr}")
-                #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.scheduler_steps {self.scheduler_steps}")
+                #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.cfg_sched.steps {self.cfg_sched.steps}")
