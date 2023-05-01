@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
-from my_parser import arg_parser, log_to_wandb, wandb_run_name, export_config
+from my_parser import arg_parser, log_to_wandb, wandb_run_name, export_config, can_export_config
 
 from model.statistics.base import pca
 from collections.abc import Sequence
@@ -175,8 +175,8 @@ def logic(args, log_args_to_wandb=True):
         pl.seed_everything(args.config.seed)
 
     main_split = collect_main_split = 0.5
-    wandb_offline = False if not args.fast_dev_run.flag else True
-    wandb_mode = "online" if not args.fast_dev_run.flag else "disabled"
+    wandb_offline = False if not args.fast_dev_run.enable else True
+    wandb_mode = "online" if not args.fast_dev_run.enable else "disabled"
     #wandb_offline = True
     
     num_sanity_val_steps = 0
@@ -218,7 +218,7 @@ def logic(args, log_args_to_wandb=True):
 
     tags = []
     wandb_run_id = wandb.util.generate_id()
-    if args.fast_dev_run.flag:
+    if args.fast_dev_run.enable:
         tags = ["fast_dev_run"]
     logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args),
         log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=False, id=wandb_run_id)
@@ -269,12 +269,12 @@ def logic(args, log_args_to_wandb=True):
     if(args.model.robust.enable):
         print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
-    if(args.fast_dev_run.flag):
+    if(args.fast_dev_run.enable):
         args.datamodule.vis.per_target = 64
 
     dataset_class, dataset_class_labels = getDataset(args.config.dataset)
 
-    #if args.fast_dev_run.flag:
+    #if args.fast_dev_run.enable:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
     check(split=train_tasks_split, 
@@ -288,11 +288,11 @@ def logic(args, log_args_to_wandb=True):
         loss_f=clModel_default_loss_f,
         data_passer=data_passer,
         args=args,
-        var_map={
-            'onehot.one_hot_means': one_hot_means,
+        args_map={
+            'onehot.means': one_hot_means,
         },
         cfg_map={
-            'layer_replace': CLModel.LayerReplace(
+            'cfg_layer_replace': CLModel.LayerReplace(
                 enable=args.model.layer_replace.enable,
                 source=torch.nn.ReLU,
                 destination_f=lambda a, b, x: GaussA(30),
@@ -316,7 +316,7 @@ def logic(args, log_args_to_wandb=True):
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
         render_transforms=render_transforms,
-        fast_dev_run=args.fast_dev_run.flag,
+        fast_dev_run=args.fast_dev_run.enable,
         fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
         empty_dream_dataset=dream_sets.DreamDataset(enable_robust=args.model.robust.enable, transform=dreams_transforms),
@@ -326,10 +326,10 @@ def logic(args, log_args_to_wandb=True):
         datasampler=datasampler,
         data_passer=data_passer,
         args=args,
-        var_map={
-            'config.dataset_labels': dataset_class_labels,
-            'config.train_tasks_split': train_tasks_split,
-            'config.val_tasks_split': val_tasks_split
+        args_map={
+            'dataset_labels': dataset_class_labels,
+            'train_tasks_split': train_tasks_split,
+            'val_tasks_split': val_tasks_split
         },
     )
 
@@ -342,22 +342,22 @@ def logic(args, log_args_to_wandb=True):
         max_epochs=-1,  # This value doesn't matter
         logger=logger,
         callbacks=callbacks,
-        fast_dev_run=args.fast_dev_run.batches if args.fast_dev_run.flag else False, # error when multiple tasks - in new task 0 batches are done.
-        limit_train_batches=args.fast_dev_run.batches if args.fast_dev_run.flag else None,
+        fast_dev_run=args.fast_dev_run.batches if args.fast_dev_run.enable else False, # error when multiple tasks - in new task 0 batches are done.
+        limit_train_batches=args.fast_dev_run.batches if args.fast_dev_run.enable else None,
         gpus=None if args.config.cpu else "0,",
-        log_every_n_steps=1 if args.fast_dev_run.flag else 50,
+        log_every_n_steps=1 if args.fast_dev_run.enable else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )
     progress_bar._init_progress(trainer)    
 
-    print(f"Fast dev run is {args.fast_dev_run.flag}")
+    print(f"Fast dev run is {args.fast_dev_run.enable}")
     
     internal_fit_loop = trainer.fit_loop
     custom_loop = CLLoop(
         plan=[args.loop.schedule] * args.config.num_tasks,
         args=args,
         fast_dev_run_epochs=args.fast_dev_run.epochs,
-        fast_dev_run=args.fast_dev_run.flag,
+        fast_dev_run=args.fast_dev_run.enable,
         data_passer=data_passer,
         data_module=cl_data_module,
         progress_bar=progress_bar,
@@ -370,7 +370,8 @@ def logic(args, log_args_to_wandb=True):
     if(args.wandb.watch.enable):
         logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
-    export_config(args, custom_loop.save_folder)
+    if(can_export_config(args)):
+        export_config(args, custom_loop.save_folder)
 
     if(args.loop.layer_stats.use_at is not None):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
@@ -386,10 +387,10 @@ def logic(args, log_args_to_wandb=True):
         logger=logger, 
         dreams_transforms=dreams_transforms, 
         set_manager=set_manager,
-        filepath=custom_loop.save_folder
+        custom_loop=custom_loop
     )
 
-def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, collect_main_split, logger, dreams_transforms, set_manager, filepath):
+def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, collect_main_split, logger, dreams_transforms, set_manager, custom_loop):
     if(not args.stat.compare_latent and not args.stat.disorder_dream and not args.stat.collect_stats):
         return
     collect_numb_of_points = 2500
@@ -420,7 +421,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             collect_numb_of_points=collect_numb_of_points, 
             collector_batch_sampler=collector_batch_sampler,
             nrows=nrows, ncols=ncols, 
-            logger=logger, attack_kwargs=attack_kwargs, path=filepath)
+            logger=logger, attack_kwargs=attack_kwargs, path=custom_loop.save_folder)
     if(args.stat.compare_latent and not args.fast_def_run.enable):
         print('STATISTICS: Compare latent')
         compare_latent = CompareLatent()

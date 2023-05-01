@@ -53,8 +53,8 @@ class BaseCLDataModule(LightningDataModule, ABC):
 class DreamDataModule(BaseCLDataModule, ABC):
     @dataclass
     class Config():
+        train_tasks_split: list
         dataset_labels: dict = None
-        train_tasks_split: list = None
         custom_f_steps: list = (0,)
         richbar_refresh_fequency: int = 50
 
@@ -111,7 +111,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         data_passer=None,
         args=None,
         cfg_map=None,
-        var_map=None,
+        args_map=None,
     ):
         """
         Args:
@@ -125,7 +125,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         """
         super().__init__()
         self.CONFIG_MAP, self.VAR_MAP = self._get_config_maps()
-        self._map_cfg(args=args, cfg_map=cfg_map, var_map=var_map)
+        utils.check_cfg_var_maps(self)
+        self._map_cfg(args=args, cfg_map=cfg_map, args_map=args_map)
 
         self.select_dream_tasks_f = select_dream_tasks_f
         self.target_processing_f = target_processing_f
@@ -160,41 +161,24 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def _get_config_maps(self):
         return {
-            'vis': DreamDataModule.Visualization,
-            'vis_optim': DreamDataModule.Visualization.Optimizer,
-            'vis_sched': DreamDataModule.Visualization.Scheduler,
+            'cfg_vis': DreamDataModule.Visualization,
+            'cfg_vis_optim': DreamDataModule.Visualization.Optimizer,
+            'cfg_vis_sched': DreamDataModule.Visualization.Scheduler,
             'cfg': DreamDataModule.Config
         }, {
-            'config': 'cfg',
+            '': 'cfg',
             'vis': 'cfg_vis',
             'vis.optim': 'cfg_vis_optim',
             'vis.sched': 'cfg_vis_sched',
         }
 
-    def _map_from_args(self, args, not_from):
-        self.cfg=self.CONFIG_MAP['cfg'](
-            **utils.get_obj_dict(args.datamodule, not_from)
-        )
-
-        self.cfg_vis=self.CONFIG_MAP['vis'](
-            **utils.get_obj_dict(args.datamodule.vis, not_from)
-        )
-
-        self.cfg_vis_optim=self.CONFIG_MAP['vis_optim'](
-            **utils.get_obj_dict(args.datamodule.vis.optim, recursive=True, recursive_types=[Namespace])
-        )
-
-        self.cfg_vis_sched=self.CONFIG_MAP['vis_sched'](
-            **utils.get_obj_dict(args.datamodule.vis.sched, recursive=True, recursive_types=[Namespace])
-        )
-
-    def _map_cfg(self, args, cfg_map, var_map):
+    def _map_cfg(self, args, cfg_map, args_map):
         setup_args.check(self, args, cfg_map)
 
-        not_from = Namespace
         if(args is not None):
-            self._map_from_args(args, not_from)
-        setup_args.setup_map(self, args, cfg_map, var_map)
+            args = setup_args.setup_args(args_map, args, 'datamodule')
+            utils.setup_obj_dataclass_args(self, args=args, root_name='datamodule', recursive=True, recursive_types=[Namespace])
+        setup_args.setup_cfg_map(self, args, cfg_map)
 
     @abstractmethod
     def prepare_data(self):
@@ -221,7 +205,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.wandb_flushed = True
 
     def __del__(self):
-        if not (self.wandb_flushed):
+        if hasattr(self, 'wandb_flushed') and not (self.wandb_flushed):
             pp.sprint(f'{pp.COLOR.WARNING}WARNING:\tdreaming images were not flushed by wandb.')
 
     def get_rendervis(self, model, custom_loss_gather_f, input_image_train_after_hook=None):
@@ -457,18 +441,6 @@ class CLDataModule(DreamDataModule):
 
             self.shuffle = not self.disable_shuffle
 
-    CONFIG_MAP = {
-        'vis': Visualization,
-        'vis_optim': Visualization.Optimizer,
-        'cfg': Config,
-    }
-
-    VAR_MAP = {
-        'config': 'cfg',
-        'vis': 'cfg_vis',
-        'vis.optim': 'cfg_vis_optim',
-    }
-
     def __init__(
         self,
         dataset_class,
@@ -514,7 +486,7 @@ class CLDataModule(DreamDataModule):
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
-            'vis': CLDataModule.Visualization,
+            'cfg_vis': CLDataModule.Visualization,
             'cfg': CLDataModule.Config,
         })
         return a, b

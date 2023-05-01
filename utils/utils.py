@@ -1,6 +1,8 @@
 import torch
 from collections.abc import Sequence
 
+DEBUG = False
+
 def replace_layer(module:torch.nn.Module, name:str, classToReplace, replaceWithClass_f):
     """
         module - torch Module
@@ -176,27 +178,33 @@ def _get_model_hierarchy(model, tree_name:str, model_names:list[str], separator=
         _get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
     return model_names
 
-def get_obj_dict(args, reject_from: object=None, accept_only: list = None, recursive=False, recursive_types: list[object]=None):
-    if(reject_from is not None):
-        ret = {k: v for k, v in vars(args).items() if not isinstance(v, reject_from)}
-    else:
-        ret = vars(args)
+def get_obj_dict(args, reject_from:list=None, accept_only:list=None, recursive=False, recursive_types: list[object]=None):
+    if(recursive_types is None and not recursive):
+            raise Exception('Bad arguments. Cannot be "recursive" without "recursive_types"')
+    ret = vars(args).copy()
+    if(DEBUG):
+        print('keys:', list(ret.keys()))
+        print(accept_only)
+    #if(reject_from is not None):
+    #    ret = {k: v for k, v in ret.items() if k not in reject_from}
     if(accept_only is not None):
         for k in list(ret.keys()):
             if(k not in accept_only):
                 ret.pop(k, None)
+
     if(recursive):
         if(recursive_types is None and not recursive):
             raise Exception('Bad arguments. Cannot be "recursive" without "recursive_types"')
         for k in list(ret.keys()):
             for r in recursive_types:
                 if(isinstance(ret[k], r)):
-                    ret[k] = get_obj_dict(ret[k], reject_from=reject_from, accept_only=accept_only, recursive=recursive, recursive_types=recursive_types)
+                    if(DEBUG):
+                        print('recursion', k, ret[k])
+                    # should accept_only in first step of recursion.
+                    ret[k] = get_obj_dict(ret[k], reject_from=None, accept_only=None, recursive=recursive, recursive_types=recursive_types)
+    if(DEBUG):
+        print('return', ret)
     return ret
-
-def get_obj_dict_dataclass(args, reject_from: object, dataclass):
-    fn = dataclass.__init__
-    return get_obj_dict(args, reject_from, accept_only=fn.__code__.co_varnames[:fn.__code__.co_argcount])
 
 def search_kwargs(kwargs: dict, vals:list[str]):
     new_kwargs = {}
@@ -204,3 +212,61 @@ def search_kwargs(kwargs: dict, vals:list[str]):
         if(k in vals):
             new_kwargs[k] = v
     return new_kwargs
+
+def rgetattr(obj, name:str, separator='.'):
+    var_names = name.split(sep=separator)
+    current = obj
+    for v in var_names:
+        try:
+            current = getattr(current, v)
+        except AttributeError:
+            raise Exception(f"Could not find '{v}', name '{name}' \nfor object: {vars(current)}\n\nroot obj '{obj}'")
+    return current
+
+def setup_obj_dataclass_args(src_obj, args, root_name, sep='.', recursive=False, recursive_types=None):
+    tree = {}
+    for k in src_obj.VAR_MAP.keys():
+        k: str = k
+        split = k.split('.')
+        current = tree
+        for s in split:
+            current[s] = {}
+            current = current[s]
+
+    for k, v in src_obj.VAR_MAP.items():
+        fn = src_obj.CONFIG_MAP[v].__init__
+        if(DEBUG):
+            print()
+            print(src_obj.CONFIG_MAP[v], v)
+        if(k == ''):
+            setattr(src_obj, v, src_obj.CONFIG_MAP[v](
+                **get_obj_dict(
+                    rgetattr(args, f"{root_name}"), #reject_from=list(tree.keys()), 
+                    accept_only=fn.__code__.co_varnames[:fn.__code__.co_argcount], 
+                    recursive=recursive, recursive_types=recursive_types)
+            ))
+        else:
+            #split = k.split('.')
+            #current_tree = tree
+            #for s in split:
+            #    current_tree = current_tree[s]
+            #current_tree = list(current_tree.keys())
+#
+            setattr(src_obj, v, src_obj.CONFIG_MAP[v](
+                **get_obj_dict(
+                    rgetattr(args, f"{root_name}{sep}{k}"), #reject_from=current_tree, 
+                    accept_only=fn.__code__.co_varnames[:fn.__code__.co_argcount], 
+                    recursive=recursive, recursive_types=recursive_types)
+            ))
+
+def check_cfg_var_maps(src_obj):
+    for k, v in src_obj.VAR_MAP.items():
+        try:
+            v2 = src_obj.CONFIG_MAP[v]
+        except KeyError:
+            raise Exception(f"Bad maps. Could not find if CONFIG_MAP key {v} for VAR_MAP key {k}")
+        
+    vals = list(src_obj.VAR_MAP.values())
+    for k in src_obj.CONFIG_MAP.keys():
+        if k not in vals:
+            raise Exception(f'Could not find in VAR_MAP value "{k}".')

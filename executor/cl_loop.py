@@ -176,7 +176,7 @@ class CLLoop(Loop):
         self,
         plan: list[list[int]],
         cfg_map: dict = None,
-        var_map: dict = None,
+        args_map: dict = None,
         args = None,
         fast_dev_run_epochs=None,
         fast_dev_run=False,
@@ -197,7 +197,8 @@ class CLLoop(Loop):
         """
         super().__init__()
         self.CONFIG_MAP, self.VAR_MAP = self._get_config_maps()
-        self._map_cfg(args=args, cfg_map=cfg_map, plan=plan, var_map=var_map)
+        utils.check_cfg_var_maps(self)
+        self._map_cfg(args=args, cfg_map=cfg_map, plan=plan, args_map=args_map)
 
         self.current_task: int = 0
         self.current_loop: int = 0
@@ -231,20 +232,20 @@ class CLLoop(Loop):
 
     def _get_config_maps(self):
         return {
-            'vis': CLLoop.Visualization,
-            'model': CLLoop.Model,
-            'save': CLLoop.Save,
-            'load': CLLoop.Load,
-            'mean_norm': CLLoop.Visualization.LayerLoss.MeanNorm,
-            'grad_pruning': CLLoop.Visualization.LayerLoss.GradPruning,
-            'grad_activ_pruning': CLLoop.Visualization.LayerLoss.GradActivePruning,
-            'deep_inversion': CLLoop.Visualization.LayerLoss.DeepInversion,
-            'vis_reg_var': CLLoop.Visualization.ImageRegularization.Variation,
-            'vis_reg_l2': CLLoop.Visualization.ImageRegularization.L2,
-            'layer_stats': CLLoop.LayerStats,
+            'cfg_vis': CLLoop.Visualization,
+            'cfg_model': CLLoop.Model,
+            'cfg_save': CLLoop.Save,
+            'cfg_load': CLLoop.Load,
+            'cfg_mean_norm': CLLoop.Visualization.LayerLoss.MeanNorm,
+            'cfg_grad_pruning': CLLoop.Visualization.LayerLoss.GradPruning,
+            'cfg_grad_activ_pruning': CLLoop.Visualization.LayerLoss.GradActivePruning,
+            'cfg_deep_inversion': CLLoop.Visualization.LayerLoss.DeepInversion,
+            'cfg_vis_regularization_var': CLLoop.Visualization.ImageRegularization.Variation,
+            'cfg_vis_regularization_l2': CLLoop.Visualization.ImageRegularization.L2,
+            'cfg_layer_stats': CLLoop.LayerStats,
             'cfg': CLLoop.Config,
         }, {
-            'config': 'cfg',
+            '': 'cfg',
             'vis': 'cfg_vis',
             'model': 'cfg_model',
             'save': 'cfg_save',
@@ -258,62 +259,17 @@ class CLLoop(Loop):
             'layer_stats': 'cfg_layer_stats',
         }
 
-    def _map_cfg(self, args, cfg_map:dict, plan, var_map):
+    def _map_cfg(self, args, cfg_map:dict, plan, args_map):
         setup_args.check(self, args, cfg_map)
+        args = deepcopy(args)
+        if(not hasattr(args.loop, 'plan')):
+            setattr(args.loop, 'plan', plan)
+
 
         if(args is not None):
-            not_from = Namespace
-            cfg = utils.get_obj_dict(args.loop, not_from)
-            if('plan' in cfg):
-                self.cfg = self.CONFIG_MAP['cfg'](
-                    **cfg
-                )
-            else:
-                self.cfg = self.CONFIG_MAP['cfg'](
-                    plan=plan, **cfg
-                )
-
-            ###
-            self.cfg_vis=self.CONFIG_MAP['vis'](
-                **utils.get_obj_dict(args.loop.vis, not_from)
-            )
-            self.cfg_vis_regularization_l2 = self.CONFIG_MAP['vis_reg_l2'](
-                **utils.get_obj_dict(args.loop.vis.image_reg.l2, not_from)
-            )
-            self.cfg_vis_regularization_var = self.CONFIG_MAP['vis_reg_var'](
-                **utils.get_obj_dict(args.loop.vis.image_reg.var, not_from)
-            )
-
-
-            ###
-            self.cfg_model=self.CONFIG_MAP['model'](
-                **utils.get_obj_dict(args.loop.model, not_from)
-            )
-            self.cfg_save=self.CONFIG_MAP['save'](
-                **utils.get_obj_dict(args.loop.save, not_from)
-            )
-            self.cfg_load=self.CONFIG_MAP['load'](
-                **utils.get_obj_dict(args.loop.load, not_from)
-            )
-
-            ### layerloss / layerstats
-            self.cfg_mean_norm=self.CONFIG_MAP['mean_norm'](
-                **utils.get_obj_dict(args.loop.vis.layerloss.mean_norm, not_from)
-            )
-            self.cfg_grad_pruning=self.CONFIG_MAP['grad_pruning'](
-                **utils.get_obj_dict(args.loop.vis.layerloss.grad_pruning, not_from)
-            )
-            self.cfg_grad_activ_pruning=self.CONFIG_MAP['grad_activ_pruning'](
-                **utils.get_obj_dict(args.loop.vis.layerloss.grad_activ_pruning, not_from)
-            )
-            self.cfg_layer_stats=self.CONFIG_MAP['layer_stats'](
-                **utils.get_obj_dict(args.loop.layer_stats, not_from)
-            )
-            self.cfg_deep_inversion=self.CONFIG_MAP['deep_inversion'](
-                **utils.get_obj_dict(args.loop.vis.layerloss.deep_inversion, not_from)
-            )
-
-        setup_args.setup_map(self, args, cfg_map, var_map)
+            args = setup_args.setup_args(args_map, args, 'loop')
+            utils.setup_obj_dataclass_args(self, args=args, root_name='loop', recursive=True, recursive_types=[Namespace])
+        setup_args.setup_cfg_map(self, args, cfg_map)
 
     @property
     def done(self) -> bool:

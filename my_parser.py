@@ -46,7 +46,7 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
 
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
-    parser.add_argument("--model.scheduler.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
+    parser.add_argument("--model.sched.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
 to choose epoch at which to call it.')
     parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
 
@@ -78,7 +78,7 @@ If less than in dataset then model will be trained and validated only using this
 
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
-    parser.add_argument("--model.scheduler.steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
+    parser.add_argument("--model.sched.steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
 at where to call scheduler, change learning rate. Use "model.scheduler.type" to enable scheduler.')
     
 
@@ -152,7 +152,7 @@ Model will have newly initialized weights after each main loop. Reinit is done A
     ######################################
     #####       fast dev run        ######
     ######################################
-    parser.add_argument("-f", "--fast_dev_run.flag", action="store_true", help='Use to fast check for errors in code.\
+    parser.add_argument("-f", "--fast_dev_run.enable", action="store_true", help='Use to fast check for errors in code.\
 It ') ##**
     parser.add_argument("--fast_dev_run.batches", type=int, default=30, help='')
     parser.add_argument("--fast_dev_run.epochs", type=int, default=1, help='')
@@ -352,14 +352,17 @@ def load_config(args: Namespace, parser: ArgumentParser, filepath:str=None) -> N
         args = parser.parse_args()
     return args
 
+def can_export_config(args) -> bool:
+    return ((args.__dict__.get('config.export') or (hasattr(args, 'config') and args.config.export)) 
+            and (args.__dict__.get('fast_dev_run.enable') or (hasattr(args, 'fast_dev_run') and args.fast_dev_run.enable)))
+
 def export_config(args: Namespace, filepath:str=None) -> None:
-    if ((args.__dict__.get('config.export') or (hasattr(args, 'config') and args.config.export)) 
-            and (args.__dict__.get('fast_dev_run.flag') or (hasattr(args, 'fast_dev_run') and args.fast_dev_run.flag))):
+    if can_export_config(args):
         tmp_args = vars(args).copy()
         if(args.__dict__.get('config.export')):
             del tmp_args['config.export']  # Do not dump value of conf_export flag
             del tmp_args['config.load']
-            del tmp_args['fast_dev_run.flag']  # Fast dev run should not be present in config file
+            del tmp_args['fast_dev_run.enable']  # Fast dev run should not be present in config file
 
             # Remove all options that are corelated to saving and loading
             del tmp_args['loop.load.dreams']  

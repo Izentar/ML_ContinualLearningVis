@@ -52,9 +52,7 @@ class CLBase(LightningModule):
         data_passer:dict=None, 
         args=None,
         cfg_map=None,
-        var_map=None,
-        #*aargs,
-        #**akwargs,
+        args_map=None,
     ):
         '''
             Optimizer.type - function with signature fun(parameters)
@@ -62,9 +60,10 @@ class CLBase(LightningModule):
             Optimizer.reset_type - function with signature fun(optimizer)
         '''
         self.CONFIG_MAP, self.VAR_MAP = self._get_config_maps()
+        utils.check_cfg_var_maps(self)
 
         super().__init__()
-        self._map_cfg(args=args, cfg_map=cfg_map, var_map=var_map)
+        self._map_cfg(args=args, cfg_map=cfg_map, args_map=args_map)
         # ignore *args, **kwargs
 
         self.optim_manager = ModelOptimizerManager(
@@ -93,33 +92,22 @@ class CLBase(LightningModule):
 
     def _get_config_maps(self):
         return {
-            'optim': CLBase.Optimizer,
-            'sched': CLBase.Scheduler,
+            'cfg_optim': CLBase.Optimizer,
+            'cfg_sched': CLBase.Scheduler,
             'cfg': CLBase.Config,
         },{
-            'optimizer': 'cfg_optim',
-            'scheduler': 'cfg_sched',
-            'config': 'cfg',
+            'optim': 'cfg_optim',
+            'sched': 'cfg_sched',
+            '': 'cfg',
         }
-    
-    def _map_from_args(self, args, not_from):
-        if(args is not None):
-            self.cfg = self.CONFIG_MAP['cfg'](
-                **utils.get_obj_dict_dataclass(args.model, not_from, self.CONFIG_MAP['cfg'])
-            )
-            self.cfg_optim=self.CONFIG_MAP['optim'](
-                **utils.get_obj_dict(args.model.optim, recursive=True, recursive_types=[Namespace])
-            )
-            self.cfg_sched=self.CONFIG_MAP['sched'](
-                **utils.get_obj_dict(args.model.scheduler, recursive=True, recursive_types=[Namespace])
-            )
 
-    def _map_cfg(self, args, cfg_map:dict, var_map:dict):
+    def _map_cfg(self, args, cfg_map:dict, args_map:dict):
         setup_args.check(self, args, cfg_map)
-        not_from = Namespace
+
         if(args is not None):
-            self._map_from_args(args, not_from)
-        setup_args.setup_map(self, args, cfg_map, var_map)
+            args = setup_args.setup_args(args_map, args, 'model')
+            utils.setup_obj_dataclass_args(self, args=args, root_name='model', recursive=True, recursive_types=[Namespace])
+        setup_args.setup_cfg_map(self, args, cfg_map)
 
     def valid_accs(self, idx):
         # use metric.compute(), because self.log() did not registered this module :(

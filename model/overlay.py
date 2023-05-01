@@ -74,33 +74,17 @@ class CLModel(base.CLBase):
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
-            'robust': CLModel.Robust,
-            'robust_kwargs': CLModel.Robust.Kwargs,
-            'layer_replace': CLModel.LayerReplace,
+            'cfg_robust': CLModel.Robust,
+            'cfg_robust_kwargs': CLModel.Robust.Kwargs,
+            'cfg_layer_replace': CLModel.LayerReplace,
         })
 
         b.update({
             'robust': 'cfg_robust',
-            'robust_kwargs': 'cfg_robust_kwargs',
+            'robust.kwargs': 'cfg_robust_kwargs',
             'layer_replace': 'cfg_layer_replace',
         })
         return a, b
-
-    def _map_from_args(self, args, not_from):
-        super()._map_from_args(args, not_from)
-
-        if(args is not None):
-            self.cfg_robust = self.CONFIG_MAP['robust'](
-                **utils.get_obj_dict(args.model.robust, not_from)
-            )
-
-            self.cfg_robust_kwargs = self.CONFIG_MAP['robust_kwargs'](
-                **utils.get_obj_dict(args.model.robust.kwargs, not_from)
-            )
-
-            self.cfg_layer_replace = self.CONFIG_MAP['layer_replace'](
-                **utils.get_obj_dict(args.model.layer_replace, not_from)
-            )
 
     def _setup_model(self, model):
         if(self.cfg_robust.enable):
@@ -271,8 +255,8 @@ class CLLatent(CLModel):
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
-            'latent': CLLatent.Latent,
-            'latent_buffer': CLLatent.Latent.Buffer,
+            'cfg_latent': CLLatent.Latent,
+            'cfg_latent_buffer': CLLatent.Latent.Buffer,
         })
 
         b.update({
@@ -281,30 +265,19 @@ class CLLatent(CLModel):
         })
         return a, b
 
-    def _map_from_args(self, args, not_from):
-        super()._map_from_args(args, not_from)
-
-        self.cfg_latent = self.CONFIG_MAP['latent'](
-            **utils.get_obj_dict(args.model.latent, not_from)
-        )
-
-        self.cfg_latent_buffer = self.CONFIG_MAP['latent_buffer'](
-            **utils.get_obj_dict(args.model.latent.buffer, not_from)
-        )
-
 class CLModelIslandsOneHot(CLLatent):
     @dataclass
     class Latent(CLLatent.Latent):
         @dataclass
         class OneHot():
-            one_hot_means: list = None
+            means: list = None
 
     def __init__(self, *args, **kwargs):
         kwargs.pop('loss_f', None)
         super().__init__(*args, loss_f=torch.nn.MSELoss(), **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
         
-        self._loss_f = OneHot(self.cfg_onehot.one_hot_means, self.cyclic_latent_buffer, loss_f=self._loss_f)
+        self._loss_f = OneHot(self.cfg_onehot.means, self.cyclic_latent_buffer, loss_f=self._loss_f)
 
         self.valid_correct = 0
         self.valid_all = 0
@@ -312,9 +285,9 @@ class CLModelIslandsOneHot(CLLatent):
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
-            'onehot': CLModelIslandsOneHot.Latent.OneHot,
-            'cfg': CLModelIslandsOneHot.Config,
-            'latent': CLModelIslandsOneHot.Latent,
+            'cfg_onehot': CLModelIslandsOneHot.Latent.OneHot,
+            '': CLModelIslandsOneHot.Config,
+            'cfg_latent': CLModelIslandsOneHot.Latent,
         })
 
         b.update({
@@ -322,18 +295,6 @@ class CLModelIslandsOneHot(CLLatent):
             'latent': 'cfg_latent',
         })
         return a, b
-
-    def _map_from_args(self, args, not_from):
-        super()._map_from_args(args, not_from)
-
-        self.cfg_onehot = self.CONFIG_MAP['onehot'](
-            **utils.get_obj_dict(args.model.latent.onehot, not_from)
-        )
-
-        #self.cfg_latent = self.CONFIG_MAP['latent'](
-        #    **utils.get_obj_dict(args.model.latent, not_from)
-        #)
-
 
     def call_loss(self, input, target, train, **kwargs):
         return self._loss_f(input, target, train)
@@ -416,8 +377,7 @@ class CLModelIslandsOneHot(CLLatent):
 
 class CLModelWithIslands(CLLatent):
     @dataclass
-    class Config(CLModel.Config):        
-        num_classes: int
+    class Config(CLModel.Config):
         norm_lambda: float = 0.
 
     @dataclass
@@ -446,21 +406,14 @@ class CLModelWithIslands(CLLatent):
         a, b = super()._get_config_maps()
         a.update({
             'cfg': CLModelWithIslands.Config,
-            'latent': CLModelWithIslands.Latent,
-            'loss_chi': CLModelWithIslands.Loss.Chi,
+            'cfg_latent': CLModelWithIslands.Latent,
+            'cfg_loss_chi': CLModelWithIslands.Loss.Chi,
         })
         b.update({
             'latent': 'cfg_latent',
             'loss.chi': 'cfg_loss_chi',
         })
         return a, b
-
-    def _map_from_args(self, args, not_from):
-        super()._map_from_args(args, not_from)
-
-        self.cfg_loss_chi = self.CONFIG_MAP['loss_chi'](
-            **utils.get_obj_dict(args.model.loss.chi, not_from)
-        )
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self._loss_f(latent, y)
