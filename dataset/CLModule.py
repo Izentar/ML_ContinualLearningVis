@@ -1,20 +1,9 @@
 import torch
-from torch.utils.data import ConcatDataset, DataLoader, Subset
-from torchvision import transforms
+from torch.utils.data import DataLoader, Subset
 from pytorch_lightning import LightningDataModule, LightningModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from utils import data_manipulation as datMan
-from utils.functional import target_processing
-from dataset import dream_sets
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
 #from lucent.optvis import param, render
-from dream.custom_render import RenderVisState, render_vis, empty_loss_f
+from dream.custom_render import RenderVisState, render_vis
 import wandb
 
 import numpy as np
@@ -28,6 +17,8 @@ from utils.functional.model_optimizer import ModelOptimizerManager
 from dataclasses import dataclass, field
 from typing import Union
 from argparse import Namespace
+
+from utils import pretty_print as pp
 
 
 class BaseCLDataModule(LightningDataModule, ABC):
@@ -86,21 +77,24 @@ class DreamDataModule(BaseCLDataModule, ABC):
             self.standard_image_size = self.standard_image_size if self.standard_image_size is not None else self.image_size
 
         @dataclass
-        class Optim():
-            lr: float = 1e-3
-            dtype: str = 'adam'
-        
-    CONFIG_MAP = {
-        'vis': Visualization,
-        'vis_optim': Visualization.Optim,
-        'cfg': Config
-    }
+        class Optimizer():
+            type: str = 'adam'
+            kwargs: dict = None
 
-    VAR_MAP = {
-        'config': 'cfg',
-        'vis': 'cfg_vis',
-        'vis.optim': 'cfg_optim',
-    }
+            def __post_init__(self):
+                if self.kwargs is None:
+                    self.kwargs = {
+                        'lr': 1e-3,
+                    }
+
+        @dataclass 
+        class Scheduler():
+            type: str = None
+            kwargs: dict = None
+
+            def __post_init__(self):
+                if self.kwargs is None:
+                    self.kwargs = {}
 
     def __init__(self,
         select_dream_tasks_f,
@@ -130,6 +124,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 The default function do nothing to targets. 
         """
         super().__init__()
+        self.CONFIG_MAP, self.VAR_MAP = self._get_config_maps()
         self._map_cfg(args=args, cfg_map=cfg_map, var_map=var_map)
 
         self.select_dream_tasks_f = select_dream_tasks_f
@@ -156,12 +151,25 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.custom_f = custom_f
         self.data_passer = data_passer
 
-        print(f"Train task split: {self.cfg.train_tasks_split}")
+        pp.sprint(f"{pp.COLOR.NORMAL_4}Train task split: {self.cfg.train_tasks_split}")
 
         if(empty_dream_dataset is None):
             raise Exception("Empty dream dataset.")
 
         self.wandb_flushed = False
+
+    def _get_config_maps(self):
+        return {
+            'vis': DreamDataModule.Visualization,
+            'vis_optim': DreamDataModule.Visualization.Optimizer,
+            'vis_sched': DreamDataModule.Visualization.Scheduler,
+            'cfg': DreamDataModule.Config
+        }, {
+            'config': 'cfg',
+            'vis': 'cfg_vis',
+            'vis.optim': 'cfg_vis_optim',
+            'vis.sched': 'cfg_vis_sched',
+        }
 
     def _map_from_args(self, args, not_from):
         self.cfg=self.CONFIG_MAP['cfg'](
@@ -173,14 +181,19 @@ class DreamDataModule(BaseCLDataModule, ABC):
         )
 
         self.cfg_vis_optim=self.CONFIG_MAP['vis_optim'](
-            **utils.get_obj_dict(args.datamodule.vis.optim, not_from)
+            **utils.get_obj_dict(args.datamodule.vis.optim, recursive=True, recursive_types=[Namespace])
+        )
+
+        self.cfg_vis_sched=self.CONFIG_MAP['vis_sched'](
+            **utils.get_obj_dict(args.datamodule.vis.sched, recursive=True, recursive_types=[Namespace])
         )
 
     def _map_cfg(self, args, cfg_map, var_map):
         setup_args.check(self, args, cfg_map)
 
         not_from = Namespace
-        self._map_from_args(args, not_from)
+        if(args is not None):
+            self._map_from_args(args, not_from)
         setup_args.setup_map(self, args, cfg_map, var_map)
 
     @abstractmethod
@@ -209,11 +222,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def __del__(self):
         if not (self.wandb_flushed):
-            print('WARNING:\tdreaming images were not flushed by wandb.')
+            pp.sprint(f'{pp.COLOR.WARNING}WARNING:\tdreaming images were not flushed by wandb.')
 
     def get_rendervis(self, model, custom_loss_gather_f, input_image_train_after_hook=None):
         thresholds = self.fast_dev_run_dream_threshold if self.fast_dev_run and self.fast_dev_run_dream_threshold is not None else self.cfg_vis.threshold
-        optimizer = ModelOptimizerManager(optimizer_type=self.cfg_vis_optim.dtype).get_optimizer(**vars(self.cfg_vis_optim))
+        manager = ModelOptimizerManager(optimizer_type=self.cfg_vis_optim.type, scheduler_type=self.cfg_vis_sched.type)
+        optimizer = manager.get_optimizer(**self.cfg_vis_optim.kwargs)
+        scheduler = manager.get_scheduler(**self.cfg_vis_sched.kwargs)
         return RenderVisState(
                 model=model,
                 optim_image=self.dream_image,
@@ -228,7 +243,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 display_additional_info=True,
                 preprocess=False,
                 device=model.device,
-                input_image_train_after_hook=input_image_train_after_hook
+                input_image_train_after_hook=input_image_train_after_hook,
+                scheduler=scheduler,
             )
 
     def get_custom_loss_gather_f(self, task_index, *args) -> tuple:
@@ -443,8 +459,14 @@ class CLDataModule(DreamDataModule):
 
     CONFIG_MAP = {
         'vis': Visualization,
-        'vis_optim': Visualization.Optim,
+        'vis_optim': Visualization.Optimizer,
         'cfg': Config,
+    }
+
+    VAR_MAP = {
+        'config': 'cfg',
+        'vis': 'cfg_vis',
+        'vis.optim': 'cfg_vis_optim',
     }
 
     def __init__(
@@ -487,7 +509,15 @@ class CLDataModule(DreamDataModule):
         self.dataset_class = dataset_class
         self.data_transform = data_transform
 
-        print(f"Validation task split: {self.cfg.val_tasks_split}")        
+        pp.sprint(f"{pp.COLOR.NORMAL_4}Validation task split: {self.cfg.val_tasks_split}")        
+
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'vis': CLDataModule.Visualization,
+            'cfg': CLDataModule.Config,
+        })
+        return a, b
 
     def prepare_data(self):
         train_dataset = self.dataset_class(
@@ -532,7 +562,7 @@ class CLDataModule(DreamDataModule):
         #TODO - to log
         if task_index >= len(self.train_datasets):
             raise Exception(f"Index {task_index} out of range {len(self.train_datasets)}")
-        print(f"Selected task number: {task_index}")
+        pp.sprint(f"{pp.COLOR.NORMAL_4}Selected task number: {task_index}")
         self.current_task_index = task_index
         self.current_loop_index = loop_index
         self.train_task = self.train_datasets[task_index]
@@ -601,7 +631,7 @@ class CLDataModule(DreamDataModule):
             # first loop is always False. After accumulating dreams this dataloader will be used.
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
             dream_tasks_classes = self._get_all_prev_dream_classes()
-            print(f"Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}")
+            pp.sprint(f"{pp.COLOR.NORMAL_4}Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}")
 
             if(len(self.dreams_dataset) == 0):
                 raise Exception("Empty dream dataset. Run dream generation or load dreams from file.")
@@ -640,12 +670,12 @@ class CLDataModule(DreamDataModule):
         # need new label to not use this dataset but still keep CombinedLoader functionality
         if(utils.check_python_index(self.cfg_vis.only_vis_at, self.data_passer['num_loops'], self.data_passer['current_loop'])):
             normal_key = 'hidden_normal'
-            print("INFO: Normal dataloader is hidden.")
+            pp.sprint(f"{pp.COLOR.NORMAL_4}INFO: Normal dataloader is hidden.")
         else:
-            print(f"Selected classes for normal dataloader: {normal_classes}")
+            pp.sprint(f"{pp.COLOR.NORMAL_4}INFO: Selected classes for normal dataloader: {normal_classes}")
 
         if dream_loader is not None:
-            print("INFO: Use dream dataloader.")
+            pp.sprint(f"{pp.COLOR.NORMAL_4}INFO: Use dream dataloader.")
             loaders = {normal_key: normal_loader, "dream": dream_loader}
         else:
             loaders = {normal_key: normal_loader}
@@ -675,7 +705,7 @@ class CLDataModule(DreamDataModule):
         full_dataset = CLDataModule._get_subset(self.test_dataset, full_classes)  
         #ConcatDataset(self.train_datasets) # creates error / no easy way to get targets from this dataset
 
-        print(f'Testing for classes: {full_classes}')
+        pp.sprint(f'{pp.COLOR.NORMAL_4}INFO: Testing for classes: {full_classes}')
         
         return DataLoader(
             full_dataset, 

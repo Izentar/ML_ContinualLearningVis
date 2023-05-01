@@ -34,13 +34,14 @@ from loss_function import layerloss
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from utils import utils
 from model.statistics.base import ModelLayerStatistics, unhook
-from colorama import Fore, Back, Style
 from collections.abc import Sequence
 from loss_function import image_regularization
 
 from dataclasses import dataclass, field
 from argparse import Namespace
 from utils import setup_args
+import wandb
+from utils import pretty_print as pp
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -76,12 +77,52 @@ class CLLoop(Loop):
     class Visualization():
         generate_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
         clear_dataset_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
-        use_input_img_var_reg_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
-        bn_reg_scale: float = 1e2
-        use_var_img_reg_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
-        var_scale: float = 2.5e-5
-        use_l2_img_reg_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
-        l2_coeff: float = 1e-05
+
+        @dataclass
+        class LayerLoss():
+            @dataclass
+            class MeanNorm():
+                scaling: float = 0.01
+                del_cov_after: bool =False
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+                hook_to: Union[list[str], None] = False
+                device: str = 'cuda'
+
+            @dataclass
+            class GradPruning():
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+                percent: float = 0.01
+                hook_to: Union[list[str], None] = False
+                device: str = 'cuda'
+
+            @dataclass
+            class GradActivePruning():
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
+                percent: float = 0.01
+                hook_to: Union[list[str], None] = False
+                device: str = 'cuda'
+
+            @dataclass
+            class DeepInversion():
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+                scale: float = 1e2
+                hook_to: list[str] = None
+
+                def __post_init__(self):
+                    # only works for BatchNorm2d
+                    self.hook_to = ['BatchNorm2d'] if self.hook_to is None else self.hook_to
+
+        @dataclass
+        class ImageRegularization():
+            @dataclass
+            class Variation():
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+                scale: float = 2.5e-5
+
+            @dataclass
+            class L2():
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+                coeff: float = 1e-05
 
     @dataclass
     class Model():
@@ -91,33 +132,30 @@ class CLLoop(Loop):
     @dataclass
     class Save():
         enable_checkpoint: bool = False
-        model_inner_path: str = None
         model: bool = False
-        dreams: str = None
-        layer_stats: str = None
-        export_path: Optional[str] = None
+        dreams: bool = False
+        layer_stats: bool = False
+        root: str = None
 
         def __post_init__(self):
-            self.model_inner_path = Path(self.model_inner_path) if self.model_inner_path is not None else Path("")
-            if self.export_path is not None:
-                self.export_path = Path(self.export_path)
+            if self.root is not None:
+                self.root = Path(self.root)
             else:
-                self.export_path = Path(default_export_path)
+                self.root = Path(default_export_path)
 
     @dataclass
     class Load():
-        model: str = None
-        dreams: str = None
-        layer_stats: str = None
-        export_path: Optional[str] = None
+        id: str = None
+        model: bool = False
+        dreams: bool = False
+        layer_stats: bool = False
+        root: str = None
 
         def __post_init__(self):
-            self.model = Path(self.model) if self.model is not None else self.model
-            self.dreams = Path(self.dreams) if self.dreams is not None else self.dreams
-            if self.export_path is not None:
-                self.export_path = Path(self.export_path)
+            if self.root is not None:
+                self.root = Path(self.root)
             else:
-                self.export_path = Path(default_export_path)
+                self.root = Path(default_export_path)
         
     @dataclass
     class LayerStats():
@@ -127,52 +165,11 @@ class CLLoop(Loop):
         flush_to_disk: bool = False
         verbose: bool = False
 
-    @dataclass
-    class LayerLoss():
-        @dataclass
-        class MeanNorm():
-            scaling: float = 0.01
-            del_cov_after: bool =False
-            use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
-            hook_to: Union[list[str], None] = False
-            device: str = 'cuda'
-
-        @dataclass
-        class GradPruning():
-            use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
-            percent: float = 0.01
-            hook_to: Union[list[str], None] = False
-            device: str = 'cuda'
-
-        @dataclass
-        class GradActivePruning():
-            use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
-            percent: float = 0.01
-            hook_to: Union[list[str], None] = False
-            device: str = 'cuda'
-
-    CONFIG_MAP = {
-        'vis': Visualization,
-        'model': Model,
-        'save': Save,
-        'load': Load,
-        'mean_norm': LayerLoss.MeanNorm,
-        'grad_pruning': LayerLoss.GradPruning,
-        'grad_activ_pruning': LayerLoss.GradActivePruning,
-        'layer_stats': LayerStats,
-        'cfg': Config,
-    }
-
-    VAR_MAP = {
-        'config': 'cfg',
-        'vis': 'cfg_vis',
-        'model': 'cfg_model',
-        'save': 'cfg_save',
-        'load': 'cfg_load',
-        'layerloss.mean_norm': 'cfg_mean_norm',
-        'layerloss.grad_pruning': 'cfg_grad_pruning',
-        'layerloss.grad_activ_pruning': 'cfg_grad_activ_pruning',
-        'layer_stats': 'cfg_layer_stats',
+    FILE_TYPE_MAP = {
+        "dream": "dataset",
+        "trained_model": "pt",
+        "checkpoint": "ckp",
+        "layer_stats": "stat",
     }
 
     def __init__(
@@ -187,6 +184,7 @@ class CLLoop(Loop):
         weight_reset_sanity_check=False,
         data_module=None,
         progress_bar=None,
+        folder_output_path=None,
     ) -> None:
         """
             plan: list of epoches per task
@@ -198,7 +196,7 @@ class CLLoop(Loop):
                 all tasks are done.
         """
         super().__init__()
-
+        self.CONFIG_MAP, self.VAR_MAP = self._get_config_maps()
         self._map_cfg(args=args, cfg_map=cfg_map, plan=plan, var_map=var_map)
 
         self.current_task: int = 0
@@ -212,10 +210,17 @@ class CLLoop(Loop):
         self.data_module = data_module
         self.progress_bar = progress_bar
 
+        self.folder_output_path = folder_output_path
+
         self.enable_data_parser = data_passer is not None
         self.data_passer = data_passer if data_passer is not None else {}
         self.custom_advance_f = None
         self.model_stats = None
+
+        self._save_folder = None
+
+        if(self.folder_output_path is None):
+            self.folder_output_path = ""
 
         if utils.check_python_enabled(self.cfg_model.reinit_at) and utils.check_python_enabled(self.cfg_model.reload_at):
             raise Exception("ERROR: cfg_model.reinit_at and cfg_model.reload_at cannot be both true")
@@ -223,6 +228,35 @@ class CLLoop(Loop):
         for l in self.cfg.plan:
             if((not isinstance(l, Sequence)) or len(l) < 1):
                 raise Exception(f'Bad plan: {self.cfg.plan}')
+
+    def _get_config_maps(self):
+        return {
+            'vis': CLLoop.Visualization,
+            'model': CLLoop.Model,
+            'save': CLLoop.Save,
+            'load': CLLoop.Load,
+            'mean_norm': CLLoop.Visualization.LayerLoss.MeanNorm,
+            'grad_pruning': CLLoop.Visualization.LayerLoss.GradPruning,
+            'grad_activ_pruning': CLLoop.Visualization.LayerLoss.GradActivePruning,
+            'deep_inversion': CLLoop.Visualization.LayerLoss.DeepInversion,
+            'vis_reg_var': CLLoop.Visualization.ImageRegularization.Variation,
+            'vis_reg_l2': CLLoop.Visualization.ImageRegularization.L2,
+            'layer_stats': CLLoop.LayerStats,
+            'cfg': CLLoop.Config,
+        }, {
+            'config': 'cfg',
+            'vis': 'cfg_vis',
+            'model': 'cfg_model',
+            'save': 'cfg_save',
+            'load': 'cfg_load',
+            'vis.layerloss.mean_norm': 'cfg_mean_norm',
+            'vis.layerloss.grad_pruning': 'cfg_grad_pruning',
+            'vis.layerloss.grad_activ_pruning': 'cfg_grad_activ_pruning',
+            'vis.layerloss.deep_inversion': 'cfg_deep_inversion',
+            'vis.image_reg.var': 'cfg_vis_regularization_var',
+            'vis.image_reg.l2': 'cfg_vis_regularization_l2',
+            'layer_stats': 'cfg_layer_stats',
+        }
 
     def _map_cfg(self, args, cfg_map:dict, plan, var_map):
         setup_args.check(self, args, cfg_map)
@@ -238,9 +272,20 @@ class CLLoop(Loop):
                 self.cfg = self.CONFIG_MAP['cfg'](
                     plan=plan, **cfg
                 )
+
+            ###
             self.cfg_vis=self.CONFIG_MAP['vis'](
                 **utils.get_obj_dict(args.loop.vis, not_from)
             )
+            self.cfg_vis_regularization_l2 = self.CONFIG_MAP['vis_reg_l2'](
+                **utils.get_obj_dict(args.loop.vis.image_reg.l2, not_from)
+            )
+            self.cfg_vis_regularization_var = self.CONFIG_MAP['vis_reg_var'](
+                **utils.get_obj_dict(args.loop.vis.image_reg.var, not_from)
+            )
+
+
+            ###
             self.cfg_model=self.CONFIG_MAP['model'](
                 **utils.get_obj_dict(args.loop.model, not_from)
             )
@@ -250,17 +295,22 @@ class CLLoop(Loop):
             self.cfg_load=self.CONFIG_MAP['load'](
                 **utils.get_obj_dict(args.loop.load, not_from)
             )
+
+            ### layerloss / layerstats
             self.cfg_mean_norm=self.CONFIG_MAP['mean_norm'](
-                **utils.get_obj_dict(args.loop.layerloss.mean_norm, not_from)
+                **utils.get_obj_dict(args.loop.vis.layerloss.mean_norm, not_from)
             )
             self.cfg_grad_pruning=self.CONFIG_MAP['grad_pruning'](
-                **utils.get_obj_dict(args.loop.layerloss.grad_pruning, not_from)
+                **utils.get_obj_dict(args.loop.vis.layerloss.grad_pruning, not_from)
             )
             self.cfg_grad_activ_pruning=self.CONFIG_MAP['grad_activ_pruning'](
-                **utils.get_obj_dict(args.loop.layerloss.grad_activ_pruning, not_from)
+                **utils.get_obj_dict(args.loop.vis.layerloss.grad_activ_pruning, not_from)
             )
             self.cfg_layer_stats=self.CONFIG_MAP['layer_stats'](
                 **utils.get_obj_dict(args.loop.layer_stats, not_from)
+            )
+            self.cfg_deep_inversion=self.CONFIG_MAP['deep_inversion'](
+                **utils.get_obj_dict(args.loop.vis.layerloss.deep_inversion, not_from)
             )
 
         setup_args.setup_map(self, args, cfg_map, var_map)
@@ -304,7 +354,7 @@ class CLLoop(Loop):
         self._try_load_dreams()
 
     def _gather_model_layer_stats_advance_f(self):
-        print(f"HOOKING TO MODEL - GATHER STATS: task: {self.current_task}, loop {self.current_loop}")
+        pp.sprint(f"{pp.COLOR.NORMAL}hooking to model - {pp.COLOR.DETAIL}GATHER STATS{pp.COLOR.NORMAL} - task: {self.current_task}, loop {self.current_loop}")
 
         train_dataloader = self.data_module.train_dataloader()
         if(isinstance(train_dataloader, CombinedLoader)):
@@ -324,6 +374,9 @@ class CLLoop(Loop):
         )
         self._try_save_model_layer_stats()
 
+    def _try_generate_dream_print_msg(self, dtype:str):
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: hooking model during visualization to - {pp.COLOR.DETAIL}LOSS FUNCTION{pp.COLOR.NORMAL} - task: {self.current_task}, loop {self.current_loop}")
+
     def _try_generate_dream(self):
         if utils.check_python_index(self.cfg_vis.generate_at, self.cfg.num_loops, self.current_loop):
             layer_hook_obj = []
@@ -331,8 +384,9 @@ class CLLoop(Loop):
             input_image_train_after_obj = []
 
             if(utils.check_python_index(self.cfg_mean_norm.use_at, self.cfg.num_loops, self.current_loop)):
-                print(f"HOOKING TO MODEL - LOSS FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                self._try_generate_dream_print_msg("LOSS FUNCTION")
                 self._try_load_model_layer_stats()
+                self.vis_layerloss_mean_norm = True
                 tmp = layerloss.MeanNorm(device=self.cfg_mean_norm.device, del_cov_after=self.cfg_mean_norm.del_cov_after, scaling=self.cfg_mean_norm.scaling)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
@@ -342,8 +396,9 @@ class CLLoop(Loop):
                     hook_to=self.cfg_mean_norm.hook_to
                 ))
             if(utils.check_python_index(self.cfg_grad_pruning.use_at, self.cfg.num_loops, self.current_loop)):
-                print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                self._try_generate_dream_print_msg("GRAD PRUNING FUNCTION")
                 self._try_load_model_layer_stats()
+                self.layerloss_grad_pruning = True
                 tmp = layerloss.LayerGradPruning(device=self.cfg_grad_pruning.device, percent=self.cfg_grad_pruning.percent)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
@@ -353,8 +408,9 @@ class CLLoop(Loop):
                     hook_to=self.cfg_grad_pruning.hook_to
                 ))
             if(utils.check_python_index(self.cfg_grad_activ_pruning.use_at, self.cfg.num_loops, self.current_loop)):
-                print(f"HOOKING TO MODEL - GRAD PRUNING FUNCTION: task: {self.current_task}, loop {self.current_loop}")
+                self._try_generate_dream_print_msg("GRAD ACTIVE PRUNING FUNCTION")
                 self._try_load_model_layer_stats()
+                self.layerloss_grad_activ_pruning = True
                 tmp = layerloss.LayerGradActivationPruning(device=self.cfg_grad_activ_pruning.device, percent=self.cfg_grad_activ_pruning.percent)
                 layer_hook_obj.append(tmp)
                 layer_handles.append(utils.hook_model(
@@ -363,25 +419,31 @@ class CLLoop(Loop):
                     hook_to=self.cfg_grad_activ_pruning.hook_to
                 ))
 
-            if(utils.check_python_index(self.cfg_vis.use_input_img_var_reg_at, self.cfg.num_loops, self.current_loop)):
-                tmp = layerloss.DeepInversionFeatureLoss(bn_reg_scale=self.cfg_vis.bn_reg_scale)
+            if(utils.check_python_index(self.cfg_deep_inversion.use_at, self.cfg.num_loops, self.current_loop)):
+                self._try_generate_dream_print_msg("DEEP INVERSION")
+                tmp = layerloss.DeepInversionFeatureLoss(scale=self.cfg_deep_inversion.scale)
                 input_image_train_after_obj.append(tmp)
+                self.layerloss_deep_inversion = True
                 layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 
                     fun=tmp.hook_fun, 
-                    hook_to=['BatchNorm2d'] # only works for BatchNorm2d
+                    hook_to=self.cfg_deep_inversion.hook_to
                 ))
 
-            if(utils.check_python_index(self.cfg_vis.use_var_img_reg_at, self.cfg.num_loops, self.current_loop)):
-                tmp = image_regularization.VariationRegularization(scale=self.cfg_vis.var_scale)
+            if(utils.check_python_index(self.cfg_vis_regularization_var.use_at, self.cfg.num_loops, self.current_loop)):
+                self._try_generate_dream_print_msg("VARIATION IMAGE REGULARIZATION")
+                tmp = image_regularization.VariationRegularization(scale=self.cfg_vis_regularization_var.scale)
                 input_image_train_after_obj.append(tmp)
+                self.vis_regularization_var = True
 
-            if(utils.check_python_index(self.cfg_vis.use_l2_img_reg_at, self.cfg.num_loops, self.current_loop)):
-                tmp = image_regularization.L2Regularization(coefficient=self.cfg_vis.l2_coeff)
+            if(utils.check_python_index(self.cfg_vis_regularization_l2.use_at, self.cfg.num_loops, self.current_loop)):
+                self._try_generate_dream_print_msg("L2 IMAGE REGULARIZATION")
+                tmp = image_regularization.L2Regularization(coefficient=self.cfg_vis_regularization_l2.coeff)
                 input_image_train_after_obj.append(tmp)
+                self.vis_regularization_l2 = True
             
-            print(f"DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
-            #self.trainer.datamodule.setup_task_index(self.current_task)
+            pp.sprint(f"{pp.COLOR.NORMAL}DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
+
             self.trainer.datamodule.generate_synthetic_data(
                 model=self.trainer.lightning_module, 
                 task_index=self.current_task, 
@@ -391,29 +453,29 @@ class CLLoop(Loop):
             if(len(layer_handles) != 0):
                 for l in layer_handles:
                     unhook(l)
-            print("DREAMING END")
+            pp.sprint(f"{pp.COLOR.NORMAL}DREAMING END")
 
     def _model_weigth_sanity_check(self):
         if(self.weight_reset_sanity_check):
             test_sanity_val = self.trainer.lightning_module.model.get_objective_layer().weight.cpu()
             if torch.allclose(self.state_dict_sanity_check_val, test_sanity_val):
-                print("Model reset success")
+                pp.sprint(f"{pp.COLOR.WARNING}Model reset success")
                 return
-            print('FAIL: Model reset fail sanity check.')
-            print(self.state_dict_sanity_check_val)
-            print(test_sanity_val)
+            pp.sprint(f'{pp.COLOR.WARNING}FAIL: Model reset fail sanity check.')
+            pp.sprint(f"{pp.COLOR.WARNING}", self.state_dict_sanity_check_val)
+            pp.sprint(f"{pp.COLOR.WARNING}", test_sanity_val)
 
     def _try_reset_model(self):
         # restore the original weights + optimizers and schedulers.
         if utils.check_python_index(self.cfg_model.reload_at, self.cfg.num_loops, self.current_loop):
-            print('INFO: Model reloaded.')
+            pp.sprint(f'{pp.COLOR.NORMAL}INFO: Model reloaded.')
             self.trainer.lightning_module.load_state_dict(
                 self.lightning_module_state_dict, strict=True
             )
             self.trainer.strategy.setup_optimizers(self.trainer)
             self._model_weigth_sanity_check()
         if utils.check_python_index(self.cfg_model.reinit_at, self.cfg.num_loops, self.current_loop):
-            print('INFO: Model reinit.')
+            pp.sprint(f'{pp.COLOR.NORMAL}INFO: Model reinit.')
             self.trainer.lightning_module.init_weights()
             self._model_weigth_sanity_check()
 
@@ -423,74 +485,113 @@ class CLLoop(Loop):
             return self.fast_dev_run_epochs
         if(len(self.cfg.plan[self.current_task]) <= self.current_loop):
             tmp = self.cfg.plan[self.current_task][-1]
-            print(f'WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list index out of range.')
+            pp.sprint(f'{pp.COLOR.WARNING}WARNING: At loop {self.current_loop} selected last epoch per task "{tmp}" because list index out of range.')
             return tmp
         return self.cfg.plan[self.current_task][self.current_loop]
 
+    @property
+    def save_folder(self) -> str | None:
+        if(self._save_folder is None):
+            return self._generate_save_path('trained_model')[0]
+        return self._save_folder
+
     def _setup_loop(self):
-        # Set the max number of epochs for this task
-        max_epochs = self.epoch_num
         self.replace(
-            fit_loop=FitLoop(max_epochs=max_epochs)
+            fit_loop=FitLoop(max_epochs=self.epoch_num)
         )
         if(utils.check_python_index(self.cfg_layer_stats.use_at, self.cfg.num_loops, self.current_loop)):
-            print("INFO: HOOKING UP LOOP TO GATHER STATISTICS")
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: HOOKING UP LOOP TO GATHER STATISTICS")
             self.custom_advance_f = self._gather_model_layer_stats_advance_f # run custon data gathering loop
+            self.layer_stats_use_at = True
         elif(utils.check_python_index(self.cfg.train_at, self.cfg.num_loops, self.current_loop)):
-            print("INFO: HOOKING UP NORMAL LOOP")
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: HOOKING UP NORMAL LOOP")
             self.custom_advance_f = self.fit_loop.run # run subloop - FitLoop
         else:
-            self.custom_advance_f = lambda: print(f"{Fore.RED}INFO: SKIPPING ANY TRAINING at loop {self.current_loop}{Style.RESET_ALL}")
-
-    def _export_path_contains(self, other, export_path):
-        size = len(export_path.parents) + 1
-        if(export_path == other.parents[- size]):
-            return True
-        return False
-
-    def _gen_folder_name_by_time(self, export_path, dtype:str=None):
-        folder = datetime.datetime.now().strftime("%d-%m-%Y")
+            self.custom_advance_f = lambda: pp.sprint(f"{pp.COLOR.WARNING}INFO: SKIPPING ANY TRAINING at loop {self.current_loop}")
+    
+    def _generate_save_path(self, dtype: str):
+        date = datetime.datetime.now().strftime("%d-%m-%Y")
         time = datetime.datetime.now().strftime("%H-%M-%S")
-        if(dtype is None):
-            dtype = ""
-        if(self._export_path_contains(self.cfg_save.model_inner_path, export_path=export_path)):
-            ret = self.cfg_save.model_inner_path / dtype / folder
-        else:
-            ret = export_path / self.cfg_save.model_inner_path / dtype / folder
-        ret.mkdir(parents=True, exist_ok=True)
-        return ret, time
+        model_type = type(self.trainer.lightning_module.model).__name__
+        overlay_type = type(self.trainer.lightning_module).__name__
+        folder = Path(overlay_type) / model_type / f"loop_{self.current_loop}" / f"epoch_{self.epoch_num}"
+
+        adds = ""
+        if(hasattr(self, 'layer_stats_use_at') and self.layer_stats_use_at and len(self.cfg_layer_stats.hook_to) != 0):
+            adds = f"{adds}_layer_stat"
+        if(hasattr(self, 'vis_layerloss_mean_norm') and self.vis_layerloss_mean_norm and len(self.cfg_mean_norm.hook_to) != 0):
+            adds = f"{adds}_mean_norm"
+        if(hasattr(self, 'layerloss_grad_pruning') and self.vis_layerloss_mean_norm and len(self.cfg_grad_pruning.hook_to) != 0):
+            adds = f"{adds}_grad_pruning"
+        if(hasattr(self, 'layerloss_grad_activ_pruning') and self.layerloss_grad_activ_pruning and len(self.cfg_grad_activ_pruning.hook_to) != 0):
+            adds = f"{adds}_grad_activ_pruning"
+        if(hasattr(self, 'layerloss_deep_inversion') and self.layerloss_deep_inversion and len(self.cfg_deep_inversion.hook_to) != 0):
+            adds = f"{adds}_deep_inversion"
+        
+        folder = folder / adds
+        adds = ""
+
+        if(hasattr(self, 'vis_regularization_var') and self.vis_regularization_var and len(self.cfg_vis_regularization_var.hook_to) != 0):
+            adds = f"{adds}_image_reg_var"
+        if(hasattr(self, 'vis_regularization_l2') and self.vis_regularization_l2 and len(self.cfg_vis_regularization_l2.hook_to) != 0):
+            adds = f"{adds}_image_reg_l2"
+
+        folder = folder / adds
+
+        if(not hasattr(self, 'run_name') or self.run_name is None):
+            self.run_name = f"d{date}_h{time}_{wandb.run.id}"
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: Generated current run name: {self.run_name}")
+
+        file_type = self.FILE_TYPE_MAP.get(dtype)
+        if(not file_type):
+            raise Exception(f'Not found in lookup map: {dtype}')
+        
+        gen_path = self.cfg_save.root / folder / self.folder_output_path / self.run_name
+        Path.mkdir(gen_path, parents=True, exist_ok=True)
+        self._save_folder = gen_path
+        return gen_path, f"{dtype}.{date}_{time}.{file_type}"
+    
+    def _generate_load_path(self, dtype: str):
+        if(self.cfg_load.id is None):
+            raise Exception("Tried loading while id is None")
+        file_type = self.FILE_TYPE_MAP.get(dtype)
+        if(not file_type):
+            raise Exception(f'Not found in lookup map: {dtype}')
+        
+        phrase = f"**/*{self.cfg_load.id}*"
+        outer_path = glob.glob(pathname=phrase, root_dir=self.cfg_load.root, recursive=True)
+        if(len(outer_path) != 1):
+            raise Exception(f"Found {len(outer_path)}, phrase ''{phrase}'', possible paths from: {outer_path}")
+        outer_path = self.cfg_load.root / outer_path[0]
+        phrase = f"**/*{dtype}*"
+        path = glob.glob(pathname=phrase, root_dir=outer_path, recursive=True)
+        if(len(path) != 1):
+            raise Exception(f"Found {len(path)}, phrase ''{phrase}'' possible paths from: {path}")
+
+        path = outer_path / path[0]
+        return path
 
     def _try_save_dreams(self):
-        if(self.cfg_save.dreams is not None and not self.fast_dev_run):
-            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path, dtype=self.cfg_save.dreams)
-            filename = f"dreams.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
-            Path.mkdir(filepath, parents=True, exist_ok=True)
-            self.trainer.datamodule.save_dream_dataset(filepath / filename)
+        if(self.cfg_save.dreams and not self.fast_dev_run):
+            filepath, name = self._generate_save_path('dream')
+            self.trainer.datamodule.save_dream_dataset(filepath / name)
 
     def _try_load_dreams(self):
-        if(self.cfg_load.dreams is not None):
-            if(self._export_path_contains(self.cfg_load.dreams, self.cfg_load.export_path)):
-                find_path = self.cfg_load.dreams
-            else:
-                find_path = self.cfg_load.export_path / self.cfg_load.dreams
-            path = glob.glob(str(find_path), recursive=True)
-            if('dreams.' not in self.cfg_load.dreams):
-                raise Exception(f'Unknown filename to load dreams. May be the wrong filetype. File: {find_path}')
-            if(len(path) != 1):
-                raise Exception(f'Cannot load dreams - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
-            path = path[0]
+        if(self.cfg_load.dreams):
+            path = self._generate_load_path('dream')
             self.trainer.datamodule.load_dream_dataset(path)
+            pp.sprint(f'{pp.COLOR.NORMAL}INFO: Loaded dreams from {path}')
 
     def on_advance_start(self, *args: Any, **kwargs: Any) -> None:
         """Used to call `setup_task_index` from the `BaseCLDataModule` instance."""
         assert isinstance(self.trainer.datamodule, BaseCLDataModule)
 
         if(utils.check_python_index(self.cfg_vis.clear_dataset_at, self.cfg.num_loops, self.current_loop)):
-            print(f'INFO: Dreams cleared at loop {self.current_loop}, task {self.current_task}')
+            pp.sprint(f'{pp.COLOR.WARNING}INFO: Dreams cleared at loop {self.current_loop}, task {self.current_task}')
             self.trainer.datamodule.clear_dreams_dataset()
         self._try_generate_dream()
         self._update_data_passer()
-        print(f"STARTING TASK {self.current_task}, loop {self.current_loop} -- classes in task {self.trainer.datamodule.get_task_classes(self.current_task)}")
+        pp.sprint(f"{pp.COLOR.NORMAL}STARTING TASK {self.current_task}, loop {self.current_loop} -- classes in task {self.trainer.datamodule.get_task_classes(self.current_task)}")
         
         self._try_reset_model()
         self.trainer.datamodule.setup_task_index(self.current_task, self.current_loop)
@@ -509,37 +610,23 @@ class CLLoop(Loop):
 
     def _try_export_model_checkpoint(self):
         if self.cfg_save.enable_checkpoint and not self.fast_dev_run:
-            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path)
-            self.trainer.save_checkpoint(
-                filepath / f"checkpoint.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt"
-            )
+            filepath, name = self._generate_save_path('checkpoint')
+            self.trainer.save_checkpoint(filepath / name)
 
     def _try_save_trained_model(self):
         if(self.cfg_save.model and not self.fast_dev_run):
-            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path)
+            filepath, name = self._generate_save_path('trained_model')
             self.trainer.save_checkpoint(
-                filepath / f"trained.loop_{self.current_loop}.{type(self.trainer.lightning_module.model).__name__}.{type(self.trainer.lightning_module).__name__}.{time}.pt",
+                filepath / name,
                 weights_only=True
             )
 
     def _try_load_model(self):
-        if(self.cfg_load.model is not None):
-            if(self._export_path_contains(self.cfg_load.model, self.cfg_load.export_path)):
-                find_path = self.cfg_load.model
-            else:
-                find_path = self.cfg_load.export_path / self.cfg_load.model
-            path = glob.glob(str(find_path), recursive=True)
-            if(len(path) != 1):
-                raise Exception(f'Cannot load model - no or too many matching filenames. From "{find_path}" found only these paths: {path}')
-            path = Path(path[0])
-            if('checkpoint.' in path.name):
-                pass
-            elif('trained.' in path.name):
-                checkpoint = torch.load(path)
-                self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
-                print(f'INFO: Loaded model "{path}"')
-            else:
-                raise Exception(f'Unknown filename to load model. May be the wrong filetype. File: {find_path}')
+        if(self.cfg_load.model):
+            path = self._generate_load_path('trained_model')
+            checkpoint = torch.load(path)
+            self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
+            pp.sprint(f'{pp.COLOR.NORMAL}INFO: Loaded model from "{path}"')
 
     def advance(self, *args: Any, **kwargs: Any) -> None:
         """Used to the run a fitting and testing on the current hold."""
@@ -549,7 +636,7 @@ class CLLoop(Loop):
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule
         and its optimizers."""
-        print(f"ENDING TASK {self.current_task}, loop {self.current_loop}")
+        pp.sprint(f"{pp.COLOR.NORMAL}ENDING TASK {self.current_task}, loop {self.current_loop}")
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
         self._try_export_model_checkpoint()
@@ -595,12 +682,11 @@ class CLLoop(Loop):
             stripped_dict = {}
             for k, v in self.model_stats.items():
                 stripped_dict[k] = v.get_const_data()
-            Path(self.cfg_save.layer_stats).parent.mkdir(parents=True, exist_ok=True)
-            filepath, time = self._gen_folder_name_by_time(export_path=self.cfg_save.export_path)
-            torch.save(stripped_dict, f=filepath / f'layer_stats.loop_{self.current_loop}.{self.cfg_save.layer_stats}.{time}.ls') 
+            filepath, name = self._generate_save_path("stat")
+            torch.save(stripped_dict, f=filepath / name) 
     
     def _try_load_model_layer_stats(self, strict=True):
-        if(self.cfg_load.layer_stats is not None):
+        if(self.cfg_load.layer_stats):
             if(self.model_stats is None):
                 self.model_stats = ModelLayerStatistics(
                     model=self.trainer.lightning_module,
@@ -610,7 +696,9 @@ class CLLoop(Loop):
                     hook_to=self.cfg_layer_stats.hook_to,
                 )
                 self.model_stats.unhook()
-            loaded = torch.load(self.cfg_load.layer_stats)
+            path = self._generate_load_path('layer_stats')
+            loaded = torch.load(path)
             self.model_stats.set_layer_stats_from(loaded)
             self.model_stats = self.model_stats.get_stats()
+            pp.sprint(f'{pp.COLOR.NORMAL}INFO: Loaded layer stats from {path}')
             

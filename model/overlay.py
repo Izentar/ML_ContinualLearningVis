@@ -12,6 +12,7 @@ from model.SAE import SAE_CIFAR
 from utils import utils
 import wandb
 import pandas as pd
+from utils import pretty_print as pp
 
 from config.default import datasets, datasets_map
 from dataclasses import dataclass, field
@@ -61,11 +62,11 @@ class CLModel(base.CLBase):
         if(self.cfg_layer_replace.enable):
             if(self.cfg_layer_replace.source is None or self.cfg_layer_replace.destination_f is None):
                 raise Exception(f'replace_layer_from is None: {self.cfg_layer_replace.source is None} or cfg_layer_replace.destination_f is None: {self.cfg_layer_replace.destination_f is None}')
-            print(f'INFO: Replacing layer from "{self.cfg_layer_replace.source.__class__.__name__}d"')
+            pp.sprint(f'{pp.COLOR.WARNING}INFO: Replacing layer from "{self.cfg_layer_replace.source.__class__.__name__}d"')
             utils.replace_layer(self, 'model', self.cfg_layer_replace.source, self.cfg_layer_replace.destination_f)
             
         self._loss_f = DummyLoss(loss_f)
-        print(f"INFO: Using loss {str(self._loss_f)}")
+        pp.sprint(f"{pp.COLOR.NORMAL_3}INFO: Using loss {str(self._loss_f)}")
 
         self.save_hyperparameters(ignore=['model', '_loss_f', 'optim_manager', 
         'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f'])
@@ -88,24 +89,25 @@ class CLModel(base.CLBase):
     def _map_from_args(self, args, not_from):
         super()._map_from_args(args, not_from)
 
-        self.cfg_robust = self.CONFIG_MAP['robust'](
-            **utils.get_obj_dict(args.model.robust, not_from)
-        )
+        if(args is not None):
+            self.cfg_robust = self.CONFIG_MAP['robust'](
+                **utils.get_obj_dict(args.model.robust, not_from)
+            )
 
-        self.cfg_robust_kwargs = self.CONFIG_MAP['robust_kwargs'](
-            **utils.get_obj_dict(args.model.robust.kwargs, not_from)
-        )
+            self.cfg_robust_kwargs = self.CONFIG_MAP['robust_kwargs'](
+                **utils.get_obj_dict(args.model.robust.kwargs, not_from)
+            )
 
-        self.cfg_layer_replace = self.CONFIG_MAP['layer_replace'](
-            **utils.get_obj_dict(args.model.layer_replace, not_from)
-        )
+            self.cfg_layer_replace = self.CONFIG_MAP['layer_replace'](
+                **utils.get_obj_dict(args.model.layer_replace, not_from)
+            )
 
     def _setup_model(self, model):
         if(self.cfg_robust.enable):
             if(self.cfg_robust.dataset_name is not None and self.cfg_robust.data_path is not None):
                 robust_dataset = self._get_dataset_list(self.cfg_robust.dataset_name)[1](data_path=self.cfg_robust.data_path)
                 if(robust_dataset is not None and self.cfg_robust.enable):
-                    print('INFO: Enabled robust model overlay')
+                    pp.sprint(f'{pp.COLOR.WARNING}INFO: Enabled robust model overlay')
                     self.model = model_utils.make_and_restore_model(
                         arch=model, dataset=robust_dataset, resume_path=self.cfg_robust.resume_path
                     )[0]
@@ -390,10 +392,10 @@ class CLModelIslandsOneHot(CLLatent):
             target_sum_total = selected.sum().item()
             if(target_sum_total != 0):
                 pass
-                print(f'Cl {i.item()}: {correct_sum / target_sum_total}')
+                pp.sprint(f'{pp.COLOR.NORMAL_3}Cl {i.item()}: {correct_sum / target_sum_total}')
             self.valid_correct += correct_sum
             self.valid_all += target_sum_total
-        print(self.valid_correct, self.valid_all, self.valid_correct/self.valid_all)
+        pp.sprint(f"{pp.COLOR.NORMAL_3}", self.valid_correct, self.valid_all, self.valid_correct/self.valid_all)
 
     def test_step(self, batch, batch_idx):
         x, y = batch

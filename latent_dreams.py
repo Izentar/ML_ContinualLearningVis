@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
-from my_parser import arg_parser, log_to_wandb, wandb_run_name
+from my_parser import arg_parser, log_to_wandb, wandb_run_name, export_config
 
 from model.statistics.base import pca
 from collections.abc import Sequence
@@ -31,7 +31,7 @@ import wandb
 from dream.image import Image
 from utils import utils
 from model.activation_layer import GaussA
-from argparse import Namespace
+from pathlib import Path
 from model.overlay import CLModel
 
 def data_transform():
@@ -217,13 +217,19 @@ def logic(args, log_args_to_wandb=True):
     data_passer = {}
 
     tags = []
+    wandb_run_id = wandb.util.generate_id()
     if args.fast_dev_run.flag:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args))
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args),
+        log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=False, id=wandb_run_id)
     if(log_args_to_wandb):
         log_to_wandb(args)
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
+
+    #print(wandb_run_id, wandb.run.name, wandb.run.id)
+    #wandb.save('tmp.txt')
+    #exit()
 
     #set_manager = FunConfigSet(
     #    select_task_type='select-decremental',
@@ -326,6 +332,10 @@ def logic(args, log_args_to_wandb=True):
             'config.val_tasks_split': val_tasks_split
         },
     )
+
+    if(args.wandb.watch.enable):
+        logger.watch(model, log='all', log_freq=args.wandb.log_freq)
+        #wandb.watch(model, log_freq=args.wandb.watch.log_freq, log_graph=args.wandb.watch.log_graph)
     
 
     trainer = pl.Trainer(
@@ -338,10 +348,7 @@ def logic(args, log_args_to_wandb=True):
         log_every_n_steps=1 if args.fast_dev_run.flag else 50,
         num_sanity_val_steps=num_sanity_val_steps,
     )
-    progress_bar._init_progress(trainer)
-
-    #WandbLogger.log("model/sigmaParams": )
-    
+    progress_bar._init_progress(trainer)    
 
     print(f"Fast dev run is {args.fast_dev_run.flag}")
     
@@ -360,25 +367,29 @@ def logic(args, log_args_to_wandb=True):
     trainer.fit(model, datamodule=cl_data_module)
 
     trainer.test(model, datamodule=cl_data_module)
+    if(args.wandb.watch.enable):
+        logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
+    export_config(args, custom_loop.save_folder)
 
     if(args.loop.layer_stats.use_at is not None):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
-        plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model)
+        plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model, filepath=custom_loop.save_folder)
 
     collect_model_information(
         args=args,
         model=model, 
-        attack_kwargs=vars(args.model.robust.kwargs), 
+        attack_kwargs=args.model.robust, 
         dataset_class=dataset_class, 
         train_tasks_split=train_tasks_split, 
         collect_main_split=collect_main_split, 
         logger=logger, 
         dreams_transforms=dreams_transforms, 
         set_manager=set_manager,
+        filepath=custom_loop.save_folder
     )
 
-def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, collect_main_split, logger, dreams_transforms, set_manager):
+def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, collect_main_split, logger, dreams_transforms, set_manager, filepath):
     if(not args.stat.compare_latent and not args.stat.disorder_dream and not args.stat.collect_stats):
         return
     collect_numb_of_points = 2500
@@ -389,7 +400,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
     start_img_value = 0.0
 
     transform = transforms.Compose([transforms.ToTensor()])
-    if(args.stat.collect_stats):
+    if(args.stat.collect_stats and not args.fast_def_run.enable):
         print('STATISTICS: Collecting model stats')
         dataset = dataset_class(root="./data", train=False, transform=transform)
         dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
@@ -409,8 +420,8 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             collect_numb_of_points=collect_numb_of_points, 
             collector_batch_sampler=collector_batch_sampler,
             nrows=nrows, ncols=ncols, 
-            logger=logger, attack_kwargs=attack_kwargs)
-    if(args.stat.compare_latent):
+            logger=logger, attack_kwargs=attack_kwargs, path=filepath)
+    if(args.stat.compare_latent and not args.fast_def_run.enable):
         print('STATISTICS: Compare latent')
         compare_latent = CompareLatent()
         compare_latent(
@@ -423,7 +434,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             loss_obj_step_sample=compare_latent_step_sample,
             enable_transforms=not args.datamodule.vis.disable_transforms,
         )
-    if(args.stat.disorder_dream):
+    if(args.stat.disorder_dream and not args.fast_def_run.enable):
         print('STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
         dataset = dataset_class(root="./data", train=True, transform=transform)
@@ -452,27 +463,29 @@ def extract_data_from_key(data:dict) -> dict:
         new[k[0]][k[1]] = v
     return new
 
-def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:int):
+def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:int, filepath:str=None):
     out = pca(model_stats, overestimated_rank=overestimated_rank)
     plotter = PointPlot()
     to_plot = dict()
+    path = filepath if filepath is not None else Path(model.name()) / "pca"
     for layer_name, v in out.items():
         to_plot[layer_name] = extract_data_from_key(data=v)
     for layer_name, v in to_plot.items(): 
         for torch_size, vv in v.items():
-            plotter.plot_bar(vv, name=f'{model.name()}/pca/{layer_name}/{torch_size}',nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
+            plotter.plot_bar(vv, name= path / layer_name / torch_size ,nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
             
 
-def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module):
+def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     plotter = PointPlot()
+    path = filepath if filepath is not None else Path(model.name())
     for layer_name, v in model_stats.items(): 
         v = v.get_const_data()
         std = v.std
         std = extract_data_from_key(data=std)
         for torch_size, vv in std.items(): 
-            plotter.plot_errorbar(vv, name=f'{model.name()}/pca/std/{layer_name}/{torch_size}')
+            plotter.plot_errorbar(vv, name=path / "pca" / "std" / layer_name / torch_size)
 
-def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, nrows=1, ncols=1, logger=None):
+def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, path, nrows=1, ncols=1, logger=None):
     stats = Statistics()
     dataloader = DataLoader(dataset, 
         num_workers=4, 
@@ -480,36 +493,45 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
         batch_sampler=collector_batch_sampler
     )
 
-    def invoker(model, input):
-        xe = model.forward(
-            input,
-            **attack_kwargs
-        )
-        if(isinstance(xe, tuple)):
-            xe = xe[0]
-        return xe
+    if(attack_kwargs.enable):
+        def invoker(model, input):
+            xe = model.forward(
+                input,
+                **vars(attack_kwargs.kwargs)
+            )
+            if(isinstance(xe, tuple)):
+                xe = xe[0]
+            return xe
+    else:
+        def invoker(model, input):
+            xe = model.forward(input)
+            if(isinstance(xe, tuple)):
+                xe = xe[0]
+            return xe
         
     buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_numb_of_points, to_invoke=invoker,
         logger=logger)
     plotter = PointPlot()
-    name = 'plots/multi'
+
+    if(isinstance(path, str)):
+        path = Path(path)
 
     #plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False, markersize=3, ftype='png')
     #std_mean_dict = Statistics.by_class_operation(Statistics.f_mean_std, buffer, 'saves/mean_std.txt')
-    std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, 'saves/distance.txt')
+    std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, path / 'saves/distance.txt')
     std_mean_distance_dict = Statistics.by_class_operation(
         Statistics.f_average_point_dist_from_means, 
         buffer, 
-        'saves/average_point_dist_from_means.txt', 
+        path / 'saves/average_point_dist_from_means.txt', 
         output=std_mean_distance_dict
     )
     Statistics.mean_distance(std_mean_distance_dict)
-    plotter.plot_3d(buffer, std_mean_distance_dict, name='plots/point-plot-3d')
-    plotter.plot_std_mean(std_mean_distance_dict, name='plots/std-mean', show=False, ftype='png')
-    plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name='plots/distance_class', show=False, ftype='png', markersize=3)
-    plotter.plot_mean_distance(std_mean_distance_dict, name='plots/mean_distance', show=False, ftype='png', markersize=4)
-    plotter.plot_mean_dist_matrix(std_mean_distance_dict, name='plots/mean_dist_matrix', show=False)
-    plotter.saveBuffer(buffer, name='saves/latent')
+    plotter.plot_3d(buffer, std_mean_distance_dict, name=path / 'plots/point-plot-3d')
+    plotter.plot_std_mean(std_mean_distance_dict, name=path / 'plots/std-mean', show=False, ftype='png')
+    plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name=path / 'plots/distance_class', show=False, ftype='png', markersize=3)
+    plotter.plot_mean_distance(std_mean_distance_dict, name=path / 'plots/mean_distance', show=False, ftype='png', markersize=4)
+    plotter.plot_mean_dist_matrix(std_mean_distance_dict, name=path / 'plots/mean_dist_matrix', show=False)
+    plotter.saveBuffer(buffer, name=path / 'saves/latent')
 
 def check(split, num_classes, num_tasks, enable_robust):
     test = set()

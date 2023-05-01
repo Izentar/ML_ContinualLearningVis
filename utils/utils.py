@@ -176,12 +176,22 @@ def _get_model_hierarchy(model, tree_name:str, model_names:list[str], separator=
         _get_model_hierarchy(model=module, separator=separator, tree_name=new_tree_name, model_names=model_names)
     return model_names
 
-def get_obj_dict(args, reject_from: object, accept_only: list = None):
-    ret = {k: v for k, v in vars(args).items() if not isinstance(v, reject_from)}
+def get_obj_dict(args, reject_from: object=None, accept_only: list = None, recursive=False, recursive_types: list[object]=None):
+    if(reject_from is not None):
+        ret = {k: v for k, v in vars(args).items() if not isinstance(v, reject_from)}
+    else:
+        ret = vars(args)
     if(accept_only is not None):
         for k in list(ret.keys()):
             if(k not in accept_only):
                 ret.pop(k, None)
+    if(recursive):
+        if(recursive_types is None and not recursive):
+            raise Exception('Bad arguments. Cannot be "recursive" without "recursive_types"')
+        for k in list(ret.keys()):
+            for r in recursive_types:
+                if(isinstance(ret[k], r)):
+                    ret[k] = get_obj_dict(ret[k], reject_from=reject_from, accept_only=accept_only, recursive=recursive, recursive_types=recursive_types)
     return ret
 
 def get_obj_dict_dataclass(args, reject_from: object, dataclass):

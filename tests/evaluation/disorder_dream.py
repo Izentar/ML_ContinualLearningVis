@@ -46,24 +46,12 @@ class DisorderDream():
             return set(used_class)
         return select_dream_tasks_f
 
-    def scheduler_step(self):
-        self.scheduler.step()
-        print('Scheduler step', self.scheduler._last_lr)
-
     def target_processing_decorator(self, f):
         def wrapper(target, model, *args, **kwargs):
             point = f(target, model, *args, **kwargs)
             self.logged_main_point[0] = point
             return point
         return wrapper
-
-    def get_dream_optim(self):
-        def inner(params):
-            self.optimizer = torch.optim.Adam(params, lr=5e-3)
-            #self.optimizer = torch.optim.SGD(params, lr=0.1, momentum=0.9)
-            self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
-            return self.optimizer
-        return inner
 
     def _select_rand_image(self, dataset, used_class, label):
         indices = select_class_indices_tensor(used_class, torch.IntTensor(dataset.targets))
@@ -135,7 +123,7 @@ class DisorderDream():
             dream_loss_f=None, 
             disorder_input_image=True,
             enable_scheduler=True, # in experiments it does not changes output significantly but the loss converge to zero
-            scheduler_steps=(1024*3, 1024*4, 1024*5),
+            scheduler_step_size=2048,
             dream_threshold=(1024*6,),
             start_img_value=None,
         ):
@@ -176,32 +164,54 @@ class DisorderDream():
 
         dream_image_f = DisorderDream.starting_image_creator(detached_image=image)
 
+        cfg_map={
+            'vis': CustomDreamDataModule.Visualization(
+                per_target=1,
+                threshold=dream_threshold,
+                batch_size=1,
+                disable_transforms=False,
+            ),
+            'cfg': CustomDreamDataModule.Config(
+                train_tasks_split=[[used_class]],
+            ),
+            'vis_optim': CustomDreamDataModule.Visualization.Optimizer(
+                kwargs={
+                    'lr':5e-3
+                },
+            ),
+            
+        }
+
+        if(enable_scheduler):
+            cfg_map.update({
+                'vis_sched': CustomDreamDataModule.Visualization.Scheduler(
+                    type='STEP_SCHED',
+                    kwargs={
+                        'step_size': scheduler_step_size,
+                        'gamma': 0.1,
+                    },
+                ),
+            })
+
         dream_module = CustomDreamDataModule(
-            train_tasks_split=[[used_class]],
+            cfg_map=cfg_map,
             select_dream_tasks_f=DisorderDream.wrapper_select_dream_tasks_f(used_class),
             dream_objective_f=custom_objective_f,
             target_processing_f=self.target_processing_decorator(DisorderDream.target_processing_custom_creator(point)),
-            dreams_per_target=1,
-            dream_threshold=dream_threshold,
-            custom_f_steps=scheduler_steps,
-            custom_f=self.scheduler_step if enable_scheduler else lambda: None,
             dream_image_f=dream_image_f,
             #param_f=DisorderDream.starting_image_creator(detached_image=image),
-            dreaming_batch_size=1,
-            optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
-            enable_dream_transforms=True,
         )
 
         task_index = 0
         model.to(device).eval() # must be before rendervis_state or rendervis_state device can be on cpu
-        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index, layer_hook_obj=None)
+        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index)
         rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
         rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
 
         constructed_dream = dream_module.generate_dreams_for_target(
             model, 
-            used_class, 
+            target=used_class, 
             iterations=1, 
             rendervis_state=rendervis_state,
             task_index=task_index,

@@ -20,7 +20,7 @@ import torch
 from lucent.optvis import objectives
 from dream import transform
 from lucent.misc.io import show
-from colorama import Fore, Back, Style
+from utils import pretty_print as pp
 from utils.utils import parse_image_size
 import wandb
 from utils.utils import hook_model
@@ -108,6 +108,7 @@ class RenderVisState():
         thresholds=None,
         device=None,
         input_image_train_after_hook:list|None=None,
+        scheduler=None,
     ) -> None:
         self.preprocess = preprocess
         self.standard_image_size = standard_image_size
@@ -127,6 +128,7 @@ class RenderVisState():
         self._initval_optimizer = optimizer
         self._set_optimizer(optimizer)
         self._set_model(model)
+        self.scheduler = scheduler
 
         if(transforms is None):
             self._initval_transform_f = None
@@ -156,7 +158,6 @@ class RenderVisState():
             self._set_transform_f(self._initval_transform_f)
         if(hasattr(self, '_hook')):
             self._set_hook(None)
-
 
     @property
     def device(self) -> str:
@@ -230,6 +231,17 @@ class RenderVisState():
         else:
             self._custom_f_steps = (0,)
 
+    @property
+    def scheduler(self):
+        return self._scheduler
+    @scheduler.setter
+    def scheduler(self, value):
+        if(not hasattr(self, 'optimizer') or self.optimizer is None):
+            raise Exception('Setting scheduler while optimizer is None')
+        if(value is None):
+            self._scheduler = None
+            return
+        self._scheduler = value(self.optimizer)
 
     @property
     def optimizer(self) -> torch.optim.Optimizer:
@@ -319,18 +331,18 @@ class RenderVisState():
             _, w, h = parse_image_size(new_size)
             tmp = transform.compose(value)
             if(self.display_additional_info and self.enable_transforms):
-                print(f"VIS: Image size before (up/down)sample - {tmp(self.optim_image.image()).shape}")
+                pp.sprint(f"{pp.COLOR.WARNING}VIS: Image size before (up/down)sample - {tmp(self.optim_image.image()).shape}")
             value.append(
                 torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
             )
 
         if(self.enable_transforms):
             if(self.display_additional_info):
-                print("VIS: ENABLE DREAM TRANSFORMS")
+                pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: ENABLE DREAM TRANSFORMS")
             self._transform_f = transform.compose(value)
         else:
             if(self.display_additional_info):
-                print(f"{Fore.RED}VIS: DISABLE ANY DREAM TRANSFORMS{Style.RESET_ALL}")
+                pp.sprint(f"{pp.COLOR.WARNING}VIS: DISABLE ANY DREAM TRANSFORMS")
             self._transform_f = lambda x: x
 
 def render_vis(
@@ -351,7 +363,7 @@ def render_vis(
 
     if verbose:
         rd.model(rd.transform_f(rd.optim_image.image()))
-        print("Initial loss: {:.3f}".format(rd.objective_f(rd.hook.get_output)))    
+        pp.sprint(f"{pp.COLOR.NORMAL_2}Initial loss: {rd.objective_f(rd.hook.get_output):.3f}")    
     
     images = []
     iterations = max(rd.thresholds)
@@ -374,10 +386,12 @@ def render_vis(
         rd.optimizer.step(closure)
         if i in rd.custom_f_steps:
             rd.advance_end_hook()
+        if(rd.scheduler is not None):
+            rd.scheduler.step()
         if i in rd.thresholds:
             image = tensor_to_img_array(rd.optim_image.image())
             if verbose:
-                print("Loss at step {}: {:.3f}".format(i, rd.objective_f(rd.hook.get_output)))
+                pp.sprint(f"{pp.COLOR.NORMAL_2}Loss at step {i}: {rd.objective_f(rd.hook.get_output):.3f}")
                 if show_inline:
                     show(image)
             images.append(image)

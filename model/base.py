@@ -24,16 +24,28 @@ class CLBase(LightningModule):
     class Optimizer():        
         type: str = 'adam'
         reset_type: str = None
-        lr: float = 1e-3
-        gamma: float = 1.
+        kwargs: dict = None
+
+        def __post_init__(self):
+            if self.kwargs is None:
+                self.kwargs = {
+                    'lr': 1e-3,
+                    'gamma': 1.,
+                }
 
     @dataclass
     class Scheduler():
         type: str = None
         steps: Sequence[int] = None
+        kwargs: dict = None
 
         def __post_init__(self):
             self.steps = self.steps if self.steps is not None else (None, )
+            if self.kwargs is None:
+                self.kwargs = {
+                    'lr': 1e-3,
+                    'gamma': 1.,
+                }
 
     def __init__(
         self, 
@@ -72,9 +84,9 @@ class CLBase(LightningModule):
         self.num_classes = self.cfg.num_classes
 
         self.data_passer = data_passer
-        self.optimizer_construct_f = self.optim_manager.get_optimizer(**vars(self.cfg_optim))
-        self.scheduler_construct_f = self.optim_manager.get_scheduler(**vars(self.cfg_optim))
-        self.optimizer_restart_params_f = self.optim_manager.get_reset_optimizer_f(**vars(self.cfg_optim))
+        self.optimizer_construct_f = self.optim_manager.get_optimizer(**self.cfg_optim.kwargs)
+        self.scheduler_construct_f = self.optim_manager.get_scheduler(**self.cfg_sched.kwargs)
+        self.optimizer_restart_params_f = self.optim_manager.get_reset_optimizer_f(**self.cfg_optim.kwargs)
 
         self.scheduler = None
         self.optimizer = None
@@ -96,16 +108,17 @@ class CLBase(LightningModule):
                 **utils.get_obj_dict_dataclass(args.model, not_from, self.CONFIG_MAP['cfg'])
             )
             self.cfg_optim=self.CONFIG_MAP['optim'](
-                **utils.get_obj_dict(args.model.optim, not_from)
+                **utils.get_obj_dict(args.model.optim, recursive=True, recursive_types=[Namespace])
             )
             self.cfg_sched=self.CONFIG_MAP['sched'](
-                **utils.get_obj_dict(args.model.scheduler, not_from)
+                **utils.get_obj_dict(args.model.scheduler, recursive=True, recursive_types=[Namespace])
             )
 
     def _map_cfg(self, args, cfg_map:dict, var_map:dict):
         setup_args.check(self, args, cfg_map)
         not_from = Namespace
-        self._map_from_args(args, not_from)
+        if(args is not None):
+            self._map_from_args(args, not_from)
         setup_args.setup_map(self, args, cfg_map, var_map)
 
     def valid_accs(self, idx):

@@ -1,4 +1,6 @@
 from argparse import ArgumentParser, Namespace
+from collections.abc import Callable
+from typing import Any
 import wandb
 import sys
 import json
@@ -7,9 +9,7 @@ import glob
 import os
 from utils import utils
 import numpy as np
-from typing import Union, Optional
-from dataclasses import dataclass
-from config.default import default_export_path
+from json import JSONEncoder, JSONDecoder
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -19,8 +19,10 @@ Validation dataset uses data from test dataset but divided into appropriate task
 Test dataset uses test data with only the classes used in previous tasks. 
 """)
 
+
+    parser.add_argument("--wandb.run.folder", type=str, default="log_run/", help='') ##**
     parser.add_argument("--config.seed", type=int, help='Seed of the pytorch random number generator. Default None - random seed.') ##**
-    parser.add_argument("--config.folder", type=str, default='runs/', help='Root forlder of the runs.') ##**
+    parser.add_argument("--config.folder", type=str, default='run_conf/', help='Root forlder of the runs.') ##**
     parser.add_argument("--loop.train_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
 If True, run on all loops, if False, do not run. If "loop.gather_layer_loss_at" is set, then it takes precedence.') ##**
     parser.add_argument("--config.load", action="append", help='The config file(s) that should be used. The config file \
@@ -49,13 +51,13 @@ to choose epoch at which to call it.')
     parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
 
     parser.add_argument("--loop.save.model", action="store_true", help='Save model at the end of all training loops') ##**
-    parser.add_argument("--loop.save.model_inner_path", type=str, help='') ##**
-    parser.add_argument("--loop.load.model", type=str, help='') ##**
+    parser.add_argument("--loop.load.model", action="store_true", help='') ##**
     parser.add_argument("--loop.save.enable_checkpoint", action="store_true", help='')
-    parser.add_argument("--loop.save.export_path", type=str, help='')
-    parser.add_argument("--loop.load.export_path", type=str, help='')
-    parser.add_argument("--loop.save.dreams", type=str, help='') ##**
-    parser.add_argument("--loop.load.dreams", type=str, help='') ##**
+    parser.add_argument("--loop.save.dreams", action="store_true", help='') ##**
+    parser.add_argument("--loop.load.dreams", action="store_true", help='') ##**
+    parser.add_argument("--loop.save.root", type=str, help='') ##**
+    parser.add_argument("--loop.load.root", type=str, help='') ##**
+    parser.add_argument("--loop.load.id", type=str, help='') ##**
     
     ######################################
     #####    numerical parameters   ######
@@ -71,8 +73,8 @@ Array size should be the same as num_loops for each loop.') ##**
 If less than in dataset then model will be trained and validated only using this number of classes')
     parser.add_argument("--model.latent.size", type=int)
 
-    parser.add_argument("--model.optim.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
-    parser.add_argument("--model.optim.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
+    parser.add_argument("--model.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
+    parser.add_argument("--model.optim.kwargs.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
 
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
@@ -100,7 +102,8 @@ Without running this and running "loop.train_at" will run only test. Use this wi
     parser.add_argument("--datamodule.vis.per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
     parser.add_argument("--datamodule.vis.batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
-    parser.add_argument("--datamodule.vis.optim.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
+    parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
+    parser.add_argument("--datamodule.vis.sched.type", type=str)
     parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[1024, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
 images from the batch will be additionaly saved.')
@@ -121,14 +124,17 @@ current batch should be close to each other. Should be lesser than model.loss.ch
     parser.add_argument("--model.loss.chi.rho", type=float, default=1., help='How far means from different targets \
 should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
 
-    parser.add_argument("--loop.vis.use_input_img_var_reg_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
-    parser.add_argument("--loop.vis.use_var_img_reg_at", type=str, nargs='+', help='')
-    parser.add_argument("--loop.vis.use_l2_img_reg_at", type=str, nargs='+', help='')
-    parser.add_argument("--loop.vis.bn_reg_scale", type=float, default=1e2, help='')
-    parser.add_argument("--loop.vis.var_scale", type=float, default=2.5e-5, help='')
-    parser.add_argument("--loop.vis.l2_coeff", type=float, default=1e-05, help='')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion.use_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1e2, help='')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion.hook_to", nargs='+', type=str, help='')
 
-    parser.add_argument("--datamodule.optim.dtype", type=str, default='adam', help='')
+    parser.add_argument("--loop.vis.image_reg.var.use_at", type=str, nargs='+', help='')
+    parser.add_argument("--loop.vis.image_reg.var.scale", type=float, default=2.5e-5, help='')
+
+    parser.add_argument("--loop.vis.image_reg.l2.use_at", type=str, nargs='+', help='')   
+    parser.add_argument("--loop.vis.image_reg.l2.coeff", type=float, default=1e-05, help='')
+
+    parser.add_argument("--datamodule.vis.optim.type", type=str, default='adam', help='')
 
 
     ######################################
@@ -179,28 +185,28 @@ It ') ##**
     parser.add_argument("--loop.layer_stats.use_at", type=int, help='Gather layer statistics \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.layerloss.mean_norm.use_at", type=int, help='Use layer loss function \
+    parser.add_argument("--loop.vis.layerloss.mean_norm.use_at", type=int, help='Use layer loss function \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.save.layer_stats", type=str, help='Path where to save layer_stats.') ##**
-    parser.add_argument("--loop.load.layer_stats", type=str, help='Path from where to load layer_stats.') ##**
+    parser.add_argument("--loop.save.layer_stats", action="store_true", help='Path where to save layer_stats.') ##**
+    parser.add_argument("--loop.load.layer_stats", action="store_true", help='Path from where to load layer_stats.') ##**
     parser.add_argument("--loop.layer_stats.hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
 thrown, list of avaliable layers will be displayed.') ##**
-    parser.add_argument("--loop.layerloss.mean_norm.hook_to", nargs='+', type=str)
-    parser.add_argument("--loop.layerloss.grad_pruning.hook_to", nargs='+', type=str)
-    parser.add_argument("--loop.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.vis.layerloss.mean_norm.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
     parser.add_argument("--model.layer_replace.enable", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
-    parser.add_argument("--loop.layerloss.mean_norm.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
-    parser.add_argument("--loop.layerloss.grad_pruning.use_at", type=int, help='Use gradient pruning at.') ##**
-    parser.add_argument("--loop.layerloss.grad_pruning.percent", type=float, default=0.01,
+    parser.add_argument("--loop.vis.layerloss.mean_norm.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.use_at", type=int, help='Use gradient pruning at.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.percent", type=float, default=0.01,
         help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
-    parser.add_argument("--loop.layerloss.grad_activ_pruning.use_at", type=int, help='') ##**
-    parser.add_argument("--loop.layerloss.grad_activ_pruning.percent", type=float, default=0.01, help='') ##**
-    parser.add_argument("--loop.layerloss.mean_norm.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.use_at", type=int, help='') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.percent", type=float, default=0.01, help='') ##**
+    parser.add_argument("--loop.vis.layerloss.mean_norm.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
 
-    parser.add_argument("--loop.layerloss.mean_norm.device", type=str, default='cuda', help='')
-    parser.add_argument("--loop.layerloss.grad_pruning.device", type=str, default='cuda', help='')
-    parser.add_argument("--loop.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.vis.layerloss.mean_norm.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
     parser.add_argument("--loop.layer_stats.device", type=str, default='cuda', help='')
 
 
@@ -210,13 +216,14 @@ thrown, list of avaliable layers will be displayed.') ##**
     ######################################
     ######          other           ######
     ######################################
-    parser.add_argument("--config.save_folder", type=str, default='run_conf', 
-        help='Folder where to save and load argparse config for flags "config" and "config.export" ')
     parser.add_argument("--pca_estimate_rank", type=int, default=6, 
         help='Slighty overestimated rank of input matrix in PCA algorithm. Default is 6.')
     parser.add_argument("--stat.compare_latent", action="store_true", help='')
     parser.add_argument("--stat.disorder_dream", action="store_true", help='')
     parser.add_argument("--stat.collect_stats", action="store_true", help='')
+
+    parser.add_argument("--wandb.watch.enable", action="store_true", help='')
+    parser.add_argument("--wandb.watch.log_freq", type=int, default=1000, help='')
 
     args = parser.parse_args()
 
@@ -313,24 +320,27 @@ def wandb_run_name(args):
         if(args.datamodule.vis.disable_transforms != True):
             tr = "tr_"
     text = f"{args.model.type}_{dream}{tr}"
-    if(args.loop.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
-        text = f"{text}ll_mean_norm{args.loop.layerloss.scaling}_"
+    if(args.loop.vis.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
+        text = f"{text}ll_mean_norm{args.loop.vis.layerloss.scaling}_"
     if(args.model.layer_replace.enable):
         text = f"{text}replayer_"
-    if(args.loop.layerloss.grad_pruning.use_at is not None and args.loop.layerloss.grad_pruning.use_at != False):
-        text = f"{text}gp{args.loop.layerloss.grad_pruning.percent}_"
-    if(args.loop.layerloss.grad_activ_pruning.use_at is not None and args.loop.layerloss.grad_activ_pruning.use_at != False):
-        text = f"{text}gap{args.loop.layerloss.grad_activ_pruning.percent}_"
+    if(args.loop.vis.layerloss.grad_pruning.use_at is not None and args.loop.vis.layerloss.grad_pruning.use_at != False):
+        text = f"{text}gp{args.loop.vis.layerloss.grad_pruning.percent}_"
+    if(args.loop.vis.layerloss.grad_activ_pruning.use_at is not None and args.loop.vis.layerloss.grad_activ_pruning.use_at != False):
+        text = f"{text}gap{args.loop.vis.layerloss.grad_activ_pruning.percent}_"
     
     return f"{text}{np.random.randint(0, 5000)}"
 
-def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
+def load_config(args: Namespace, parser: ArgumentParser, filepath:str=None) -> Namespace:
     """
         Load config file as defaults arguments. Arguments from command line have priority. 
     """
     if args.__dict__['config.load'] is not None:
         for conf_fname in args.__dict__['config.load']:
-            folder = Path(args.__dict__['config.save_folder'])
+            if(filepath is None):
+                folder = Path(args.__dict__['config.folder'])
+            else:
+                folder = filepath if not isinstance(filepath, Path) else Path(filepath)
             file = folder / conf_fname
             file = glob.glob(str(file), recursive=True)
             if(len(file) != 1):
@@ -342,23 +352,41 @@ def load_config(args: Namespace, parser: ArgumentParser) -> Namespace:
         args = parser.parse_args()
     return args
 
-def export_config(args: Namespace) -> None:
-    if args.__dict__['config.export'] and not args.fast_dev_run:
+def export_config(args: Namespace, filepath:str=None) -> None:
+    if ((args.__dict__.get('config.export') or (hasattr(args, 'config') and args.config.export)) 
+            and (args.__dict__.get('fast_dev_run.flag') or (hasattr(args, 'fast_dev_run') and args.fast_dev_run.flag))):
         tmp_args = vars(args).copy()
-        del tmp_args['config.export']  # Do not dump value of conf_export flag
-        del tmp_args['config']  # Values already loaded
-        del tmp_args['fast_dev_run']  # Fast dev run should not be present in config file
+        if(args.__dict__.get('config.export')):
+            del tmp_args['config.export']  # Do not dump value of conf_export flag
+            del tmp_args['config.load']
+            del tmp_args['fast_dev_run.flag']  # Fast dev run should not be present in config file
 
-        # Remove all options that are corelated to saving and loading
-        del tmp_args['loop.load.dreams']  
-        del tmp_args['loop.save.dreams']  
-        del tmp_args['loop.export_path'] 
-        del tmp_args['loop.save.model_inner_path'] 
-        del tmp_args['loop.load.model'] 
-        del tmp_args['loop.save.model'] 
-        del tmp_args['loop.save.enable_checkpoint'] 
-        path = Path(args.__dict__['config.save_folder']) / args.config.export
+            # Remove all options that are corelated to saving and loading
+            del tmp_args['loop.load.dreams']  
+            del tmp_args['loop.load.model'] 
+            del tmp_args['loop.load.layer_stats'] 
+
+            del tmp_args['loop.save.dreams']  
+            del tmp_args['loop.save.model'] 
+            del tmp_args['loop.save.layer_stats'] 
+            del tmp_args['loop.save.enable_checkpoint'] 
+            if(filepath is None):
+                path = path = Path(args.__dict__['config.folder']) / args.__dict__['config.export']
+            else:
+                path = filepath if not isinstance(filepath, Path) else Path(filepath) / args.__dict__['config.export']
+        else:
+            if(filepath is None):
+                path = path = Path(args.config.folder) / args.config.export
+            else:
+                path = filepath if not isinstance(filepath, Path) else Path(filepath) / args.config.export
+
         Path.mkdir(path.parent, parents=True, exist_ok=True)
-        dump = json.dumps(tmp_args,  indent=4, sort_keys=True)
+        dump = json.dumps(tmp_args, indent=4, sort_keys=True, cls=NamespaceEncoder)
         with open(path, 'w') as f:
             f.write(dump)
+
+class NamespaceEncoder(JSONEncoder):
+    def default(self, obj):
+        if(isinstance(obj, Namespace)):
+            return obj.__dict__
+        return JSONEncoder.default(self, obj)

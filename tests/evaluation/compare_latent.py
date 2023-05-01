@@ -47,18 +47,6 @@ class CompareLatent():
             return point
         return wrapper
 
-    def get_dream_optim(self):
-        def inner(params):
-            self.optimizer = torch.optim.Adam(params, lr=5e-3)
-            #self.optimizer = torch.optim.SGD(params, lr=0.1, momentum=0.9)
-            self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
-            return self.optimizer
-        return inner
-
-    def scheduler_step(self):
-        self.scheduler.step()
-        print('Scheduler step', self.scheduler._last_lr)
-
     def __call__(
             self, 
             model, 
@@ -68,7 +56,7 @@ class CompareLatent():
             target_processing_f=None, 
             loss_f=None,
             enable_scheduler=True, 
-            scheduler_steps=(1024*3, 1024*4, 1024*5),
+            scheduler_step_size=2048,
             dream_threshold=(1024*6,),
             loss_obj_step_sample=False,
             enable_transforms=True,
@@ -102,26 +90,48 @@ class CompareLatent():
 
         dream_image_f = self.param_f_image
 
+        cfg_map={
+            'vis': CustomDreamDataModule.Visualization(
+                per_target=1,
+                threshold=dream_threshold,
+                batch_size=1,
+                disable_transforms=not enable_transforms,
+            ),
+            'cfg': CustomDreamDataModule.Config(
+                train_tasks_split=[[used_class]],
+            ),
+            'vis_optim': CustomDreamDataModule.Visualization.Optimizer(
+                kwargs={
+                    'lr':5e-3
+                },
+            ),
+            
+        }
+
+        if(enable_scheduler):
+            cfg_map.update({
+                'vis_sched': CustomDreamDataModule.Visualization.Scheduler(
+                    type='STEP_SCHED',
+                    kwargs={
+                        'step_size': scheduler_step_size,
+                        'gamma': 0.1,
+                    },
+                ),
+            })
+
         dream_module = CustomDreamDataModule(
-            train_tasks_split=[[used_class]],
+            cfg_map=cfg_map,
             select_dream_tasks_f=CompareLatent.wrapper_select_dream_tasks_f(used_class),
             dream_objective_f=objective_fun,
             target_processing_f=custom_target_processing_f,
-            dreams_per_target=1,
-            dream_threshold=dream_threshold,
-            custom_f_steps=scheduler_steps,
-            custom_f=self.scheduler_step if enable_scheduler else lambda: None,
             dream_image_f=dream_image_f,
-            dreaming_batch_size=1,
-            optimizer=self.get_dream_optim(),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_fetch_transform),
-            enable_dream_transforms=enable_transforms
         )
 
         task_index = 0
 
         model.to(device).eval() # must be before rendervis_state or rendervis_state device can be on cpu
-        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index, layer_hook_obj=None)
+        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index)
         rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
         rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
 
