@@ -1,5 +1,5 @@
 
-from torchvision.models import resnet18, resnet
+from torchvision.models import resnet18, resnet, ResNet18_Weights
 from torchvision import models
 from torch import nn
 from pytorchcv.model_provider import get_model as ptcv_get_model
@@ -16,10 +16,14 @@ class ResNetBase(nn.Module, ModelBase):
                     nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
 
 class ResNet18(ResNetBase):
-    def __init__(self, num_classes, *args, **kwargs):
+    def __init__(self, num_classes, default_weights:bool=False, *args, **kwargs):
         super().__init__()
 
-        self.resnet = resnet18(num_classes=num_classes)
+        if(default_weights):
+            default_weights = ResNet18_Weights.DEFAULT
+        self.resnet = resnet18(weights=default_weights)
+        # reinit layer for finetuning
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, num_classes)
         self._initialize_weights()
 
     def forward(self, x, **kwargs):
