@@ -320,7 +320,7 @@ def wandb_run_name(args):
         dream = 'dream_'
         if(args.datamodule.vis.disable_transforms != True):
             tr = "tr_"
-    text = f"{args.model.type}_{dream}{tr}"
+    text = f"{args.config.framework_type}_{dream}{tr}"
     if(args.loop.vis.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
         text = f"{text}ll_mean_norm{args.loop.vis.layerloss.scaling}_"
     if(args.model.layer_replace.enable):

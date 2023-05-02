@@ -487,9 +487,9 @@ class CLLoop(Loop):
         folder = folder / adds
         adds = ""
 
-        if(hasattr(self, 'vis_regularization_var') and self.vis_regularization_var and len(self.cfg_vis_regularization_var.hook_to) != 0):
-            adds = f"{adds}_image_reg_var"
-        if(hasattr(self, 'vis_regularization_l2') and self.vis_regularization_l2 and len(self.cfg_vis_regularization_l2.hook_to) != 0):
+        if(hasattr(self, 'vis_regularization_var') and self.vis_regularization_var and utils.check_python_enabled(self.cfg_vis_regularization_var.use_at)):
+            adds = f"{adds}image_reg_var"
+        if(hasattr(self, 'vis_regularization_l2') and self.vis_regularization_l2 and utils.check_python_enabled(self.cfg_vis_regularization_l2.use_at)):
             adds = f"{adds}_image_reg_l2"
 
         folder = folder / adds
