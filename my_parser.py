@@ -354,8 +354,19 @@ def load_config(args: Namespace, parser: ArgumentParser, filepath:str=None) -> N
     return args
 
 def can_export_config(args) -> bool:
-    return ((args.__dict__.get('config.export') or (hasattr(args, 'config') and args.config.export)) 
-            and (args.__dict__.get('fast_dev_run.enable') or (hasattr(args, 'fast_dev_run') and args.fast_dev_run.enable)))
+    fast_dev_run = args.__dict__.get('fast_dev_run.enable')
+    if(fast_dev_run is None):
+        if(not hasattr(args, 'fast_dev_run')):
+            raise Exception("No argument args.fast_dev_run")
+        fast_dev_run = args.fast_dev_run.enable
+
+    config_export = args.__dict__.get('config.export')
+    if(config_export is None):
+        if(not hasattr(args, 'config')):
+            raise Exception("No argument args.config")
+        config_export = args.config.export
+        
+    return config_export and not fast_dev_run
 
 def export_config(args: Namespace, filepath:str=None) -> None:
     if can_export_config(args):
