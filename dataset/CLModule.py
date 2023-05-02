@@ -255,7 +255,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             model.eval()
 
         layer_hook_obj = layer_hook_obj if layer_hook_obj is not None else ()
-        input_image_train_after_obj = input_image_train_after_obj if input_image_train_after_obj is not None else ()
+        input_image_train_after_obj = input_image_train_after_obj if input_image_train_after_obj is not None else []
         custom_loss_gather_f, run_name = self.get_custom_loss_gather_f(task_index, *layer_hook_obj, *input_image_train_after_obj)
         rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f, input_image_train_after_hook=input_image_train_after_obj)
         

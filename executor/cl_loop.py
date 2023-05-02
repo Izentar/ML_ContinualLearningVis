@@ -335,7 +335,7 @@ class CLLoop(Loop):
 
     def _try_generate_dream(self):
         if utils.check_python_index(self.cfg_vis.generate_at, self.cfg.num_loops, self.current_loop):
-            layer_hook_obj = []
+            layerloss_hook_obj = []
             layer_handles = []
             input_image_train_after_obj = []
 
@@ -344,7 +344,7 @@ class CLLoop(Loop):
                 self._try_load_model_layer_stats()
                 self.vis_layerloss_mean_norm = True
                 tmp = layerloss.MeanNorm(device=self.cfg_mean_norm.device, del_cov_after=self.cfg_mean_norm.del_cov_after, scaling=self.cfg_mean_norm.scaling)
-                layer_hook_obj.append(tmp)
+                layerloss_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
@@ -356,7 +356,7 @@ class CLLoop(Loop):
                 self._try_load_model_layer_stats()
                 self.layerloss_grad_pruning = True
                 tmp = layerloss.LayerGradPruning(device=self.cfg_grad_pruning.device, percent=self.cfg_grad_pruning.percent)
-                layer_hook_obj.append(tmp)
+                layerloss_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
                     stats=self.model_stats, 
@@ -368,7 +368,7 @@ class CLLoop(Loop):
                 self._try_load_model_layer_stats()
                 self.layerloss_grad_activ_pruning = True
                 tmp = layerloss.LayerGradActivationPruning(device=self.cfg_grad_activ_pruning.device, percent=self.cfg_grad_activ_pruning.percent)
-                layer_hook_obj.append(tmp)
+                layerloss_hook_obj.append(tmp)
                 layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 
                     fun=tmp.hook_fun, 
@@ -378,8 +378,8 @@ class CLLoop(Loop):
             if(utils.check_python_index(self.cfg_deep_inversion.use_at, self.cfg.num_loops, self.current_loop)):
                 self._try_generate_dream_print_msg("DEEP INVERSION")
                 tmp = layerloss.DeepInversionFeatureLoss(scale=self.cfg_deep_inversion.scale)
-                input_image_train_after_obj.append(tmp)
                 self.layerloss_deep_inversion = True
+                layerloss_hook_obj.append(tmp)
                 layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 
                     fun=tmp.hook_fun, 
@@ -403,7 +403,7 @@ class CLLoop(Loop):
             self.trainer.datamodule.generate_synthetic_data(
                 model=self.trainer.lightning_module, 
                 task_index=self.current_task, 
-                layer_hook_obj=layer_hook_obj,
+                layer_hook_obj=layerloss_hook_obj,
                 input_image_train_after_obj=input_image_train_after_obj,
             )
             if(len(layer_handles) != 0):
