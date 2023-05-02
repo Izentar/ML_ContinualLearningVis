@@ -30,7 +30,7 @@ def inner_obj_latent(target_layer, target_val, batch=None, loss_f=None):
     return inner
 
 @wrap_objective()
-def inner_obj_latent_obj_max_val_channel(target_layer, target_val, batch=None, loss_f=None):
+def inner_obj_latent_obj_max_val_channel(target_layer, target_val: torch.Tensor, batch=None, loss_f=None):
     loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
 
     @handle_batch(batch)
@@ -41,6 +41,18 @@ def inner_obj_latent_obj_max_val_channel(target_layer, target_val, batch=None, l
         latent_target = latent_target[:, 0]
         loss = loss_f(latent, latent_target)
         return loss
+    return inner
+
+@wrap_objective()
+def objective_crossentropy(target_layer, target_val: torch.Tensor, batch=None, loss_f=None):
+    loss_f = torch.nn.CrossEntropyLoss()
+    @handle_batch(batch)
+    def inner(model):
+        latent = model(target_layer)
+        target_vector = target_val.long().repeat(len(latent))
+        loss = loss_f(latent, target_vector)
+        return loss
+
     return inner
 
 # =====================================================
@@ -199,8 +211,15 @@ def diversity(layer):
 def dream_objective_SAE_diversity_cosine(model, **kwargs):
     return 0.3 * diversity(model.get_root_objective_target() + 'conv_enc2')
 
+def dream_objective_crossentropy(target_point, model, **kwargs):
+    return objective_crossentropy(
+        target_layer=model.get_objective_target_name(), 
+        target_val=target_point.to(model.device), 
+    )
+
 class DreamObjectiveManager():
     GET_OBJECTIVE = {
+        'OBJECTIVE-CROSS-ENTROPY': dream_objective_crossentropy,
         'OBJECTIVE-LATENT-CHANNEL': dream_objective_latent_channel,
         'OBJECTIVE-CHANNEL': dream_objective_channel,
         'OBJECTIVE-RESNET20-C100-CHANNEL': dream_objective_RESNET20_C100_channel,
