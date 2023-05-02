@@ -252,8 +252,15 @@ class FunConfigSetPredefined(FunConfigSet):
             "OBJECTIVE-LATENT-LOSSF-CREATOR", 
             "sae", 
             "CL-MODEL-ISLAND"
-        ]
-
+        ],
+        "resnet18-crossentropy": [
+            "SELECT-CLASSIC", 
+            "target-classic", 
+            "NO-SPLIT", 
+            "objective-channel", 
+            "resnet18", 
+            "CL-MODEL"
+        ],
     }
 
     def __init__(

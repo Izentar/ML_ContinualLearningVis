@@ -91,7 +91,7 @@ class CompareLatent():
         dream_image_f = self.param_f_image
 
         cfg_map={
-            'vis': CustomDreamDataModule.Visualization(
+            'cfg_vis': CustomDreamDataModule.Visualization(
                 per_target=1,
                 threshold=dream_threshold,
                 batch_size=1,
@@ -100,7 +100,7 @@ class CompareLatent():
             'cfg': CustomDreamDataModule.Config(
                 train_tasks_split=[[used_class]],
             ),
-            'vis_optim': CustomDreamDataModule.Visualization.Optimizer(
+            'cfg_vis_optim': CustomDreamDataModule.Visualization.Optimizer(
                 kwargs={
                     'lr':5e-3
                 },
@@ -110,7 +110,7 @@ class CompareLatent():
 
         if(enable_scheduler):
             cfg_map.update({
-                'vis_sched': CustomDreamDataModule.Visualization.Scheduler(
+                'cfg_vis_sched': CustomDreamDataModule.Visualization.Scheduler(
                     type='STEP_SCHED',
                     kwargs={
                         'step_size': scheduler_step_size,

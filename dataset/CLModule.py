@@ -20,7 +20,6 @@ from argparse import Namespace
 
 from utils import pretty_print as pp
 
-
 class BaseCLDataModule(LightningDataModule, ABC):
     @abstractmethod
     def setup_tasks(self) -> None:
@@ -599,26 +598,27 @@ class CLDataModule(DreamDataModule):
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
+        batch_size=self.cfg.batch_size if self.datasampler is None else 1
         if self._check_dream_dataset_setup():
             # first loop is always False. After accumulating dreams this dataloader will be used.
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
             dream_tasks_classes = self._get_all_prev_dream_classes()
-            pp.sprint(f"{pp.COLOR.NORMAL_4}Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}")
+            pp.sprint(f"{pp.COLOR.NORMAL_4}Selected dream dataloader classes: {dream_tasks_classes}. Use datasampler={self.datasampler is not None}. Batch size: {batch_size}")
 
             if(len(self.dreams_dataset) == 0):
                 raise Exception("Empty dream dataset. Run dream generation or load dreams from file.")
 
             dream_loader = DataLoader(
-                self.dreams_dataset, # give full dataset, var classes is used to select classes
-                batch_size=self.cfg_vis.batch_size if self.datasampler is None else 1, 
+                self.dream_dataset_for_current_task, # give full dataset, var classes is used to select classes
+                batch_size=batch_size, 
                 num_workers=self.cfg_vis.num_workers, 
                 shuffle=self.cfg_vis.shuffle if self.datasampler is None else False, 
                 pin_memory=True,
                 batch_sampler=self.datasampler(
-                    dataset=self.dreams_dataset , # give full dataset, var classes is used to select classes
+                    dataset=self.dream_dataset_for_current_task , # give full dataset, var classes is used to select classes
                     shuffle=self.cfg_vis.shuffle,
                     classes=dream_tasks_classes, # all classes that were dream of at least once
-                    batch_size=self.cfg_vis.batch_size,
+                    batch_size=self.cfg.batch_size,
                 ) if self.datasampler is not None else None
             )
 
@@ -626,7 +626,7 @@ class CLDataModule(DreamDataModule):
 
         normal_loader = DataLoader(
             self.train_task,
-            batch_size=self.cfg.batch_size if self.datasampler is None else 1,
+            batch_size=batch_size,
             num_workers=self.cfg.num_workers,
             shuffle=self.cfg.shuffle if self.datasampler is None else False, 
             pin_memory=True,

@@ -165,7 +165,7 @@ class DisorderDream():
         dream_image_f = DisorderDream.starting_image_creator(detached_image=image)
 
         cfg_map={
-            'vis': CustomDreamDataModule.Visualization(
+            'cfg_vis': CustomDreamDataModule.Visualization(
                 per_target=1,
                 threshold=dream_threshold,
                 batch_size=1,
@@ -174,7 +174,7 @@ class DisorderDream():
             'cfg': CustomDreamDataModule.Config(
                 train_tasks_split=[[used_class]],
             ),
-            'vis_optim': CustomDreamDataModule.Visualization.Optimizer(
+            'cfg_vis_optim': CustomDreamDataModule.Visualization.Optimizer(
                 kwargs={
                     'lr':5e-3
                 },
@@ -184,7 +184,7 @@ class DisorderDream():
 
         if(enable_scheduler):
             cfg_map.update({
-                'vis_sched': CustomDreamDataModule.Visualization.Scheduler(
+                'cfg_vis_sched': CustomDreamDataModule.Visualization.Scheduler(
                     type='STEP_SCHED',
                     kwargs={
                         'step_size': scheduler_step_size,

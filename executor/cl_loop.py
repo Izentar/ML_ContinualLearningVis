@@ -470,7 +470,7 @@ class CLLoop(Loop):
         time = datetime.datetime.now().strftime("%H-%M-%S")
         model_type = type(self.trainer.lightning_module.model).__name__
         overlay_type = type(self.trainer.lightning_module).__name__
-        folder = Path(overlay_type) / model_type / f"loop_{self.current_loop}" / f"epoch_{self.epoch_num}"
+        folder = Path(overlay_type) / model_type
 
         adds = ""
         if(hasattr(self, 'layer_stats_use_at') and self.layer_stats_use_at and len(self.cfg_layer_stats.hook_to) != 0):
@@ -505,7 +505,7 @@ class CLLoop(Loop):
         gen_path = self.cfg_save.root / folder / self.folder_output_path / self.run_name
         Path.mkdir(gen_path, parents=True, exist_ok=True)
         self._save_folder = gen_path
-        return gen_path, f"{dtype}.{date}_{time}.{file_type}"
+        return gen_path, f"{dtype}.{date}_{time}_loop_{self.current_loop}_epoch_{self.epoch_num}.{file_type}"
     
     def _generate_load_path(self, dtype: str):
         if(self.cfg_load.id is None):

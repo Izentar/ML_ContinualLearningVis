@@ -39,7 +39,8 @@ buffer used in island overlay for model.')
 
     parser.add_argument("--datamodule.disable_shuffle", action="store_true", help='Flag to shuffle train normal and dream datasets. If \
 flag "dataloader_disable_dream_shuffle" is set then it takes precedence over this flag.')
-    # worker numbers
+    
+    # worker numbers, try experimenting with this to speed up computation
     parser.add_argument("--datamodule.num_workers", type=int, default=4, help='Number of dataloader workers.')
     parser.add_argument("--datamodule.vis.num_workers", type=int, help='Number of visualization dataloader workers.')
     parser.add_argument("--datamodule.test_num_workers", type=int, help='Number of test dataloader workers.')
@@ -104,7 +105,7 @@ Without running this and running "loop.train_at" will run only test. Use this wi
 in batch during dreaming should be produced.')
     parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
     parser.add_argument("--datamodule.vis.sched.type", type=str)
-    parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[1024, ], help='How many iterations should \
+    parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[512, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
 images from the batch will be additionaly saved.')
     parser.add_argument("--datamodule.vis.disable_transforms", action="store_true", help='Enable and add all default \

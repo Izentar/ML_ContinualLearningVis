@@ -319,7 +319,7 @@ def logic(args, log_args_to_wandb=True):
         fast_dev_run=args.fast_dev_run.enable,
         fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_sets.DreamDataset(enable_robust=args.model.robust.enable, transform=dreams_transforms),
+        empty_dream_dataset=dream_sets.DreamDataset(transform=dreams_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
         logger=logger,
@@ -401,7 +401,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
     start_img_value = 0.0
 
     transform = transforms.Compose([transforms.ToTensor()])
-    if(args.stat.collect_stats and not args.fast_def_run.enable):
+    if(args.stat.collect_stats and not args.fast_dev_run.enable):
         print('STATISTICS: Collecting model stats')
         dataset = dataset_class(root="./data", train=False, transform=transform)
         dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
@@ -422,7 +422,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             collector_batch_sampler=collector_batch_sampler,
             nrows=nrows, ncols=ncols, 
             logger=logger, attack_kwargs=attack_kwargs, path=custom_loop.save_folder)
-    if(args.stat.compare_latent and not args.fast_def_run.enable):
+    if(args.stat.compare_latent and not args.fast_dev_run.enable):
         print('STATISTICS: Compare latent')
         compare_latent = CompareLatent()
         compare_latent(
@@ -435,7 +435,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             loss_obj_step_sample=compare_latent_step_sample,
             enable_transforms=not args.datamodule.vis.disable_transforms,
         )
-    if(args.stat.disorder_dream and not args.fast_def_run.enable):
+    if(args.stat.disorder_dream and not args.fast_dev_run.enable):
         print('STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
         dataset = dataset_class(root="./data", train=True, transform=transform)

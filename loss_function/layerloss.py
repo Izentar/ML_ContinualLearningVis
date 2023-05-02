@@ -55,9 +55,9 @@ class DeepInversionFeatureLoss(LayerBase):
         Implementation of the forward hook to track feature statistics and compute a loss on them.
         Will compute mean and variance, and will use l2 as a loss
     '''
-    def __init__(self, bn_reg_scale) -> None:
+    def __init__(self, scale) -> None:
         self.r_feature = None
-        self.bn_reg_scale = bn_reg_scale
+        self.scale = scale
 
     def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, new_tree_name:str):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
@@ -75,7 +75,7 @@ class DeepInversionFeatureLoss(LayerBase):
         return module.register_forward_hook(inner)
 
     def gather_loss(self, loss):
-        return loss + self.bn_reg_scale * self.r_feature 
+        return loss + self.scale * self.r_feature 
 
 class LayerGradPruning(LayerBase):
     def __init__(self, device, percent) -> None:

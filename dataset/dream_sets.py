@@ -8,7 +8,7 @@ class DreamDataset(Dataset):
     """
         Class for storing dreams. It implements extend method so it can accumulate them during 
     """
-    def __init__(self, transform=None, **kwargs) -> None:
+    def __init__(self, transform=None) -> None:
         self.dreams = []
         self.targets = []
         self.transform = transform
