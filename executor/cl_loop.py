@@ -331,7 +331,7 @@ class CLLoop(Loop):
         self._try_save_model_layer_stats()
 
     def _try_generate_dream_print_msg(self, dtype:str):
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: hooking model during visualization to - {pp.COLOR.DETAIL}LOSS FUNCTION{pp.COLOR.NORMAL} - task: {self.current_task}, loop {self.current_loop}")
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: hooking model during visualization to - {pp.COLOR.DETAIL}{dtype}{pp.COLOR.NORMAL} - task: {self.current_task}, loop {self.current_loop}")
 
     def _try_generate_dream(self):
         if utils.check_python_index(self.cfg_vis.generate_at, self.cfg.num_loops, self.current_loop):
