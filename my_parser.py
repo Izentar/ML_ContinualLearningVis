@@ -128,7 +128,7 @@ current batch should be close to each other. Should be lesser than model.loss.ch
 should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
 
     parser.add_argument("--loop.vis.layerloss.deep_inversion.use_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
-    parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1e2, help='')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1., help='')
     parser.add_argument("--loop.vis.layerloss.deep_inversion.hook_to", nargs='+', type=str, help='')
 
     parser.add_argument("--loop.vis.image_reg.var.use_at", type=str, nargs='+', help='')
@@ -374,10 +374,11 @@ def can_export_config(args) -> bool:
         
     return config_export and not fast_dev_run
 
-def export_config(args: Namespace, filepath:str=None) -> None:
-    if can_export_config(args):
+def export_config(args: Namespace, filepath:str=None, filename:str=None) -> None:
+    if can_export_config(args) or filename is not None:
         tmp_args = vars(args).copy()
         if(args.__dict__.get('config.export')):
+            filename = args.__dict__.get('config.export') if filename is None else filename
             del tmp_args['config.export']  # Do not dump value of conf_export flag
             del tmp_args['config.load']
             del tmp_args['fast_dev_run.enable']  # Fast dev run should not be present in config file
@@ -392,14 +393,15 @@ def export_config(args: Namespace, filepath:str=None) -> None:
             del tmp_args['loop.save.layer_stats'] 
             del tmp_args['loop.save.enable_checkpoint'] 
             if(filepath is None):
-                path = path = Path(args.__dict__['config.folder']) / args.__dict__['config.export']
+                path = path = Path(args.__dict__['config.folder']) / filename
             else:
-                path = filepath if not isinstance(filepath, Path) else Path(filepath) / args.__dict__['config.export']
+                path = filepath if not isinstance(filepath, Path) else Path(filepath) / filename
         else:
+            filename = args.config.export if filename is None else filename
             if(filepath is None):
-                path = path = Path(args.config.folder) / args.config.export
+                path = path = Path(args.config.folder) / filename
             else:
-                path = filepath if not isinstance(filepath, Path) else Path(filepath) / args.config.export
+                path = filepath if not isinstance(filepath, Path) else Path(filepath) / filename
 
         Path.mkdir(path.parent, parents=True, exist_ok=True)
         dump = json.dumps(tmp_args, indent=4, sort_keys=True, cls=NamespaceEncoder)

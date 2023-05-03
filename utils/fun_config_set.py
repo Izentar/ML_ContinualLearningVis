@@ -9,7 +9,7 @@ from typing import Union
 
 from model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
 from model.vgg import vgg11_bn
-from model.ResNet import ResNet18, Resnet20C100
+from model.ResNet import ResNet18, Resnet20C100, ResNet34, CustomResNet34
 from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsOneHot
 from model.DLA import DLA
 
@@ -28,6 +28,8 @@ class FunConfigSetBase():
         'SAE': SAE_CIFAR,
         'VGG': vgg11_bn,
         'RESNET18': ResNet18,
+        'RESNET34': ResNet34,
+        'CUSTOM-RESNET34': CustomResNet34,
         'RESNET20C100': Resnet20C100,
         'SAEGAUSS': SAE_CIFAR_GAUSS,
         'SAECONJ': SAE_CIFAR_CONJ,

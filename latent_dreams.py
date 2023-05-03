@@ -40,6 +40,7 @@ def data_transform():
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
         ]
     )
 
@@ -180,7 +181,6 @@ def logic(args, log_args_to_wandb=True):
     #wandb_offline = True
     
     num_sanity_val_steps = 0
-    train_data_transform = data_transform() #transforms.Compose([transforms.ToTensor()])
     dreams_transforms = data_transform()
 
     datasampler = select_datasampler(dtype=args.config.datasampler_type, main_split=main_split)
@@ -311,7 +311,13 @@ def logic(args, log_args_to_wandb=True):
     
 
     cl_data_module = CLDataModule(
-        data_transform=train_data_transform,
+        data_transform=data_transform(),
+        test_transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+            ]
+        ),
         dataset_class=dataset_class,
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
@@ -370,8 +376,8 @@ def logic(args, log_args_to_wandb=True):
     if(args.wandb.watch.enable):
         logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
-    if(can_export_config(args)):
-        export_config(args, custom_loop.save_folder)
+    if(not args.fast_dev_run.enable):
+        export_config(args, custom_loop.save_folder, 'run_config.json')
 
     if(args.loop.layer_stats.use_at is not None):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)

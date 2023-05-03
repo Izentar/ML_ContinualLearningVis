@@ -19,6 +19,7 @@ from typing import Union
 from argparse import Namespace
 
 from utils import pretty_print as pp
+from torchvision import transforms
 
 class BaseCLDataModule(LightningDataModule, ABC):
     @abstractmethod
@@ -444,6 +445,7 @@ class CLDataModule(DreamDataModule):
         self,
         dataset_class,
         data_transform,
+        test_transform,
         steps_to_locate_mean = None,
         datasampler=None,
         **kwargs
@@ -479,6 +481,7 @@ class CLDataModule(DreamDataModule):
         # TODO
         self.dataset_class = dataset_class
         self.data_transform = data_transform
+        self.test_transform = test_transform
 
         pp.sprint(f"{pp.COLOR.NORMAL_4}Validation task split: {self.cfg.val_tasks_split}")        
 
@@ -494,7 +497,7 @@ class CLDataModule(DreamDataModule):
         train_dataset = self.dataset_class(
             root=self.cfg.root, train=True, transform=self.data_transform, download=True
         )
-        test_dataset = self.dataset_class(root=self.cfg.root, train=False, transform=self.data_transform)
+        test_dataset = self.dataset_class(root=self.cfg.root, train=False, transform=self.test_transform)
 
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -680,12 +683,12 @@ class CLDataModule(DreamDataModule):
         pp.sprint(f'{pp.COLOR.NORMAL_4}INFO: Testing for classes: {full_classes}')
         
         return DataLoader(
-            full_dataset, 
+            self.test_dataset, 
             batch_size=self.cfg.test_batch_size if self.datasampler is None else 1, 
             num_workers=self.cfg.test_num_workers,
             pin_memory=True,
             batch_sampler=self.datasampler(
-                dataset=full_dataset, 
+                dataset=self.test_dataset, 
                 shuffle=self.cfg.test_shuffle,
                 classes=full_classes,
                 batch_size=self.cfg.test_batch_size,
