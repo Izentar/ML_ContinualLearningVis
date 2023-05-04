@@ -400,13 +400,16 @@ class CLLoop(Loop):
                 self.vis_regularization_l2 = True
             
             pp.sprint(f"{pp.COLOR.NORMAL}DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
-
-            self.trainer.datamodule.generate_synthetic_data(
-                model=self.trainer.lightning_module, 
-                task_index=self.current_task, 
-                layer_hook_obj=layerloss_hook_obj,
-                input_image_train_after_obj=input_image_train_after_obj,
-            )
+            
+            try:
+                self.trainer.datamodule.generate_synthetic_data(
+                    model=self.trainer.lightning_module, 
+                    task_index=self.current_task, 
+                    layer_hook_obj=layerloss_hook_obj,
+                    input_image_train_after_obj=input_image_train_after_obj,
+                )
+            except KeyboardInterrupt:
+                pp.sprint(f"{pp.COLOR.WARNING}Skipping visualization. Keyboard interruption.")
             if(len(layer_handles) != 0):
                 for l in layer_handles:
                     unhook(l)
@@ -628,7 +631,10 @@ class CLLoop(Loop):
     def advance(self, *args: Any, **kwargs: Any) -> None:
         """Used to the run a fitting and testing on the current hold."""
         self._reset_fitting()  # requires to reset the tracking stage.
-        self.custom_advance_f(*args, **kwargs)
+        try:
+            self.custom_advance_f(*args, **kwargs)
+        except KeyboardInterrupt:
+            pp.sprint(f"{pp.COLOR.WARNING}Skipping loop. Keyboard interruption.")
 
     def on_advance_end(self) -> None:
         """Used to save the weights of the current task and reset the LightningModule
