@@ -72,6 +72,9 @@ class DeepInversionFeatureHook():
     def close(self):
         self.hook.remove()
 
+def channel_criterion(outputs, target):
+    return -outputs[:, target.item()].mean()
+
 def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
                net_student=None, prefix=None, competitive_scale=0.01, train_writer = None, global_iteration=None,
                use_amp=False,
@@ -114,6 +117,7 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
 
     # set up criteria for optimization
     criterion = nn.CrossEntropyLoss()
+    criterion = channel_criterion
 
     optimizer.state = collections.defaultdict(dict)  # Reset state of optimizer
 
