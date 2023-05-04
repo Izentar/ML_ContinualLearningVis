@@ -58,7 +58,7 @@ to choose epoch at which to call it.')
     parser.add_argument("--loop.load.dreams", action="store_true", help='') ##**
     parser.add_argument("--loop.save.root", type=str, help='') ##**
     parser.add_argument("--loop.load.root", type=str, help='') ##**
-    parser.add_argument("--loop.load.id", type=str, help='') ##**
+    parser.add_argument("--loop.load.id", nargs='+', type=str, help='') ##**
     
     ######################################
     #####    numerical parameters   ######

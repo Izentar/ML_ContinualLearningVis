@@ -42,6 +42,7 @@ from argparse import Namespace
 from utils import setup_args
 import wandb
 from utils import pretty_print as pp
+import os
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -145,7 +146,7 @@ class CLLoop(Loop):
 
     @dataclass
     class Load():
-        id: str = None
+        id: list = None
         model: bool = False
         dreams: bool = False
         layer_stats: bool = False
@@ -465,12 +466,47 @@ class CLLoop(Loop):
         else:
             self.custom_advance_f = lambda: pp.sprint(f"{pp.COLOR.WARNING}INFO: SKIPPING ANY TRAINING at loop {self.current_loop}")
     
+    def _generate_save_path_dream(self) -> str:
+        ret = Path('')
+        ll = ""
+        sufix = Path('')
+        if(utils.check_python_enabled(self.cfg_mean_norm.use_at)):
+            ll = "layerloss"
+            sufix = sufix / "mean_norm"
+        if(utils.check_python_enabled(self.cfg_grad_pruning.use_at)):
+            ll = "layerloss"
+            sufix = sufix / "grad_pruning"
+        if(utils.check_python_enabled(self.cfg_grad_activ_pruning.use_at)):
+            ll = "layerloss"
+            sufix = sufix / "grad_activ_pruning"
+        if(utils.check_python_enabled(self.cfg_deep_inversion.use_at)):
+            ll = "layerloss"
+            sufix = sufix / "cfg_deep_inversion"
+
+        ret = ret / ll / sufix
+
+        reg = ""
+        sufix = Path('')
+
+        if(utils.check_python_enabled(self.cfg_vis_regularization_var.use_at)):
+            reg = "regularization"
+            sufix = sufix / "var"
+        if(utils.check_python_enabled(self.cfg_vis_regularization_l2.use_at)):
+            reg = "regularization"
+            sufix = sufix / "l2"
+
+        ret = ret / reg / sufix
+
+        return ret 
+
     def _generate_save_path(self, dtype: str):
         date = datetime.datetime.now().strftime("%d-%m-%Y")
         time = datetime.datetime.now().strftime("%H-%M-%S")
         model_type = type(self.trainer.lightning_module.model).__name__
         overlay_type = type(self.trainer.lightning_module).__name__
-        folder = Path(overlay_type) / model_type
+
+        # here put your root folder
+        folder = Path(overlay_type) / model_type / self._generate_save_path_dream()
 
         adds = ""
         if(hasattr(self, 'layer_stats_use_at') and self.layer_stats_use_at and len(self.cfg_layer_stats.hook_to) != 0):
@@ -508,23 +544,28 @@ class CLLoop(Loop):
         return gen_path, f"{dtype}.{date}_{time}_loop_{self.current_loop}_epoch_{self.epoch_num}.{file_type}"
     
     def _generate_load_path(self, dtype: str):
-        if(self.cfg_load.id is None):
+        if(self.cfg_load.id is None or len(self.cfg_load.id) == 0):
             raise Exception("Tried loading while id is None")
         file_type = self.FILE_TYPE_MAP.get(dtype)
         if(not file_type):
             raise Exception(f'Not found in lookup map: {dtype}')
         
-        phrase = f"**/*{self.cfg_load.id}*"
-        outer_path = glob.glob(pathname=phrase, root_dir=self.cfg_load.root, recursive=True)
-        if(len(outer_path) != 1):
-            raise Exception(f"Found {len(outer_path)}, phrase ''{phrase}'', possible paths from: {outer_path}")
-        outer_path = self.cfg_load.root / outer_path[0]
-        phrase = f"**/*{dtype}*"
-        path = glob.glob(pathname=phrase, root_dir=outer_path, recursive=True)
-        if(len(path) != 1):
-            raise Exception(f"Found {len(path)}, phrase ''{phrase}'' possible paths from: {path}")
+        root = self.cfg_load.root
+        for id in self.cfg_load.id:
+            phrase = f"**/*{id}*"
+            outer_path = glob.glob(pathname=phrase, root_dir=root, recursive=True)
+            if(len(outer_path) != 1):
+                raise Exception(f"Found {len(outer_path)} possible paths. Phrase ''{phrase}'', possible paths from: {outer_path}. Root: {root}")
+            root = root / outer_path[0]
 
-        path = outer_path / path[0]
+        if(os.path.isfile(root)):
+            path = root
+        else:
+            phrase = f"**/*{dtype}*"
+            path = glob.glob(pathname=phrase, root_dir=root, recursive=True)
+            if(len(path) != 1):
+                raise Exception(f"Found {len(path)} possible paths. Phrase ''{phrase}'' possible paths from: {path}. Root: {root}")
+            path = root / path[0]
         return path
 
     def _try_save_dreams(self):

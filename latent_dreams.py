@@ -376,7 +376,7 @@ def logic(args, log_args_to_wandb=True):
     if(args.wandb.watch.enable):
         logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
-    if(not args.fast_dev_run.enable):
+    if(args.fast_dev_run.enable):
         export_config(args, custom_loop.save_folder, 'run_config.json')
 
     if(args.loop.layer_stats.use_at is not None):
