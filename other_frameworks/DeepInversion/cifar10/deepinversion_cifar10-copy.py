@@ -117,7 +117,7 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
 
     # set up criteria for optimization
     criterion = nn.CrossEntropyLoss()
-    criterion = channel_criterion
+    #criterion = channel_criterion
 
     optimizer.state = collections.defaultdict(dict)  # Reset state of optimizer
 
@@ -186,7 +186,7 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
         loss = loss + bn_reg_scale*loss_distr # best for noise before BN
 
         # l2 loss
-        if 1:
+        if 0:
             loss = loss + l2_coeff * torch.norm(inputs_jit, 2)
 
         if debug_output and epoch % 200==0:

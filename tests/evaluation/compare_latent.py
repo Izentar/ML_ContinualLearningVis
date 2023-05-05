@@ -140,7 +140,6 @@ class CompareLatent():
             target=used_class, 
             iterations=1, 
             rendervis_state=rendervis_state,
-            task_index=task_index,
         )
 
         self._log(constructed_dreams=constructed_dream, logger=logger, label=label)

@@ -103,6 +103,8 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
 Without running this and running "loop.train_at" will run only test. Use this with "datamodule.vis.only_vis_at" to train only on dream batch.') ##**
     parser.add_argument("--datamodule.vis.per_target", type=int, default=128, help='How many epochs do per one task in "num_tasks"') ##**
+    parser.add_argument("--datamodule.vis.multitarget.enable", action="store_true", help='') 
+    parser.add_argument("--datamodule.vis.multitarget.random", action="store_true", help='') 
     parser.add_argument("--datamodule.vis.batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
     parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')

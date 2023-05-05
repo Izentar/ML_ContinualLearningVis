@@ -96,10 +96,11 @@ class _Image(_ImageFunctional):
         return self.params(), self.image()
 
 class FFTImage(_Image):
-    def __init__(self, decay_power=1, *args, **kwargs) -> None:
+    def __init__(self, *args, decay_power=1, magic=4, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.decay_power = decay_power
+        self.magic = magic # Magic constant from Lucid library; increasing this seems to reduce saturation
 
         #self._create_fft_image()
         self._image_f = self._ftt_image_f
@@ -130,8 +131,7 @@ class FFTImage(_Image):
             scaled_spectrum_t = torch.view_as_complex(scaled_spectrum_t)
         image = torch.fft.irfftn(scaled_spectrum_t, s=(h, w), norm='ortho')
         image = image[:batch, :channels, :h, :w]
-        magic = 4.0 # Magic constant from Lucid library; increasing this seems to reduce saturation
-        image = image / magic
+        image = image / self.magic
         return image
 
     def to(self, device):

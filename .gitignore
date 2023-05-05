@@ -14,3 +14,4 @@ model_save/*
 data_ssd
 *.tmp
 *.txt
+.git_old/

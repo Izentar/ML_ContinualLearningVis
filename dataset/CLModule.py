@@ -20,6 +20,7 @@ from argparse import Namespace
 
 from utils import pretty_print as pp
 from torchvision import transforms
+import math, random
 
 class BaseCLDataModule(LightningDataModule, ABC):
     @abstractmethod
@@ -75,6 +76,11 @@ class DreamDataModule(BaseCLDataModule, ABC):
             self.transforms = not self.disable_transforms
             self.threshold = self.threshold if isinstance(self.threshold, tuple) or isinstance(self.threshold, list) else (self.threshold, )
             self.standard_image_size = self.standard_image_size if self.standard_image_size is not None else self.image_size
+
+        @dataclass
+        class Multitarget():
+            enable: bool = False
+            random: bool = False
 
         @dataclass
         class Optimizer():
@@ -156,6 +162,9 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         if(empty_dream_dataset is None):
             raise Exception("Empty dream dataset.")
+        
+        if(self.cfg_vis_multitarget.enable):
+            pp.sprint(f"{pp.COLOR.WARNING}VIS: Enabled multitarget visualization. Each batch will have multiple targets.")
 
         self.wandb_flushed = False
 
@@ -164,12 +173,14 @@ class DreamDataModule(BaseCLDataModule, ABC):
             'cfg_vis': DreamDataModule.Visualization,
             'cfg_vis_optim': DreamDataModule.Visualization.Optimizer,
             'cfg_vis_sched': DreamDataModule.Visualization.Scheduler,
-            'cfg': DreamDataModule.Config
+            'cfg': DreamDataModule.Config,
+            'cfg_vis_multitarget': DreamDataModule.Visualization.Multitarget,
         }, {
             '': 'cfg',
             'vis': 'cfg_vis',
             'vis.optim': 'cfg_vis_optim',
             'vis.sched': 'cfg_vis_sched',
+            'vis.multitarget': 'cfg_vis_multitarget',
         }
 
     def _map_cfg(self, args, cfg_map, args_map):
@@ -249,11 +260,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None, input_image_train_after_obj:list=None) -> None:
         """Generate new dreams."""
-        dream_targets = self.select_dream_tasks_f(self.cfg.train_tasks_split, task_index)
-
-        model_mode = model.training # from torch.nn.Module
-        if model_mode:
-            model.eval()
+        targets = self.select_dream_tasks_f(self.cfg.train_tasks_split, task_index)
 
         layer_hook_obj = layer_hook_obj if layer_hook_obj is not None else ()
         input_image_train_after_obj = input_image_train_after_obj if input_image_train_after_obj is not None else []
@@ -264,20 +271,15 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         new_dreams, new_targets = self._generate_dreams(
             model=model,
-            dream_targets=dream_targets, 
+            targets=targets, 
             iterations=iterations,
-            task_index=task_index,
             layer_hook_obj=layer_hook_obj,
             rendervis_state=rendervis_state,
             run_name=run_name,
         )
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
-
         self.calculated_mean_std = False
-        if model_mode:
-            model.train()
-
         rendervis_state.unhook()
 
     def save_dream_dataset(self, location):
@@ -286,46 +288,100 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, dream_targets, iterations, task_index, layer_hook_obj:list, rendervis_state, run_name:list[str]):
-        new_dreams = []
-        new_targets = []
+    def _generate_dreams(self, model, targets, iterations, layer_hook_obj:list, rendervis_state, run_name:list[str]):
+        if(self.cfg_vis_multitarget.enable):
+            new_images, new_targets = self._generate_dream_multi_target_iter(
+                model=model, 
+                target=targets, 
+                iterations=iterations, 
+                layer_hook_obj=layer_hook_obj,
+                rendervis_state=rendervis_state,
+                run_name=run_name,
+            )
+        else:
+            new_images, new_targets = self._generate_dream_target_iter(
+                model=model, 
+                target=targets, 
+                iterations=iterations, 
+                layer_hook_obj=layer_hook_obj,
+                rendervis_state=rendervis_state,
+                run_name=run_name,
+            )
+        return new_images, new_targets
 
-        self._generate_dreams_impl(
-            model=model, 
-            dream_targets=dream_targets, 
-            iterations=iterations, 
-            task_index=task_index,
-            new_dreams=new_dreams, 
-            new_targets=new_targets, 
-            layer_hook_obj=layer_hook_obj,
-            rendervis_state=rendervis_state,
-            run_name=run_name,
-        )
-        if(self.progress_bar is not None):
-            self.progress_bar.clear_dreaming()
-        new_dreams = torch.cat(new_dreams)
-        new_targets = torch.tensor(new_targets)
-        return new_dreams, new_targets
+    def _multitarget_select_targets(self, target_set) -> torch.Tensor:
+        if(self.cfg_vis_multitarget.random):
+            batch_target = [random.choice(list(target_set)) for _ in range(self.cfg_vis.batch_size)]
+        else: 
+            batch_target = (list(target_set) * math.ceil(self.cfg_vis.batch_size / len(target_set)))[: self.cfg_vis.batch_size]
+        return batch_target
 
-    def _generate_dreams_impl(self, model, dream_targets, iterations, task_index, new_dreams, new_targets, layer_hook_obj:list, rendervis_state, run_name:list[str]):
+    def _layer_hook_obj_set_current_class(self, layer_hook_obj, batch_target) -> None:
+        if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
+            for l in layer_hook_obj:
+                l.set_current_class(batch_target)
+
+    def _generate_dream_multi_target_iter(
+            self, model:torch.nn.Module, target:set, iterations:int, 
+            layer_hook_obj:list, rendervis_state, run_name:list[str]
+        ):
+        run_name[0] = f"{run_name[1]}/multi_target"
+        all_images = []
+        all_targets = []
+
         if(self.progress_bar is not None):
-            self.progress_bar.setup_dreaming(dream_targets=dream_targets)
-        for target in sorted(dream_targets):
-            if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
-                for l in layer_hook_obj:
-                    l.set_current_class(target)
-            run_name[0] = f"{run_name[1]}/target_{target}"
-            target_dreams = self.generate_dreams_for_target(
+            self.progress_bar.setup_progress_bar('target_vis', f"[bright_red]Number of batches", iterations=len(target) * iterations)
+        for _ in target:
+            new_images, new_targets = self.generate_dreams_for_multitarget(
                 model=model, 
                 target=target, 
+                layer_hook_obj=layer_hook_obj,
                 iterations=iterations, 
-                task_index=task_index,
                 rendervis_state=rendervis_state,
             )
-            new_targets.extend([target] * target_dreams.shape[0])
-            new_dreams.append(target_dreams)
+            all_images.append(new_images)
+            all_targets.extend(new_targets)
+
+        all_images = torch.cat(all_images)
+        all_targets = torch.tensor(all_targets)
+
+        if(self.progress_bar is not None):
+            self.progress_bar.clear('target_vis')
+
+        return all_images, all_targets
+
+    def _generate_dream_target_iter(self, 
+            model:torch.nn.Module, target:list, iterations:int, 
+            layer_hook_obj:list, rendervis_state, run_name:list[str]
+        ):
+        all_images = [] 
+        all_targets = []
+
+        if(self.progress_bar is not None):
+            self.progress_bar.setup_progress_bar('target_iter', "[bright_blue]Dreaming target:", len(target))
+        for t in sorted(target):
+            if(layer_hook_obj is not None and len(layer_hook_obj) != 0):
+                for l in layer_hook_obj:
+                    l.set_current_class(t)
+            run_name[0] = f"{run_name[1]}/target_{t}"
+            new_images, new_targets = self.generate_dreams_for_target(
+                model=model, 
+                target=t, 
+                iterations=iterations, 
+                rendervis_state=rendervis_state,
+            )
+            all_images.append(new_images)
+            all_targets.extend(new_targets)
+
             if(self.progress_bar is not None):
-                self.progress_bar.update_dreaming(0)
+                self.progress_bar.update('target_iter')
+        if(self.progress_bar is not None):
+            self.progress_bar.clear('target_iter')
+        
+        all_images = torch.cat(all_images)
+        all_targets = torch.tensor(all_targets)
+
+        return all_images, all_targets
     
     def _log_target_dreams(self, new_dreams, target):
         if not self.fast_dev_run and self.logger is not None:
@@ -365,15 +421,19 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 }
             )
 
-    def generate_dreams_for_target(self, model, target, iterations, task_index, rendervis_state):
-        dreams = []
-        if(self.progress_bar is not None):
-            self.progress_bar.setup_repeat(target=target, iterations=iterations)
-        for _ in range(iterations):
-            target_point = self.transform_targets(model=model, dream_target=target, task_index=task_index)
-            rendervis_state.objective_f = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
+    def generate_dreams_for_multitarget(self, model, target, layer_hook_obj, iterations, rendervis_state):
+        if(not self.cfg_vis_multitarget.enable):
+            raise Exception('Multitarget not enabled')
+        new_images = []
+        new_targets = []
 
-            numpy_render = torch.from_numpy(
+        for _ in range(iterations):
+            batch_target = self._multitarget_select_targets(target)
+            self._layer_hook_obj_set_current_class(layer_hook_obj, batch_target)
+            target_point = self.target_processing_f(target=batch_target, model=model)
+            rendervis_state.objective_f = self.dream_objective_f(target=batch_target, target_point=target_point, model=model, source_dataset_obj=self)
+
+            rendered_images = torch.from_numpy(
                 render_vis(
                     render_dataclass=rendervis_state,
                     show_image=False,
@@ -381,23 +441,45 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     refresh_fequency=self.cfg.richbar_refresh_fequency,
                 )[-1] # return the last, most processed image (thresholds)
             ).detach()
-            numpy_render = torch.permute(numpy_render, (0, 3, 1, 2))
+            rendered_images = torch.permute(rendered_images, (0, 3, 1, 2))
             rendervis_state.display_additional_info = False
 
-            dreams.append(numpy_render)
+            new_images.append(rendered_images)
+            new_targets.extend(batch_target)
             if(self.progress_bar is not None):
-                self.progress_bar.update_dreaming(1)
-        target_dreams = torch.cat(dreams)
-        self._log_target_dreams(target_dreams, target)
-        return target_dreams
+                self.progress_bar.update('target_vis') # if key not found, ignore
+        new_images = torch.cat(new_images)
+        self._log_target_dreams(new_images, batch_target)
+        return new_images, new_targets
 
-    def transform_targets(self, model, dream_target, task_index) -> torch.Tensor:
-        """
-            Invoked after every new dreaming that produces an image.
-            Override this if you need more than what the function target_processing_f itself can offer.
-            Returns tensor representing target. It can be one number or an array of numbers (point)
-        """
-        return self.target_processing_f(target=dream_target, model=model)
+    def generate_dreams_for_target(self, model, target, iterations, rendervis_state):
+        if(self.cfg_vis_multitarget.enable):
+            raise Exception('Multitarget enabled')
+        images = []
+        if(self.progress_bar is not None):
+            text = f"[bright_red]Repeat for class: {target}"
+            self.progress_bar.setup_progress_bar('target_vis', text, iterations=iterations)
+        for _ in range(iterations):
+            target_point = self.target_processing_f(target=target, model=model)
+            rendervis_state.objective_f = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
+
+            rendered_images = torch.from_numpy(
+                render_vis(
+                    render_dataclass=rendervis_state,
+                    show_image=False,
+                    progress_bar=self.progress_bar,
+                    refresh_fequency=self.cfg.richbar_refresh_fequency,
+                )[-1] # return the last, most processed image (thresholds)
+            ).detach()
+            rendered_images = torch.permute(rendered_images, (0, 3, 1, 2))
+            rendervis_state.display_additional_info = False
+
+            images.append(rendered_images)
+            if(self.progress_bar is not None):
+                self.progress_bar.update('target_vis')
+        images = torch.cat(images)
+        self._log_target_dreams(images, target)
+        return images, [target] * images.shape[0]
 
     def get_task_classes(self, task_number):
         return self.cfg.train_tasks_split[task_number]

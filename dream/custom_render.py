@@ -147,7 +147,7 @@ class RenderVisState():
         self._set_optimizer(self._initval_optimizer)
 
     @property
-    def model(self):
+    def model(self) -> torch.nn.Module:
         return self._model
     @model.setter
     def model(self, value):
@@ -368,7 +368,12 @@ def render_vis(
     images = []
     iterations = max(rd.thresholds)
     if(progress_bar is not None):
-        progress_bar.setup_iteration(iterations=iterations)
+        progress_bar.setup_progress_bar('vis_iter', "[bright_red]Iteration:\n", iterations=iterations)
+
+    model_mode = rd.model.training # from torch.nn.Module
+    if model_mode:
+        rd.model.eval()
+        
     for i in range(1, iterations + 1):
         def closure():
             rd.optimizer.zero_grad()
@@ -397,7 +402,7 @@ def render_vis(
             images.append(image)
 
         if(progress_bar is not None):
-            progress_bar.update_iteration()
+            progress_bar.update('vis_iter')
             if i % refresh_fequency == 0:
                 progress_bar.refresh()
 
@@ -407,6 +412,9 @@ def render_vis(
         show(tensor_to_img_array(rd.optim_image.image()))
     elif show_image:
         view(rd.optim_image.image())
+
+    if model_mode:
+        rd.model.train()
     return images
 
 def tensor_to_img_array(tensor):

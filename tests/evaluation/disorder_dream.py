@@ -214,7 +214,6 @@ class DisorderDream():
             target=used_class, 
             iterations=1, 
             rendervis_state=rendervis_state,
-            task_index=task_index,
         )
         self._compare_orig_constructed(
             original_img=original_image,
