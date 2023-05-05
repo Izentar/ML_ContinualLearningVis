@@ -1,3 +1,4 @@
+from git import Sequence
 import torch
 from torch.utils.data import DataLoader, Subset
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -325,13 +326,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
             self, model:torch.nn.Module, target:set, iterations:int, 
             layer_hook_obj:list, rendervis_state, run_name:list[str]
         ):
-        run_name[0] = f"{run_name[1]}/multi_target"
         all_images = []
         all_targets = []
 
         if(self.progress_bar is not None):
             self.progress_bar.setup_progress_bar('target_vis', f"[bright_red]Number of batches", iterations=len(target) * iterations)
-        for _ in target:
+        for it, _ in enumerate(target):
+            run_name[0] = f"{run_name[1]}/multi_target_{it}"
             new_images, new_targets = self.generate_dreams_for_multitarget(
                 model=model, 
                 target=target, 
@@ -383,28 +384,35 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         return all_images, all_targets
     
-    def _log_target_dreams(self, new_dreams, target):
+    def _log_target_dreams(self, new_images, target):
         if not self.fast_dev_run and self.logger is not None:
-            for idx, image in enumerate(new_dreams):
-                if(self.cfg_vis.max_logged_image_per_target <= idx):
-                    break
-                img = wandb.Image(
-                    image,
-                    caption=f"sample: {idx} target: {target}",
-                )
-                if(self.cfg.dataset_labels is not None and target in self.cfg.dataset_labels):
-                    self.wandb_dream_img_table.add_data(
-                        target, 
-                        self.cfg.dataset_labels[target],
-                        idx, 
-                        img
-                    )
-                else:
-                    self.wandb_dream_img_table.add_data(
-                        target, 
-                        idx, 
-                        img
-                    )
+            if(isinstance(target, Sequence)): # it target is batched
+                for idx, (image, t) in enumerate(zip(new_images, target)):
+                    self._log_target_dreams_to_table(idx, image, t)
+            else:
+                for idx, image in enumerate(new_images):
+                    self._log_target_dreams_to_table(idx, image, target)
+
+    def _log_target_dreams_to_table(self, idx, image, target):
+        if(self.cfg_vis.max_logged_image_per_target <= idx):
+            return
+        img = wandb.Image(
+            image,
+            caption=f"sample: {idx} target: {target}",
+        )
+        if(self.cfg.dataset_labels is not None and target in self.cfg.dataset_labels):
+            self.wandb_dream_img_table.add_data(
+                target, 
+                self.cfg.dataset_labels[target],
+                idx, 
+                img
+            )
+        else:
+            self.wandb_dream_img_table.add_data(
+                target, 
+                idx, 
+                img
+            )
 
     def _log_fast_dev_run(self, new_dreams, new_targets):
         if not self.fast_dev_run:
@@ -427,7 +435,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_images = []
         new_targets = []
 
-        for _ in range(iterations):
+        for it in range(iterations):
             batch_target = self._multitarget_select_targets(target)
             self._layer_hook_obj_set_current_class(layer_hook_obj, batch_target)
             target_point = self.target_processing_f(target=batch_target, model=model)
