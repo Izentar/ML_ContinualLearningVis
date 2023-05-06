@@ -33,6 +33,7 @@ from utils import utils
 from model.activation_layer import GaussA
 from pathlib import Path
 from model.overlay import CLModel
+from utils import pretty_print as pp
 
 def data_transform():
     return transforms.Compose(
@@ -472,6 +473,8 @@ def extract_data_from_key(data:dict) -> dict:
 
 def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:int, filepath:str=None):
     out = pca(model_stats, overestimated_rank=overestimated_rank)
+    if(out is None):
+        return
     plotter = PointPlot()
     to_plot = dict()
     path = filepath if filepath is not None else Path(model.name()) / "pca"
@@ -488,6 +491,9 @@ def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     for layer_name, v in model_stats.items(): 
         v = v.get_const_data()
         std = v.std
+        if(std is None):
+            pp.sprint(f"{pp.COLOR.WARNING}WARNING: std graph cannot be plotted.")
+            return
         std = extract_data_from_key(data=std)
         for torch_size, vv in std.items(): 
             plotter.plot_errorbar(vv, name=path / "pca" / "std" / layer_name / torch_size)

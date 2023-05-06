@@ -85,7 +85,7 @@ class CLLoop(Loop):
         class LayerLoss():
             @dataclass
             class MeanNorm():
-                scaling: float = 0.01
+                scale: float = 0.01
                 del_cov_after: bool =False
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
                 hook_to: Union[list[str], None] = False
@@ -112,6 +112,16 @@ class CLLoop(Loop):
 
                 def __post_init__(self):
                     # only works for BatchNorm2d
+                    self.hook_to = ['BatchNorm2d'] if self.hook_to is None else self.hook_to
+
+            @dataclass
+            class DeepInversionTarget():
+                use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+                scale: float = 1e2
+                hook_to: list[str] = None
+
+                def __post_init__(self):
+                    # can hook to other than BatchNorm2d
                     self.hook_to = ['BatchNorm2d'] if self.hook_to is None else self.hook_to
 
         @dataclass
@@ -166,6 +176,7 @@ class CLLoop(Loop):
         device: str = 'cuda'
         flush_to_disk: bool = False
         verbose: bool = False
+        type: list[str] = None
 
     FILE_TYPE_MAP = {
         "dream": "dataset",
@@ -242,6 +253,7 @@ class CLLoop(Loop):
             'cfg_grad_pruning': CLLoop.Visualization.LayerLoss.GradPruning,
             'cfg_grad_activ_pruning': CLLoop.Visualization.LayerLoss.GradActivePruning,
             'cfg_deep_inversion': CLLoop.Visualization.LayerLoss.DeepInversion,
+            'cfg_deep_inversion_target': CLLoop.Visualization.LayerLoss.DeepInversionTarget,
             'cfg_vis_regularization_var': CLLoop.Visualization.ImageRegularization.Variation,
             'cfg_vis_regularization_l2': CLLoop.Visualization.ImageRegularization.L2,
             'cfg_layer_stats': CLLoop.LayerStats,
@@ -256,6 +268,7 @@ class CLLoop(Loop):
             'vis.layerloss.grad_pruning': 'cfg_grad_pruning',
             'vis.layerloss.grad_activ_pruning': 'cfg_grad_activ_pruning',
             'vis.layerloss.deep_inversion': 'cfg_deep_inversion',
+            'vis.layerloss.deep_inversion_target': 'cfg_deep_inversion_target',
             'vis.image_reg.var': 'cfg_vis_regularization_var',
             'vis.image_reg.l2': 'cfg_vis_regularization_l2',
             'layer_stats': 'cfg_layer_stats',
@@ -329,6 +342,7 @@ class CLLoop(Loop):
             flush_to_disk=self.cfg_layer_stats.flush_to_disk,
             hook_to=self.cfg_layer_stats.hook_to,
             fast_dev_run=self.fast_dev_run,
+            stats_type=self.cfg_layer_stats.type,
         )
         self._try_save_model_layer_stats()
 
@@ -345,7 +359,7 @@ class CLLoop(Loop):
                 self._try_generate_dream_print_msg("LOSS FUNCTION")
                 self._try_load_model_layer_stats()
                 self.vis_layerloss_mean_norm = True
-                tmp = layerloss.MeanNorm(device=self.cfg_mean_norm.device, del_cov_after=self.cfg_mean_norm.del_cov_after, scaling=self.cfg_mean_norm.scaling)
+                tmp = layerloss.MeanNorm(device=self.cfg_mean_norm.device, del_cov_after=self.cfg_mean_norm.del_cov_after, scale=self.cfg_mean_norm.scale)
                 layerloss_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
                     model=self.trainer.lightning_module, 
@@ -386,6 +400,18 @@ class CLLoop(Loop):
                     model=self.trainer.lightning_module, 
                     fun=tmp.hook_fun, 
                     hook_to=self.cfg_deep_inversion.hook_to
+                ))
+
+            if(utils.check_python_index(self.cfg_deep_inversion_target.use_at, self.cfg.num_loops, self.current_loop)):
+                self._try_generate_dream_print_msg("DEEP INVERSION TARGET")
+                tmp = layerloss.DeepInversionTarget(scale=self.cfg_deep_inversion_target.scale)
+                self.layerloss_deep_inversion_target = True
+                layerloss_hook_obj.append(tmp)
+                layer_handles.append(layer_stat_framework.hook_model_stats(
+                    model=self.trainer.lightning_module, 
+                    stats=self.model_stats, 
+                    fun=tmp.hook_fun, 
+                    hook_to=self.cfg_deep_inversion_target.hook_to
                 ))
 
             if(utils.check_python_index(self.cfg_vis_regularization_var.use_at, self.cfg.num_loops, self.current_loop)):
@@ -520,15 +546,17 @@ class CLLoop(Loop):
 
         adds = ""
         if(hasattr(self, 'layer_stats_use_at') and self.layer_stats_use_at and len(self.cfg_layer_stats.hook_to) != 0):
-            adds = f"{adds}_layer_stat"
+            adds = f"{adds}-layer_stat"
         if(hasattr(self, 'vis_layerloss_mean_norm') and self.vis_layerloss_mean_norm and len(self.cfg_mean_norm.hook_to) != 0):
-            adds = f"{adds}_mean_norm"
+            adds = f"{adds}-mean_norm"
         if(hasattr(self, 'layerloss_grad_pruning') and self.vis_layerloss_mean_norm and len(self.cfg_grad_pruning.hook_to) != 0):
-            adds = f"{adds}_grad_pruning"
+            adds = f"{adds}-grad_pruning"
         if(hasattr(self, 'layerloss_grad_activ_pruning') and self.layerloss_grad_activ_pruning and len(self.cfg_grad_activ_pruning.hook_to) != 0):
-            adds = f"{adds}_grad_activ_pruning"
+            adds = f"{adds}-grad_activ_pruning"
         if(hasattr(self, 'layerloss_deep_inversion') and self.layerloss_deep_inversion and len(self.cfg_deep_inversion.hook_to) != 0):
-            adds = f"{adds}_deep_inversion"
+            adds = f"{adds}-deep_inversion"
+        if(hasattr(self, 'layerloss_deep_inversion_target') and self.layerloss_deep_inversion_target and len(self.cfg_deep_inversion.hook_to) != 0):
+            adds = f"{adds}-deep_inversion_target"
         
         folder = folder / adds
         adds = ""
@@ -536,7 +564,7 @@ class CLLoop(Loop):
         if(hasattr(self, 'vis_regularization_var') and self.vis_regularization_var and utils.check_python_enabled(self.cfg_vis_regularization_var.use_at)):
             adds = f"{adds}image_reg_var"
         if(hasattr(self, 'vis_regularization_l2') and self.vis_regularization_l2 and utils.check_python_enabled(self.cfg_vis_regularization_l2.use_at)):
-            adds = f"{adds}_image_reg_l2"
+            adds = f"{adds}-image_reg_l2"
 
         folder = folder / adds
 
@@ -704,6 +732,7 @@ class CLLoop(Loop):
                     hook_verbose=self.cfg_layer_stats.verbose,
                     flush_to_disk=self.cfg_layer_stats.flush_to_disk,
                     hook_to=self.cfg_layer_stats.hook_to,
+                    type=self.cfg_layer_stats.type,
                 )
                 self.model_stats.unhook()
             path = self._generate_load_path('layer_stats')

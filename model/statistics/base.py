@@ -10,6 +10,7 @@ from collections.abc import Sequence
 import pickle
 import os
 import time
+from utils import pretty_print as pp
 
 def get_hash(k, v:torch.Size):
     return (v, k)
@@ -156,6 +157,10 @@ class ModuleStatData(torch.nn.Module):
         self._mean:LazyDiskDict|dict|None = None
         self._old_mean:LazyDiskDict|dict|None = None
 
+        self._M2n_channel:LazyDiskDict|dict|None = None
+        self._mean_channel:LazyDiskDict|dict|None = None
+        self._old_mean_channel:LazyDiskDict|dict|None = None
+
         self._counter_update = 0
         self._full_name = full_name
 
@@ -182,6 +187,14 @@ class ModuleStatData(torch.nn.Module):
     @mean.setter
     def mean(self, x):
         raise Exception('No setter')
+    
+    @property
+    def mean_channel(self):
+        return self._mean_channel
+
+    @mean_channel.setter
+    def mean_channel(self, x):
+        raise Exception('No setter')
 
     @property
     def std(self):
@@ -192,10 +205,50 @@ class ModuleStatData(torch.nn.Module):
         for k, v in self._M2n.items():
             ret[k] = torch.sqrt(torch.div(v, self._counter_update - 1))
         return ret
-
+    
     @std.setter
     def std(self, x):
         raise Exception('No setter')
+
+    @property
+    def var(self):
+        if(self._M2n is None):
+            return None
+        ret = dict()
+        for k, v in self._M2n.items():
+            ret[k] = torch.div(v, self._counter_update - 1)
+        return ret 
+    
+    @var.setter
+    def var(self, x):
+        raise Exception('No setter')    
+    
+    @property
+    def std_channel(self):
+        # unbiased version
+        if(self._M2n_channel is None):
+            return None
+        ret = dict()
+        for k, v in self._M2n_channel.items():
+            ret[k] = torch.sqrt(torch.div(v, self._counter_update - 1))
+        return ret
+    
+    @std_channel.setter
+    def std_channel(self, x):
+        raise Exception('No setter')
+    
+    @property
+    def var_channel(self):
+        if(self._M2n_channel is None):
+            return None
+        ret = dict()
+        for k, v in self._M2n_channel.items():
+            ret[k] = torch.div(v, self._counter_update - 1)
+        return ret 
+    
+    @var_channel.setter
+    def var_channel(self, x):
+        raise Exception('No setter')    
 
     @property
     def cov(self):
@@ -235,7 +288,7 @@ class ModuleStatData(torch.nn.Module):
         self._old_mean.flush() if self._old_mean is not None and hasattr(self._old_mean, 'flush') else None
 
 class ModuleStat():
-    def __init__(self, device:str, full_name:str, to_update:list[str]=None, shared_ref=None, flush_to_disk:str|bool=None) -> None:
+    def __init__(self, device:str, full_name:str, type:list[str]=None, shared_ref=None, flush_to_disk:str|bool=None) -> None:
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
         self.shared_ref = dict() if shared_ref is None else shared_ref
         self.device = device
@@ -245,8 +298,8 @@ class ModuleStat():
         self._update_call_mean = lambda x: None
         self._update_call_std = lambda x: None
         self._update_call_cov = lambda x: None
-        if(to_update is None):
-            to_update = ['mean', 'std', 'cov']
+        if(type is None):
+            type = ['mean', 'std']
 
         self.flush_to_disk_flag = bool((isinstance(flush_to_disk, bool) and flush_to_disk) or isinstance(flush_to_disk, str))
 
@@ -258,7 +311,12 @@ class ModuleStat():
             Path(self.tmp_full_path).mkdir(parents=True, exist_ok=True)
             self.tmp_full_path = Path(self.tmp_full_path) / full_name
 
-        for u in to_update:
+        self._update_call_mean = lambda x, y: None
+        self._update_call_std = lambda x, y: None
+        self._update_call_cov = lambda x, y: None
+        self._update_call_mean_channel = lambda x, y: None
+        self._update_call_std_channel = lambda x, y: None
+        for u in type:
             match u:
                 case 'mean':
                     self._update_call_mean = self._update_mean_first_call
@@ -268,6 +326,11 @@ class ModuleStat():
                 case 'cov':
                     self._update_call_cov = self._update_cov_first_call
                     self._update_call_mean = self._update_mean_first_call
+                case 'mean_channel':
+                    self._update_call_mean_channel = self._update_mean_channel_first_call
+                case 'std_channel':
+                    self._update_call_std_channel = self._update_std_channel_first_call
+                    self._update_call_mean_channel = self._update_mean_channel_first_call
                 case _:
                     raise Exception(f'Unknown value: {u}')
 
@@ -294,13 +357,15 @@ class ModuleStat():
     
     def _update(self, output:torch.Tensor):
         self._restore_from_file_caller()
-        output = output.detach().view(output.shape[0], -1).to(self.device)
+        output = output.detach().to(self.device)
         values = self._split_by_target(output)
         for k, val in values.items():
             for v in val:
                 self.data._counter_update += 1
                 self._update_call_mean(k, v)
                 self._update_call_std(k, v)
+                self._update_call_mean_channel(k, v)
+                self._update_call_std_channel(k, v)
                 self._update_call_cov(k, v)
 
         self._flush_to_file_caller()
@@ -324,6 +389,7 @@ class ModuleStat():
     ################################
     #####         MEAN         #####
     ################################
+    # calculates mean in the same size as input data
     def _update_mean_first_call(self, k:int, v:torch.Tensor):
         self.data._mean = self.data._selected_dict_class()
         self.data._old_mean = self.data._selected_dict_class()
@@ -350,10 +416,45 @@ class ModuleStat():
 
     def calc_mean(self) -> dict:
         return self.data.mean
+    
+    ################################
+    #####     MEAN CHANNEL     #####
+    ################################
+    # calculated mean by each channel. Output has size of channel dimension for given module
+    def _update_mean_channel_first_call(self, k:int, v:torch.Tensor):
+        self.data._mean_channel = self.data._selected_dict_class()
+        self.data._old_mean_channel = self.data._selected_dict_class()
+        self._update_mean_channel_first_occurence(k=k, v=v)
+        
+        self._update_call_mean_channel = self._update_mean_channel
+
+    def _update_mean_channel_first_occurence(self, k:int, v:torch.Tensor):
+        h = _get_shape_hash(k=k, v=v)
+        # v of size (chn, x, y)
+        v_chn = v.mean((1, 2))
+        self.data._mean_channel[h] = v_chn.clone()
+        self.data._old_mean_channel[h] = v_chn.clone()
+       
+    def _update_mean_channel_inner(self, k:int, v:torch.Tensor):
+        h = _get_shape_hash(k=k, v=v)
+        del self.data._old_mean_channel[h]
+        v_chn = v.mean((1, 2))
+        self.data._old_mean_channel[h] = self.data._mean_channel[h].clone()
+        self.data._mean_channel[h] += (v_chn - self.data._mean_channel[h]) / self.data.counter_update
+
+    def _update_mean_channel(self, k:int, v:torch.Tensor):
+        try:
+            self._update_mean_channel_inner(k=k, v=v)
+        except KeyError:
+            self._update_mean_channel_first_occurence(k=k, v=v)
+
+    def calc_mean_channel(self) -> dict:
+        return self.data.mean_channel
 
     ################################
-    #####         STD          #####
+    #####      STD / VAR       #####
     ################################
+    # calculates std and var in the same size as input data
     def _update_std_first_call(self, k:int, v:torch.Tensor):
         self.data._M2n = self.data._selected_dict_class()
         self._update_std_first_occurence(k=k, v=v)
@@ -362,7 +463,7 @@ class ModuleStat():
 
     def _update_std_first_occurence(self, k:int, v:torch.Tensor):
         h = _get_shape_hash(k=k, v=v)
-        self.data._M2n[h] = torch.zeros(v.shape[0], device=v.device, requires_grad=False, dtype=v.dtype)
+        self.data._M2n[h] = torch.ones(v.shape, device=v.device, requires_grad=False, dtype=v.dtype)
 
     def _update_std_inner(self, k:int, v:torch.Tensor):
         h = _get_shape_hash(k=k, v=v)
@@ -376,6 +477,42 @@ class ModuleStat():
 
     def calc_std(self) -> dict:
         return self.data.std
+    
+    def calc_var(self) -> dict:
+        return self.data.var
+    
+    ################################
+    #####   STD / VAR CHANNEL  #####
+    ################################
+    # calculated std and var by each channel. Output has size of channel dimension for given module
+    def _update_std_channel_first_call(self, k:int, v:torch.Tensor):
+        self.data._M2n_channel = self.data._selected_dict_class()
+        self._update_std_channel_first_occurence(k=k, v=v)
+
+        self._update_call_std_channel = self._update_std_channel
+
+    def _update_std_channel_first_occurence(self, k:int, v:torch.Tensor):
+        h = _get_shape_hash(k=k, v=v)
+        # v of size (chn, x, y)
+        v_chn = v.view((v.shape[0], -1)).var(1, correction=0)
+        self.data._M2n_channel[h] = torch.ones(v_chn.shape, device=v_chn.device, requires_grad=False, dtype=v_chn.dtype)
+
+    def _update_std_channel_inner(self, k:int, v:torch.Tensor):
+        h = _get_shape_hash(k=k, v=v)
+        v_chn = v.view((v.shape[0], -1)).var(1, correction=0)
+        self.data._M2n_channel[h] += (v_chn - self.data._old_mean_channel[h]) * (v_chn - self.data._mean_channel[h])
+
+    def _update_std_channel(self, k:int, v:torch.Tensor):
+        try:
+            self._update_std_channel_inner(k=k, v=v)
+        except KeyError:
+            self._update_std_channel_first_occurence(k=k, v=v)
+
+    def calc_std_channel(self) -> dict:
+        return self.data.std_channel
+    
+    def calc_var_channel(self) -> dict:
+        return self.data.var_channel
 
     ################################
     #####         COV          #####
@@ -450,7 +587,8 @@ class ModuleStat():
         self.restore(path_filename=path_filename)
 
 class ModelLayerStatistics(torch.nn.Module):
-    def __init__(self, model:torch.nn.Module, device, hook_verbose:bool=False, flush_to_disk=None, hook_to:list[str]=None) -> None:
+    def __init__(self, model:torch.nn.Module, device, hook_verbose:bool=False, flush_to_disk=None, 
+                 hook_to:list[str]=None, type:list[str]=None) -> None:
         super().__init__()
         self.deleted = False
         self.layers = dict()
@@ -459,15 +597,17 @@ class ModelLayerStatistics(torch.nn.Module):
         self.shared_ref['target'] = []
         self.shared_ref['val_by_target'] = dict()
         self.flush_to_disk = flush_to_disk
+        self.type = type
 
-        f = lambda layer, name, tree_name, new_tree_name: layer.register_forward_hook(
-            self._set_statistics_f(layer=layer, name=name, tree_name=tree_name, new_tree_name=new_tree_name)
+        f = lambda layer, name, tree_name, full_name: layer.register_forward_hook(
+            self._set_statistics_f(layer=layer, name=name, tree_name=tree_name, full_name=full_name)
         )
         self.handles = hook_model(model=model, fun=f, hook_to=hook_to, verbose=hook_verbose)
 
-    def _set_statistics_f(self, layer, name, tree_name, new_tree_name):
+    def _set_statistics_f(self, layer, name, tree_name, full_name):
         full_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
-        stat = ModuleStat(device=self.device, full_name=full_name, shared_ref=self.shared_ref, flush_to_disk=self.flush_to_disk)
+        stat = ModuleStat(device=self.device, full_name=full_name, shared_ref=self.shared_ref, flush_to_disk=self.flush_to_disk,
+            type=self.type)
         self.layers[full_name] = stat
 
         def inner(module, input, output):
@@ -571,6 +711,7 @@ def collect_model_layer_stats(
     hook_to:list[str]=None,
     fast_dev_run:bool=False,
     fast_dev_run_max_batches:int=30,
+    stats_type:list[str]=None,
 ) -> dict|torch.Tensor:
     """
         Collect model stats and return tuple 
@@ -579,7 +720,8 @@ def collect_model_layer_stats(
         If there is little to no memory, try to push model into the device where the results are storen. For example if mean is stored on cpu,
         then model should be on cpu too to minimize memory footprint. 
     """
-    model_layer_stats_obj = ModelLayerStatistics(model=model, device=device, hook_verbose=hook_verbose, flush_to_disk=flush_to_disk, hook_to=hook_to)
+    model_layer_stats_obj = ModelLayerStatistics(model=model, device=device, hook_verbose=hook_verbose, flush_to_disk=flush_to_disk, 
+                                                 hook_to=hook_to, type=stats_type)
     target_list = []
 
     model.eval()
@@ -605,11 +747,15 @@ def collect_model_layer_stats(
     return model_stats, target_list
 
 def pca(data:dict[ModuleStatData], overestimated_rank=6):
-    out_by_layer_class = dict()
-    for k_layer, v_layer in data.items():
-        cov = v_layer.get_const_data().cov
-        out_by_layer_class[k_layer] = dict()
-        for k, v in cov.items():
-            _, out, _ = torch.pca_lowrank(v, center=overestimated_rank)
-            out_by_layer_class[k_layer][k] = out
-    return out_by_layer_class
+    try:
+        out_by_layer_class = dict()
+        for k_layer, v_layer in data.items():
+            cov = v_layer.get_const_data().cov
+            out_by_layer_class[k_layer] = dict()
+            for k, v in cov.items():
+                _, out, _ = torch.pca_lowrank(v, center=overestimated_rank)
+                out_by_layer_class[k_layer][k] = out
+        return out_by_layer_class
+    except Exception as e:
+        pp.sprint(f"{pp.COLOR.WARNING}WARNING: PCA not calculated. Exception:\n\t{e}")
+        return None

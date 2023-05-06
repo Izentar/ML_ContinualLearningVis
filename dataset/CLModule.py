@@ -767,18 +767,18 @@ class CLDataModule(DreamDataModule):
 
     def test_dataloader(self):
         full_classes = list(set(x for split in self.cfg.val_tasks_split for x in split))
-        full_dataset = CLDataModule._get_subset(self.test_dataset, full_classes)  
+        selected_dataset = CLDataModule._get_subset(self.test_dataset, full_classes)  
         #ConcatDataset(self.train_datasets) # creates error / no easy way to get targets from this dataset
 
         pp.sprint(f'{pp.COLOR.NORMAL_4}INFO: Testing for classes: {full_classes}')
         
         return DataLoader(
-            self.test_dataset, 
+            selected_dataset, 
             batch_size=self.cfg.test_batch_size if self.datasampler is None else 1, 
             num_workers=self.cfg.test_num_workers,
             pin_memory=True,
             batch_sampler=self.datasampler(
-                dataset=self.test_dataset, 
+                dataset=selected_dataset, 
                 shuffle=self.cfg.test_shuffle,
                 classes=full_classes,
                 batch_size=self.cfg.test_batch_size,

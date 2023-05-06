@@ -134,6 +134,10 @@ should be appart from each other. Should be greather than model.loss.chi.sigma. 
     parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1., help='')
     parser.add_argument("--loop.vis.layerloss.deep_inversion.hook_to", nargs='+', type=str, help='')
 
+    parser.add_argument("--loop.vis.layerloss.deep_inversion_target.use_at", type=str, nargs='+', help='')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion_target.scale", type=float, default=1., help='')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion_target.hook_to", nargs='+', type=str, help='')
+
     parser.add_argument("--loop.vis.image_reg.var.use_at", type=str, nargs='+', help='')
     parser.add_argument("--loop.vis.image_reg.var.scale", type=float, default=2.5e-5, help='')
 
@@ -162,7 +166,7 @@ Model will have newly initialized weights after each main loop. Reinit is done A
 It ') ##**
     parser.add_argument("--fast_dev_run.batches", type=int, default=30, help='')
     parser.add_argument("--fast_dev_run.epochs", type=int, default=1, help='')
-    parser.add_argument("--fast_dev_run.vis_threshold", nargs='+', type=int, default=[32], help='')
+    parser.add_argument("--fast_dev_run.vis_threshold", nargs='+', type=int, default=[5], help='')
 
 
     ######################################
@@ -188,10 +192,10 @@ It ') ##**
     ######################################
     #####     layer statistics      ######
     ######################################
-    parser.add_argument("--loop.layer_stats.use_at", type=int, help='Gather layer statistics \
+    parser.add_argument("--loop.layer_stats.use_at", type=str, nargs='+', help='Gather layer statistics \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.vis.layerloss.mean_norm.use_at", type=int, help='Use layer loss function \
+    parser.add_argument("--loop.vis.layerloss.mean_norm.use_at", type=str, nargs='+', help='Use layer loss function \
 at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
 means it will be used just like the python indexing for negative numbers.') ##**
     parser.add_argument("--loop.save.layer_stats", action="store_true", help='Path where to save layer_stats.') ##**
@@ -202,11 +206,11 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--loop.vis.layerloss.grad_pruning.hook_to", nargs='+', type=str)
     parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
     parser.add_argument("--model.layer_replace.enable", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
-    parser.add_argument("--loop.vis.layerloss.mean_norm.scaling", type=float, default=0.001, help='Scaling for layer loss.') ##**
-    parser.add_argument("--loop.vis.layerloss.grad_pruning.use_at", type=int, help='Use gradient pruning at.') ##**
+    parser.add_argument("--loop.vis.layerloss.mean_norm.scale", type=float, default=0.001, help='Scaling for layer loss.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.use_at", type=str, nargs='+', help='Use gradient pruning at.') ##**
     parser.add_argument("--loop.vis.layerloss.grad_pruning.percent", type=float, default=0.01,
         help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
-    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.use_at", type=int, help='') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.use_at", type=str, nargs='+', help='') ##**
     parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.percent", type=float, default=0.01, help='') ##**
     parser.add_argument("--loop.vis.layerloss.mean_norm.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
 
@@ -214,6 +218,8 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--loop.vis.layerloss.grad_pruning.device", type=str, default='cuda', help='')
     parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
     parser.add_argument("--loop.layer_stats.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.layer_stats.flush_to_disk", action="store_true", help='')
+    parser.add_argument("--loop.layer_stats.type", nargs='+', type=str, help="Possible types: 'mean', 'std', 'cov'")
 
 
 
@@ -327,7 +333,7 @@ def wandb_run_name(args):
             tr = "tr_"
     text = f"{args.config.framework_type}_{dream}{tr}"
     if(args.loop.vis.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
-        text = f"{text}ll_mean_norm{args.loop.vis.layerloss.mean_norm.scaling}_"
+        text = f"{text}ll_mean_norm{args.loop.vis.layerloss.mean_norm.scale}_"
     if(args.model.layer_replace.enable):
         text = f"{text}layer_replace_"
     if(args.loop.vis.layerloss.grad_pruning.use_at is not None and args.loop.vis.layerloss.grad_pruning.use_at != False):

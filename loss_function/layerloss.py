@@ -26,14 +26,42 @@ class LayerBase():
         self.loss_dict = {}
         return loss + sum_loss
 
+class DeepInversionTarget(LayerBase):
+    def __init__(self, scale) -> None:
+        super().__init__()
+        self.scale = scale   
+
+    def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
+        def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
+            data:ModuleStatData = layer_stat_data
+            if(self.new_cl):
+                data.lazy_flush()
+                self.new_cl = False
+            h = get_hash(k=self.current_cl, v=output.shape[1:])
+
+            layer_mean_channel = data.mean_channel[h].requires_grad_(False).to(output.device)
+            layer_var_channel = data.var_channel[h].requires_grad_(False).to(output.device)
+            output = output.view(output.shape[0], -1)
+
+            mean = input[0].mean([0, 2, 3])
+            var = input[0].permute(1, 0, 2, 3).contiguous().view([input[0].shape[1], -1]).var(1, correction=0)
+
+            val = torch.norm(layer_var_channel - var, 2) + torch.norm(layer_mean_channel - mean, 2)
+            self._register_loss(full_name, output, self.scale * val)
+
+        return module.register_forward_hook(inner)
+        
+    def gather_loss(self, loss) -> torch.Tensor:
+        return self._gather_loss(loss)
+
 class MeanNorm(LayerBase):
-    def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
+    def __init__(self, device, del_cov_after=False, scale=0.01) -> None:
         super().__init__()
 
         self.device = device
-        self.scaling = scaling
+        self.scale = scale
         self.del_cov_after = del_cov_after
-        print(f'LAYERLOSS::MEAN_NORM: Scaling {self.scaling}')    
+        print(f'LAYERLOSS::MEAN_NORM: Scaling {self.scale}')    
     
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
@@ -47,7 +75,7 @@ class MeanNorm(LayerBase):
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
-            val = self.scaling * torch.sum(
+            val = self.scale * torch.sum(
                 torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
             ).to(input[0].device)
             self._register_loss(full_name, output, val)
