@@ -270,3 +270,11 @@ def check_cfg_var_maps(src_obj):
     for k in src_obj.CONFIG_MAP.keys():
         if k not in vals:
             raise Exception(f'Could not find in VAR_MAP value "{k}".')
+        
+def time_in_sec_format_to_hourly(seconds):
+    sec = seconds % (24 * 3600)
+    hour = sec // 3600
+    sec %= 3600
+    min = sec // 60
+    sec %= 60
+    return int(hour), int(min), int(sec)

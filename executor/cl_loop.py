@@ -43,6 +43,7 @@ from utils import setup_args
 import wandb
 from utils import pretty_print as pp
 import os
+import time
 
 ########################################################################
 #                     Here is the `Pseudo Code` for the base Loop.     #
@@ -78,6 +79,7 @@ class CLLoop(Loop):
     class Visualization():
         generate_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
         clear_dataset_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        measure_time: bool = True
 
         @dataclass
         class LayerLoss():
@@ -400,6 +402,8 @@ class CLLoop(Loop):
             
             pp.sprint(f"{pp.COLOR.NORMAL}DREAMING DURING TASK: {self.current_task}, loop {self.current_loop}")
             
+            if(self.cfg_vis.measure_time):
+                start = time.time()
             try:
                 self.trainer.datamodule.generate_synthetic_data(
                     model=self.trainer.lightning_module, 
@@ -409,6 +413,10 @@ class CLLoop(Loop):
                 )
             except KeyboardInterrupt:
                 pp.sprint(f"{pp.COLOR.WARNING}Skipping visualization. Keyboard interruption.")
+            if(self.cfg_vis.measure_time):
+                end = time.time()
+                hour, minutes, secs = utils.time_in_sec_format_to_hourly(end - start)
+                pp.sprint(f"{pp.COLOR.NORMAL}Time generating features: {hour:02d}:{minutes:02d}:{secs:02d}")
             if(len(layer_handles) != 0):
                 for l in layer_handles:
                     unhook(l)
