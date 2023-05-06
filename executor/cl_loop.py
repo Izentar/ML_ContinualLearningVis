@@ -720,7 +720,7 @@ class CLLoop(Loop):
             stripped_dict = {}
             for k, v in self.model_stats.items():
                 stripped_dict[k] = v.get_const_data()
-            filepath, name = self._generate_save_path("stat")
+            filepath, name = self._generate_save_path("layer_stats")
             torch.save(stripped_dict, f=filepath / name) 
     
     def _try_load_model_layer_stats(self, strict=True):
