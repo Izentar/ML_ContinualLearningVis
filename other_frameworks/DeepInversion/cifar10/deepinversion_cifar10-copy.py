@@ -30,6 +30,8 @@ import glob
 import collections
 
 from resnet_cifar import ResNet34, ResNet18
+from torch import autocast
+from torch.cuda.amp import GradScaler
 
 try:
     from apex.parallel import DistributedDataParallel as DDP
@@ -136,6 +138,8 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
     # setting up the range for jitter
     lim_0, lim_1 = 2, 2
 
+    if('cuda' in device):
+        scaler = GradScaler()
     for epoch in range(epochs):
         # apply random jitter offsets
         off1 = random.randint(-lim_0, lim_0)
@@ -199,13 +203,15 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
             best_inputs = inputs.data
 
         # backward pass
-        if use_amp:
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
+        if('cuda' in device):
+            with autocast(device):
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                scaler.step(optimizer)
+                scaler.update()
         else:
             loss.backward()
-
-        optimizer.step()
+            optimizer.step()
 
     outputs=net(best_inputs)
     _, predicted_teach = outputs.max(1)
