@@ -733,7 +733,7 @@ def collect_model_layer_stats(
             if(fast_dev_run and idx == fast_dev_run_max_batches):
                 break
             
-            with autocast(device_type=device, dtype=torch.bfloat16, enabled=True):
+            with autocast(device_type=device, dtype=torch.float16, enabled=True):
                 input = input.to(model.device)
                 model_layer_stats_obj.register_batched_class_list(target)
                 target = target.to(model.device)

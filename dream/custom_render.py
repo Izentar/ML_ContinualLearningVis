@@ -384,7 +384,7 @@ def render_vis(
             rd.model.zero_grad()
             image = rd.transform_f(rd.optim_image.image())
 
-            with autocast(device_type=device, dtype=torch.bfloat16, enabled=autocast_enable):
+            with autocast(device_type=device, dtype=torch.float16, enabled=autocast_enable):
                 rd.model(image)
                 rd.input_image_train_after_hook(image)
 
