@@ -101,7 +101,6 @@ class CLLoop(Loop):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
                 percent: float = 0.01
                 hook_to: Union[list[str], None] = False
-                device: str = 'cuda'
 
             @dataclass
             class DeepInversion():
@@ -368,7 +367,7 @@ class CLLoop(Loop):
                 self._try_generate_dream_print_msg("GRAD ACTIVE PRUNING FUNCTION")
                 self._try_load_model_layer_stats()
                 self.layerloss_grad_activ_pruning = True
-                tmp = layerloss.LayerGradActivationPruning(device=self.cfg_grad_activ_pruning.device, percent=self.cfg_grad_activ_pruning.percent)
+                tmp = layerloss.LayerGradActivationPruning(percent=self.cfg_grad_activ_pruning.percent)
                 layerloss_hook_obj.append(tmp)
                 layer_handles.append(utils.hook_model(
                     model=self.trainer.lightning_module, 

@@ -2,8 +2,7 @@ import torch
 from  model.statistics.base import ModuleStatData, get_hash
 
 class LayerBase():
-    def __init__(self, device) -> None:
-        self.device = device
+    def __init__(self) -> None:
         self.new_cl = False
         self.loss_dict = {}
         
@@ -29,12 +28,11 @@ class LayerBase():
 
 class MeanNorm(LayerBase):
     def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
-        super().__init__(device=device)
+        super().__init__()
 
-        self.loss_dict = {}
+        self.device = device
         self.scaling = scaling
         self.del_cov_after = del_cov_after
-        self._name_gather_check = {}
         print(f'LAYERLOSS::MEAN_NORM: Scaling {self.scaling}')    
     
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
@@ -65,7 +63,7 @@ class DeepInversionFeatureLoss(LayerBase):
         Will compute mean and variance, and will use l2 as a loss
     '''
     def __init__(self, scale) -> None:
-        self.loss_dict = {}
+        super().__init__()
         self.scale = scale
 
     def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, full_name:str):
@@ -80,7 +78,7 @@ class DeepInversionFeatureLoss(LayerBase):
             # other ways might work better, e.g. KL divergence
             r_feature = torch.norm(module.running_var.data.type(var.type()) - var, 2) + torch.norm(
                 module.running_mean.data.type(var.type()) - mean, 2)
-            
+
             self._register_loss(full_name, output, self.scale * r_feature)
             # must have no output
         return module.register_forward_hook(inner)
@@ -90,8 +88,9 @@ class DeepInversionFeatureLoss(LayerBase):
 
 class LayerGradPruning(LayerBase):
     def __init__(self, device, percent) -> None:
-        super().__init__(device=device)
+        super().__init__()
         
+        self.device = device
         self.percent = percent
         self.by_class  = dict()
 
@@ -119,8 +118,8 @@ class LayerGradPruning(LayerBase):
         return module.register_full_backward_hook(inner)
 
 class LayerGradActivationPruning(LayerBase):
-    def __init__(self, device, percent) -> None:
-        super().__init__(device=device)
+    def __init__(self, percent) -> None:
+        super().__init__()
         
         self.percent = percent
         self.by_class  = dict()
