@@ -138,13 +138,27 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
     # setting up the range for jitter
     lim_0, lim_1 = 2, 2
 
+    JITTER = 2
+    ROTATE = 5
+    SCALE = 1.1
+    from lucent.optvis import transform as dream_tr
+    render_transforms = [
+        dream_tr.pad(2*JITTER),
+        dream_tr.jitter(JITTER),
+        dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+        dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
+    ]
+    render_transforms = dream_tr.compose(render_transforms)
+
     if('cuda' in device):
         scaler = GradScaler()
     for epoch in range(epochs):
         # apply random jitter offsets
-        off1 = random.randint(-lim_0, lim_0)
-        off2 = random.randint(-lim_1, lim_1)
-        inputs_jit = torch.roll(inputs, shifts=(off1,off2), dims=(2,3))
+
+        #off1 = random.randint(-lim_0, lim_0)
+        #off2 = random.randint(-lim_1, lim_1)
+        #inputs_jit = torch.roll(inputs, shifts=(off1,off2), dims=(2,3))
+        inputs_jit = render_transforms(inputs)
 
         # foward with jit images
         optimizer.zero_grad()
