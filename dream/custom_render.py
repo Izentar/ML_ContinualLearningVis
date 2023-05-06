@@ -26,6 +26,7 @@ import wandb
 from utils.utils import hook_model
 from dream.image import _Image
 from torchvision import transforms as tr
+from torch import autocast
 
 def _check_img_size(transform_f, image_f, standard_image_size):
     if(standard_image_size is None):
@@ -354,6 +355,7 @@ def render_vis(
     show_inline=False,
     progress_bar=None,
     refresh_fequency=50,
+    autocast_enable=True,
 ):
     """
         standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
@@ -373,6 +375,8 @@ def render_vis(
     model_mode = rd.model.training # from torch.nn.Module
     if model_mode:
         rd.model.eval()
+
+    device = 'cuda' if 'cuda' in str(rd.device) else 'cpu'
         
     for i in range(1, iterations + 1):
         def closure():
@@ -380,12 +384,13 @@ def render_vis(
             rd.model.zero_grad()
             image = rd.transform_f(rd.optim_image.image())
 
-            rd.model(image)
-            rd.input_image_train_after_hook(image)
+            with autocast(device_type=device, dtype=torch.bfloat16, enabled=autocast_enable):
+                rd.model(image)
+                rd.input_image_train_after_hook(image)
 
-            loss = rd.objective_f(rd.hook.get_output)
-            loss = rd.forward_loss_hook(loss)
-            loss.backward()
+                loss = rd.objective_f(rd.hook.get_output)
+                loss = rd.forward_loss_hook(loss)
+                loss.backward()
             return loss
             
         rd.optimizer.step(closure)

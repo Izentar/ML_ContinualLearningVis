@@ -11,6 +11,7 @@ import pickle
 import os
 import time
 from utils import pretty_print as pp
+from torch import autocast
 
 def get_hash(k, v:torch.Size):
     return (v, k)
@@ -731,11 +732,13 @@ def collect_model_layer_stats(
         for idx, (input, target) in enumerate(single_dataloader):
             if(fast_dev_run and idx == fast_dev_run_max_batches):
                 break
-            input = input.to(model.device)
-            model_layer_stats_obj.register_batched_class_list(target)
-            target = target.to(model.device)
-            model(input)
-            target_list.append(target)
+            
+            with autocast(device_type=device, dtype=torch.bfloat16, enabled=True):
+                input = input.to(model.device)
+                model_layer_stats_obj.register_batched_class_list(target)
+                target = target.to(model.device)
+                model(input)
+                target_list.append(target)
             progress_bar.update(key='stats')
             progress_bar.refresh()
     
