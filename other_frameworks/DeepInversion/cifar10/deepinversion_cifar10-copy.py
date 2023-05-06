@@ -186,8 +186,7 @@ def get_images(net, bs=256, epochs=1000, idx=-1, var_scale=0.00005,
         loss = loss + bn_reg_scale*loss_distr # best for noise before BN
 
         # l2 loss
-        if 0:
-            loss = loss + l2_coeff * torch.norm(inputs_jit, 2)
+        loss = loss + l2_coeff * torch.norm(inputs_jit, 2)
 
         if debug_output and epoch % 200==0:
             print(f"It {epoch}\t Losses: total: {loss.item():3.3f},\ttarget: {loss_target:3.3f} \tR_feature_loss unscaled:\t {loss_distr.item():3.3f}")
