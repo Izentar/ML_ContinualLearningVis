@@ -108,6 +108,7 @@ Without running this and running "loop.train_at" will run only test. Use this wi
     parser.add_argument("--datamodule.vis.batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
     parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
+    parser.add_argument("--datamodule.vis.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--datamodule.vis.sched.type", type=str)
     parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[512, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
