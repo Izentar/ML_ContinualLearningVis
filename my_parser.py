@@ -327,9 +327,9 @@ def wandb_run_name(args):
             tr = "tr_"
     text = f"{args.config.framework_type}_{dream}{tr}"
     if(args.loop.vis.layerloss.mean_norm.use_at is not None and args.datamodule.vis.only_vis_at != False):
-        text = f"{text}ll_mean_norm{args.loop.vis.layerloss.scaling}_"
+        text = f"{text}ll_mean_norm{args.loop.vis.layerloss.mean_norm.scaling}_"
     if(args.model.layer_replace.enable):
-        text = f"{text}replayer_"
+        text = f"{text}layer_replace_"
     if(args.loop.vis.layerloss.grad_pruning.use_at is not None and args.loop.vis.layerloss.grad_pruning.use_at != False):
         text = f"{text}gp{args.loop.vis.layerloss.grad_pruning.percent}_"
     if(args.loop.vis.layerloss.grad_activ_pruning.use_at is not None and args.loop.vis.layerloss.grad_activ_pruning.use_at != False):
