@@ -5,6 +5,7 @@ class LayerBase():
     def __init__(self, device) -> None:
         self.device = device
         self.new_cl = False
+        self.loss_dict = {}
         
     def set_current_class(self, cl):
         if(isinstance(cl, torch.TensorType)):
@@ -12,6 +13,19 @@ class LayerBase():
         else:
             self.current_cl = cl
         self.new_cl = True
+
+    def _register_loss(self, full_name, output, value):
+        name = (full_name, output.shape[1:])
+        if(name in self.loss_dict):
+            raise Exception(f'Loss for "{name}" was not processed. Tried to override loss.')
+        self.loss_dict[name] = value
+
+    def _gather_loss(self, loss) -> torch.Tensor:
+        if(len(self.loss_dict) == 0):
+            raise Exception("Loss dict is empty. Maybe tried to hook to the nonexistent layer?")
+        sum_loss = torch.sum(torch.stack(list(self.loss_dict.values())))
+        self.loss_dict = {}
+        return loss + sum_loss
 
 class MeanNorm(LayerBase):
     def __init__(self, device, del_cov_after=False, scaling=0.01) -> None:
@@ -35,20 +49,15 @@ class MeanNorm(LayerBase):
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
-            loss_dict_key = (full_name, output.shape[1:])
-            if(loss_dict_key in self.loss_dict):
-                raise Exception(f'Loss for "{loss_dict_key}" was not processed. Tried to override loss.')
-            self.loss_dict[loss_dict_key] = self.scaling * torch.sum(
-                    torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
-                ).to(input[0].device)
+            val = self.scaling * torch.sum(
+                torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
+            ).to(input[0].device)
+            self._register_loss(full_name, output, val)
+
         return module.register_forward_hook(inner)
         
     def gather_loss(self, loss) -> torch.Tensor:
-        if(len(self.loss_dict) == 0):
-            raise Exception("Loss dict is empty. Maybe tried to hook to the nonexistent layer?")
-        sum_loss = torch.sum(torch.stack(list(self.loss_dict.values())))
-        self.loss_dict = {}
-        return loss + sum_loss
+        return self._gather_loss(loss)
 
 class DeepInversionFeatureLoss(LayerBase):
     '''
@@ -56,10 +65,10 @@ class DeepInversionFeatureLoss(LayerBase):
         Will compute mean and variance, and will use l2 as a loss
     '''
     def __init__(self, scale) -> None:
-        self.r_feature = None
+        self.loss_dict = {}
         self.scale = scale
 
-    def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, new_tree_name:str):
+    def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, full_name:str):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             # hook co compute deepinversion's feature distribution regularization
             nch = input[0].shape[1]
@@ -69,13 +78,15 @@ class DeepInversionFeatureLoss(LayerBase):
 
             # forcing mean and variance to match between two distributions
             # other ways might work better, e.g. KL divergence
-            self.r_feature = torch.norm(module.running_var.data.type(var.type()) - var, 2) + torch.norm(
+            r_feature = torch.norm(module.running_var.data.type(var.type()) - var, 2) + torch.norm(
                 module.running_mean.data.type(var.type()) - mean, 2)
+            
+            self._register_loss(full_name, output, self.scale * r_feature)
             # must have no output
         return module.register_forward_hook(inner)
 
-    def gather_loss(self, loss):
-        return loss + self.scale * self.r_feature 
+    def gather_loss(self, loss) -> torch.Tensor:
+        return self._gather_loss(loss)
 
 class LayerGradPruning(LayerBase):
     def __init__(self, device, percent) -> None:
@@ -114,7 +125,7 @@ class LayerGradActivationPruning(LayerBase):
         self.percent = percent
         self.by_class  = dict()
 
-    def hook_fun(self, module:torch.nn.Module, name:str, tree_name, new_tree_name):
+    def hook_fun(self, module:torch.nn.Module, name:str, tree_name, full_name):
         def inner(module:torch.nn.Module, grad_input:torch.Tensor, grad_output:torch.Tensor):
             """
                 Look which neurons have the smallest gadient and zero them.

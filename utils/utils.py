@@ -135,19 +135,19 @@ def _hook_model(model:torch.nn.Module, fun, tree_name:str, handles, already_hook
         return tuple(name, tree_name, handle_to_layer)
     """
     for name, module in model.named_children():
-        new_tree_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
+        full_name = f"{tree_name}.{name}" if len(tree_name) != 0 else name
         if ((isinstance(hook_to, list) and 
-                (new_tree_name in hook_to or module.__class__.__name__ in hook_to)) 
+                (full_name in hook_to or module.__class__.__name__ in hook_to)) 
             or (isinstance(hook_to, bool) and hook_to)):
-            handles[new_tree_name] = fun(module, name=name, tree_name=tree_name, new_tree_name=new_tree_name)
-            to_append = new_tree_name
+            handles[full_name] = fun(module, name=name, tree_name=tree_name, full_name=full_name)
+            to_append = full_name
             if(isinstance(hook_to, list) and module.__class__.__name__ in hook_to):
                 to_append = module.__class__.__name__
             already_hooked.append(to_append)
         
         if(verbose):
-            print(new_tree_name)
-        _hook_model(model=module, fun=fun, tree_name=new_tree_name, handles=handles, hook_to=hook_to, verbose=verbose, already_hooked=already_hooked)
+            print(full_name)
+        _hook_model(model=module, fun=fun, tree_name=full_name, handles=handles, hook_to=hook_to, verbose=verbose, already_hooked=already_hooked)
     return handles
 
 
