@@ -16,7 +16,7 @@ class ResNetBase(nn.Module, ModelBase):
                     nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
 
 class ResNet18(ResNetBase):
-    def __init__(self, num_classes, default_weights:bool=False, *args, **kwargs):
+    def __init__(self, num_classes, default_weights:bool=None, *args, **kwargs):
         super().__init__()
 
         if(default_weights):
@@ -42,7 +42,7 @@ class ResNet18(ResNetBase):
         return (self.resnet.fc.out_features,)
         
 class ResNet34(ResNetBase):
-    def __init__(self, num_classes, default_weights:bool=False, *args, **kwargs):
+    def __init__(self, num_classes, default_weights:bool=None, *args, **kwargs):
         super().__init__()
 
         if(default_weights):
