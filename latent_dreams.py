@@ -310,15 +310,16 @@ def logic(args, log_args_to_wandb=True):
     #print(h)
     #exit()
     
+    test_transforms = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ]
+    )
 
     cl_data_module = CLDataModule(
         data_transform=data_transform(),
-        test_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-            ]
-        ),
+        test_transform=test_transforms,
         dataset_class=dataset_class,
         select_dream_tasks_f=select_dream_tasks_f,
         dream_image_f=dream_image_f,
@@ -326,7 +327,7 @@ def logic(args, log_args_to_wandb=True):
         fast_dev_run=args.fast_dev_run.enable,
         fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_sets.DreamDataset(transform=dreams_transforms),
+        empty_dream_dataset=dream_sets.DreamDataset(transform=test_transforms),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
         logger=logger,

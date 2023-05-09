@@ -12,6 +12,7 @@ from utils.functional.model_optimizer import ModelOptimizerManager
 from dataclasses import dataclass, field
 from argparse import Namespace
 from utils import utils, setup_args
+from utils import pretty_print as pp
 
 
 class CLBase(LightningModule):
@@ -36,11 +37,9 @@ class CLBase(LightningModule):
     @dataclass
     class Scheduler():
         type: str = None
-        steps: Sequence[int] = None
         kwargs: dict = None
 
         def __post_init__(self):
-            self.steps = self.steps if self.steps is not None else (None, )
             if self.kwargs is None:
                 self.kwargs = {
                     'lr': 1e-3,
@@ -73,8 +72,6 @@ class CLBase(LightningModule):
         )
 
         assert not (self.cfg_sched.type is not None and self.cfg_optim.type is None), "Scheduler should have optimizer"
-        if(self.cfg_sched.steps is not None and self.cfg_sched.type is None):
-            print('WARNIGN: Using "cfg_sched.steps" but scheduler is not selected.')
 
         self.train_acc = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self.train_acc_dream = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
@@ -194,16 +191,13 @@ class CLBase(LightningModule):
 
     # training_epoch_end
     def training_epoch_end(self, output):
-        # OK
-        #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.current_epoch {self.current_epoch}")
-        #print(f"self.data_passer['epoch_per_task'] {self.data_passer['epoch_per_task']}, self.cfg_sched.steps {self.cfg_sched.steps}")
         if(self.scheduler is not None):
             if(self.current_epoch >= self.data_passer['epoch_per_task'] - 1):
                 self.optimizer_restart_params_f(self.optimizer)
                 self.scheduler = self.scheduler_construct_f(self.optimizer)
-                print(f'Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.scheduler._last_lr}')
+                pp.sprint(f'{pp.COLOR.NORMAL}Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.scheduler.get_last_lr()}')
                 return
-            if(self.current_epoch in self.cfg_sched.steps):
-                self.scheduler.step()
-                print(f"Changed learning rate to: {self.scheduler._last_lr}")
-                #print(f"debug current_task_loop: {self.data_passer['current_task_loop']}, self.cfg_sched.steps {self.cfg_sched.steps}")
+            last_lr = self.scheduler.get_last_lr()
+            self.scheduler.step()
+            if(last_lr != self.scheduler.get_last_lr()):
+                pp.sprint(f"{pp.COLOR.NORMAL}Changed learning rate from: '{last_lr}' to: '{self.scheduler._last_lr}'")

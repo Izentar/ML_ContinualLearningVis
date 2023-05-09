@@ -22,6 +22,10 @@ def step_scheduler(**kwargs):
     new_kwargs = search_kwargs(kwargs, ['step_size', 'gamma', 'last_epoch'])
     return lambda optim: torch.optim.lr_scheduler.StepLR(optim, **new_kwargs)
 
+def mulitstep_scheduler(**kwargs):
+    new_kwargs = search_kwargs(kwargs, ['milestones', 'gamma', 'last_epoch'])
+    return lambda optim: torch.optim.lr_scheduler.MultiStepLR(optim, **new_kwargs)
+
 class ModelOptimizerManager():
     OPTIMIZERS = {
         'ADAM': adam
@@ -31,6 +35,7 @@ class ModelOptimizerManager():
         'NONE': none,
         'EXPONENTIAL-SCHED': exponential_scheduler,
         'STEP_SCHED': step_scheduler,
+        'MULTISTEP_SCHED': mulitstep_scheduler,
     }
 
     RESER_OPTIM = {

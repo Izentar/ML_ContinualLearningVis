@@ -49,6 +49,8 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
     parser.add_argument("--model.sched.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
 to choose epoch at which to call it.')
+    parser.add_argument("--model.sched.kwargs.gamma", default=1., type=float)
+    parser.add_argument("--model.sched.kwargs.milestones", nargs='+', type=int)
     parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
 
     parser.add_argument("--loop.save.model", action="store_true", help='Save model at the end of all training loops') ##**
