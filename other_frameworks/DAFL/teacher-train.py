@@ -15,6 +15,7 @@ from torchvision.datasets import CIFAR100
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader 
 import argparse
+from pathlib import Path
 
 parser = argparse.ArgumentParser(description='train-teacher-network')
 
@@ -174,7 +175,7 @@ def main():
         epoch = 200
     for e in range(1, epoch):
         train_and_test(e)
-    torch.save(net,args.output_dir + 'teacher')
+    torch.save(net.state_dict(), Path(args.output_dir) / 'teacher')
  
  
 if __name__ == '__main__':
