@@ -9,7 +9,7 @@ from model.activation_layer import gaussA, conjunction, GaussA
 from utils import pretty_print as pp
 
 class SAE_CIFAR(nn.Module, ModelBase):
-    def __init__(self, num_classes, default_weights=None, ln_hidden1=256):
+    def __init__(self, num_classes, default_weights=False, ln_hidden1=256):
         super().__init__()
         self.ln_hidden1 = ln_hidden1
         self.conv_enc1 = nn.Conv2d(
@@ -29,7 +29,7 @@ class SAE_CIFAR(nn.Module, ModelBase):
 
         self._initialize_weights()
 
-        if(default_weights is not None):
+        if(default_weights is not None and default_weights):
             pp.sprint(f"{pp.COLOR.WARNING}WARNING: SAE model does not have default weights.")
 
     def init_weights(self):
