@@ -18,6 +18,10 @@ def adam(**kwargs):
     new_kwargs = search_kwargs(kwargs, ['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
     return lambda param: torch.optim.Adam(param, **new_kwargs)
 
+def sgd(**kwargs):
+    new_kwargs = search_kwargs(kwargs, ['lr', 'momentum', 'dampening', 'weight_decay'])
+    return lambda param: torch.optim.SGD(param, **new_kwargs)
+
 def step_scheduler(**kwargs):
     new_kwargs = search_kwargs(kwargs, ['step_size', 'gamma', 'last_epoch'])
     return lambda optim: torch.optim.lr_scheduler.StepLR(optim, **new_kwargs)
@@ -28,7 +32,8 @@ def mulitstep_scheduler(**kwargs):
 
 class ModelOptimizerManager():
     OPTIMIZERS = {
-        'ADAM': adam
+        'ADAM': adam,
+        'SGD': sgd,
     }
 
     SCHEDULERS = {

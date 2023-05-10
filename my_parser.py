@@ -78,6 +78,9 @@ If less than in dataset then model will be trained and validated only using this
 
     parser.add_argument("--model.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
     parser.add_argument("--model.optim.kwargs.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
+    parser.add_argument("--model.optim.kwargs.momentum", type=float, default=0, help='')
+    parser.add_argument("--model.optim.kwargs.dampening", type=float, default=0, help='')
+    parser.add_argument("--model.optim.kwargs.weight_decay", type=float, default=0, help='')
 
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
