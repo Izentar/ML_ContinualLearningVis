@@ -213,13 +213,15 @@ def search_kwargs(kwargs: dict, vals:list[str]):
             new_kwargs[k] = v
     return new_kwargs
 
-def rgetattr(obj, name:str, separator='.'):
+def rgetattr(obj, name:str, separator='.', nofound_is_ok=False) -> object|None:
     var_names = name.split(sep=separator)
     current = obj
     for v in var_names:
         try:
             current = getattr(current, v)
         except AttributeError:
+            if(nofound_is_ok):
+                return None
             raise Exception(f"Could not find '{v}', name '{name}' \nfor object: {vars(current)}\n\nroot obj '{obj}'")
     return current
 

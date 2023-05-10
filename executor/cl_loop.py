@@ -233,6 +233,8 @@ class CLLoop(Loop):
 
         self._save_folder = None
 
+        self.args = deepcopy(args)
+
         if(self.folder_output_path is None):
             self.folder_output_path = ""
 
@@ -544,6 +546,9 @@ class CLLoop(Loop):
         # here put your root folder
         folder = Path(overlay_type) / model_type / self._generate_save_path_dream()
 
+        if(obj := utils.rgetattr(self.args, 'model.optim.type', nofound_is_ok=True)):
+            folder = folder / f'model_optim_type-{obj}'
+
         adds = ""
         if(hasattr(self, 'layer_stats_use_at') and self.layer_stats_use_at and len(self.cfg_layer_stats.hook_to) != 0):
             adds = f"{adds}-layer_stat"
@@ -577,7 +582,8 @@ class CLLoop(Loop):
             raise Exception(f'Not found in lookup map: {dtype}')
         
         gen_path = self.cfg_save.root / folder / self.folder_output_path / self.run_name
-        Path.mkdir(gen_path, parents=True, exist_ok=True)
+        if(not self.fast_dev_run):
+            Path.mkdir(gen_path, parents=True, exist_ok=True)
         self._save_folder = gen_path
         return gen_path, f"{dtype}.{date}_{time}_loop_{self.current_loop}_epoch_{self.epoch_num}.{file_type}"
     

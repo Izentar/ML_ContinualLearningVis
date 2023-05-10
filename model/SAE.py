@@ -6,9 +6,10 @@ from torch.autograd.variable import Variable
 import math
 from model.model_base import ModelBase
 from model.activation_layer import gaussA, conjunction, GaussA
+from utils import pretty_print as pp
 
 class SAE_CIFAR(nn.Module, ModelBase):
-    def __init__(self, num_classes, ln_hidden1=256):
+    def __init__(self, num_classes, default_weights=None, ln_hidden1=256):
         super().__init__()
         self.ln_hidden1 = ln_hidden1
         self.conv_enc1 = nn.Conv2d(
@@ -27,6 +28,9 @@ class SAE_CIFAR(nn.Module, ModelBase):
         self.ln_encode_cl = nn.Linear(in_features=ln_hidden1, out_features=num_classes)
 
         self._initialize_weights()
+
+        if(default_weights is not None):
+            pp.sprint(f"{pp.COLOR.WARNING}WARNING: SAE model does not have default weights.")
 
     def init_weights(self):
         self._initialize_weights()
