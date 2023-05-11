@@ -47,6 +47,7 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
 
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--model.sched.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
 to choose epoch at which to call it.')
     parser.add_argument("--model.sched.kwargs.gamma", default=1., type=float)
