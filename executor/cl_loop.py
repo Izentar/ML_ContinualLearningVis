@@ -158,6 +158,7 @@ class CLLoop(Loop):
     @dataclass
     class Load():
         id: list = None
+        name: str = None
         model: bool = False
         dreams: bool = False
         layer_stats: bool = False
@@ -168,6 +169,10 @@ class CLLoop(Loop):
                 self.root = Path(self.root)
             else:
                 self.root = Path(default_export_path)
+            if(self.id is not None and self.name is not None):
+                raise Exception('During loading model choose only one option: id or name.')
+            if(self.name is not None):
+                self.name = Path(self.name)
         
     @dataclass
     class LayerStats():
@@ -587,20 +592,46 @@ class CLLoop(Loop):
         self._save_folder = gen_path
         return gen_path, f"{dtype}.{date}_{time}_loop_{self.current_loop}_epoch_{self.epoch_num}.{file_type}"
     
+    def _glob_phrase_multiroot(self, phrase, root_paths:list) -> list:
+        may_be_bad_root = []
+        new_full_paths = []
+        
+        for r in root_paths:
+            out = glob.glob(pathname=phrase, root_dir=r, recursive=True)
+            if(len(out) == 0):
+                may_be_bad_root.append(r)
+            for t in out:
+                new_full_paths.append(r / t)
+        if(len(may_be_bad_root) != 0 and len(new_full_paths) == 0):
+            raise Exception(f"Did not found any possible paths. Phrase ''{phrase}''. Root with zero found paths: {may_be_bad_root}")
+        
+        return new_full_paths
+
     def _generate_load_path(self, dtype: str):
-        if(self.cfg_load.id is None or len(self.cfg_load.id) == 0):
-            raise Exception("Tried loading while id is None")
+        if((self.cfg_load.id is None and self.cfg_load.name is None) or (self.cfg_load.id is not None and len(self.cfg_load.id) == 0)):
+            raise Exception("Tried loading while 'id' and 'name' is None or empty")
+        if(self.cfg_load.id is not None and self.cfg_load.name is not None):
+            raise Exception("The 'name' and 'id' cannot be both set at the same time.")
         file_type = self.FILE_TYPE_MAP.get(dtype)
         if(not file_type):
             raise Exception(f'Not found in lookup map: {dtype}')
         
         root = self.cfg_load.root
-        for id in self.cfg_load.id:
-            phrase = f"**/*{id}*"
-            outer_path = glob.glob(pathname=phrase, root_dir=root, recursive=True)
-            if(len(outer_path) != 1):
-                raise Exception(f"Found {len(outer_path)} possible paths. Phrase ''{phrase}'', possible paths from: {outer_path}. Root: {root}")
-            root = root / outer_path[0]
+        new_root_paths = [root]
+        phrase = None
+        if(self.cfg_load.id is not None):
+            for id in self.cfg_load.id:
+                phrase = f"**/*{id}*"
+                new_root_paths = self._glob_phrase_multiroot(phrase, new_root_paths)
+
+            if(len(new_root_paths) != 1):
+                raise Exception(f"Found {len(new_root_paths)} possible paths. Phrase ''{phrase}''. Root: {new_root_paths}")
+            root = new_root_paths[0]
+                    
+        elif(self.cfg_load.name is not None):
+            root = root / self.cfg_load.name
+        else:
+            raise Exception('Internal error')
 
         if(os.path.isfile(root)):
             path = root
@@ -610,6 +641,7 @@ class CLLoop(Loop):
             if(len(path) != 1):
                 raise Exception(f"Found {len(path)} possible paths. Phrase ''{phrase}'' possible paths from: {path}. Root: {root}")
             path = root / path[0]
+        
         return path
 
     def _try_save_dreams(self):
