@@ -629,7 +629,7 @@ class CLLoop(Loop):
             root = new_root_paths[0]
                     
         elif(self.cfg_load.name is not None):
-            root = root / self.cfg_load.name
+            root = self.cfg_load.name
         else:
             raise Exception('Internal error')
 
