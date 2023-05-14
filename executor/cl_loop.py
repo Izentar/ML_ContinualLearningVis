@@ -698,7 +698,10 @@ class CLLoop(Loop):
         if(self.cfg_load.model):
             path = self._generate_load_path('trained_model')
             checkpoint = torch.load(path)
-            self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
+            if("state_dict" in checkpoint):
+                self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
+            else:
+                self.trainer.lightning_module.load_state_dict(checkpoint)
             pp.sprint(f'{pp.COLOR.NORMAL}INFO: Loaded model from "{path}"')
 
     def advance(self, *args: Any, **kwargs: Any) -> None:
