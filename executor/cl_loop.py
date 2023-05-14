@@ -694,14 +694,49 @@ class CLLoop(Loop):
                 weights_only=True
             )
 
+    def _try_load_model_split_template(self, smaller, bigger):
+        keys = list(bigger.keys())
+        split = [k.split('.') for k in keys]
+        found_split = False
+        to_del = []
+        idx = 0
+        for idx, s in enumerate(split[0]):
+            new_name = ".".join(split[0][idx:])
+            if(new_name in smaller):
+                found_split = True
+                break
+            to_del.append(s)
+        if(idx + 1 == len(split[0])):
+            return smaller
+        if(not found_split):
+            raise Exception(f"Could not load model. Keys does not match. Missing key(s) in bigger dict:\n{list(bigger.keys())}\nKeys in smaller dict:\n{list(smaller.keys())}")
+        return to_del
+    
+    def _try_load_model_if_checkpoint_smaller(self, checkpoint):
+        prefix = self._try_load_model_split_template(checkpoint, self.trainer.lightning_module.state_dict())
+        if(len(prefix) != 0):
+            full_prefix = ".".join(prefix)
+            checkpoint = {".".join([full_prefix, k]): v for k, v in checkpoint.items()}
+        return checkpoint
+
+    def _try_load_model_if_checkpoint_bigger(self, checkpoint):
+        prefix = self._try_load_model_split_template(self.trainer.lightning_module.state_dict(), checkpoint)
+        if(len(prefix) != 0):
+            to_del = ".".join(prefix)
+            checkpoint = {k[len(to_del) + 1: ]: v for k, v in checkpoint.items()}
+        return checkpoint
+
     def _try_load_model(self):
         if(self.cfg_load.model):
             path = self._generate_load_path('trained_model')
             checkpoint = torch.load(path)
-            if("state_dict" in checkpoint):
+            if("state_dict" in checkpoint): # pytorch save was used
                 self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
             else:
+                checkpoint = self._try_load_model_if_checkpoint_smaller(checkpoint)
+                checkpoint = self._try_load_model_if_checkpoint_bigger(checkpoint)
                 self.trainer.lightning_module.load_state_dict(checkpoint)
+
             pp.sprint(f'{pp.COLOR.NORMAL}INFO: Loaded model from "{path}"')
 
     def advance(self, *args: Any, **kwargs: Any) -> None:
