@@ -356,6 +356,7 @@ def render_vis(
     progress_bar=None,
     refresh_fequency=50,
     autocast_enable=True,
+    return_tensor=True,
 ):
     """
         standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
@@ -399,11 +400,15 @@ def render_vis(
         if(rd.scheduler is not None):
             rd.scheduler.step()
         if i in rd.thresholds:
-            image = tensor_to_img_array(rd.optim_image.image())
+            if(return_tensor):
+                image = rd.optim_image.image().detach()
+            else:
+                image = tensor_to_img_array(rd.optim_image.image())
             if verbose:
                 pp.sprint(f"{pp.COLOR.NORMAL_2}Loss at step {i}: {rd.objective_f(rd.hook.get_output):.3f}")
                 if show_inline:
-                    show(image)
+                    show_image = tensor_to_img_array(rd.optim_image.image())
+                    show(show_image)
             images.append(image)
 
         if(progress_bar is not None):

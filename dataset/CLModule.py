@@ -147,7 +147,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.fast_dev_run = fast_dev_run
         self.logger = logger
         
-        self.wandb_dream_img_table = wandb.Table(columns=['target', 'label', 'sample', 'image']) if self.cfg.dataset_labels is not None else wandb.Table(columns=['target', 'sample', 'image'])
+        self.wandb_dream_img_table = wandb.Table(columns=['target_idx', 'label', 'image']) if self.cfg.dataset_labels is not None else wandb.Table(columns=['target_idx', 'image'])
         self.render_transforms = render_transforms
         self.dream_image = dream_image_f(
             dtype=self.cfg_vis.image_type, 
@@ -384,16 +384,16 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         return all_images, all_targets
     
-    def _log_target_dreams(self, new_images, target):
+    def _log_images(self, new_images, target):
         if not self.fast_dev_run and self.logger is not None:
             if(isinstance(target, Sequence)): # it target is batched
                 for idx, (image, t) in enumerate(zip(new_images, target)):
-                    self._log_target_dreams_to_table(idx, image, t)
+                    self._log_image_to_table(idx, image, t)
             else:
                 for idx, image in enumerate(new_images):
-                    self._log_target_dreams_to_table(idx, image, target)
+                    self._log_image_to_table(idx, image, target)
 
-    def _log_target_dreams_to_table(self, idx, image, target):
+    def _log_image_to_table(self, idx, image, target):
         if(self.cfg_vis.max_logged_image_per_target <= idx):
             return
         img = wandb.Image(
@@ -404,29 +404,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
             self.wandb_dream_img_table.add_data(
                 target, 
                 self.cfg.dataset_labels[target],
-                idx, 
                 img
             )
         else:
             self.wandb_dream_img_table.add_data(
                 target, 
-                idx, 
                 img
-            )
-
-    def _log_fast_dev_run(self, new_dreams, new_targets):
-        if not self.fast_dev_run:
-            num_dreams = new_dreams.shape[0]
-            wandb.log(
-                {
-                    "examples": [
-                        wandb.Image(
-                            new_dreams[i, :, :, :],
-                            caption=f"sample: {i} target: {new_targets[i]}",
-                        )
-                        for i in range(min(num_dreams, self.cfg_vis.max_logged_image_per_target))
-                    ]
-                }
             )
 
     def generate_dreams_for_multitarget(self, model, target, layer_hook_obj, iterations, rendervis_state):
@@ -435,21 +418,19 @@ class DreamDataModule(BaseCLDataModule, ABC):
         new_images = []
         new_targets = []
 
-        for it in range(iterations):
+        for _ in range(iterations):
             batch_target = self._multitarget_select_targets(target)
             self._layer_hook_obj_set_current_class(layer_hook_obj, batch_target)
             target_point = self.target_processing_f(target=batch_target, model=model)
             rendervis_state.objective_f = self.dream_objective_f(target=batch_target, target_point=target_point, model=model, source_dataset_obj=self)
 
-            rendered_images = torch.from_numpy(
-                render_vis(
-                    render_dataclass=rendervis_state,
-                    show_image=False,
-                    progress_bar=self.progress_bar,
-                    refresh_fequency=self.cfg.richbar_refresh_fequency,
-                )[-1] # return the last, most processed image (thresholds)
-            ).detach()
-            rendered_images = torch.permute(rendered_images, (0, 3, 1, 2))
+            rendered_images = render_vis(
+                render_dataclass=rendervis_state,
+                show_image=False,
+                progress_bar=self.progress_bar,
+                refresh_fequency=self.cfg.richbar_refresh_fequency,
+            )[-1] # return the last, most processed image (thresholds)
+
             rendervis_state.display_additional_info = False
 
             new_images.append(rendered_images)
@@ -457,7 +438,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             if(self.progress_bar is not None):
                 self.progress_bar.update('target_vis') # if key not found, ignore
         new_images = torch.cat(new_images)
-        self._log_target_dreams(new_images, batch_target)
+        self._log_images(new_images, batch_target)
         return new_images, new_targets
 
     def generate_dreams_for_target(self, model, target, iterations, rendervis_state):
@@ -471,22 +452,20 @@ class DreamDataModule(BaseCLDataModule, ABC):
             target_point = self.target_processing_f(target=target, model=model)
             rendervis_state.objective_f = self.dream_objective_f(target=target, target_point=target_point, model=model, source_dataset_obj=self)
 
-            rendered_images = torch.from_numpy(
-                render_vis(
-                    render_dataclass=rendervis_state,
-                    show_image=False,
-                    progress_bar=self.progress_bar,
-                    refresh_fequency=self.cfg.richbar_refresh_fequency,
-                )[-1] # return the last, most processed image (thresholds)
-            ).detach()
-            rendered_images = torch.permute(rendered_images, (0, 3, 1, 2))
+            rendered_images = render_vis(
+                render_dataclass=rendervis_state,
+                show_image=False,
+                progress_bar=self.progress_bar,
+                refresh_fequency=self.cfg.richbar_refresh_fequency,
+            )[-1] # return the last, most processed image (thresholds)
+
             rendervis_state.display_additional_info = False
 
             images.append(rendered_images)
             if(self.progress_bar is not None):
                 self.progress_bar.update('target_vis')
         images = torch.cat(images)
-        self._log_target_dreams(images, target)
+        self._log_images(images, target)
         return images, [target] * images.shape[0]
 
     def get_task_classes(self, task_number):

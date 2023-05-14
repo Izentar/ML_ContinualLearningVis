@@ -123,7 +123,7 @@ images from the batch will be additionaly saved.')
     parser.add_argument("--datamodule.vis.disable_transforms", action="store_true", help='Enable and add all default \
 tranforms on dreamed images used in lucid framework in main function.') ##**
     parser.add_argument("--datamodule.vis.disable_shuffle", action="store_true", help='Flag to shuffle only train dream dataset')
-    parser.add_argument("--datamodule.vis.image_type", type=str, default='fft', help='Type of image. Default \
+    parser.add_argument("--datamodule.vis.image_type", type=str, default='pixel', help='Type of image. Default \
 "fft"; "pixel"; "cppn"(does not use "datamodule.vis.batch_size")')
     parser.add_argument("--datamodule.vis.only_vis_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
 after first epoch when dream batch is created.') ##**

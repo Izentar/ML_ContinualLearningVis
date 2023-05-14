@@ -64,6 +64,16 @@ def multitarget_channel(layer, n_channel, batch=None):
         return - out[torch.arange(out.size(0)), n_channel].mean()
     return inner
 
+@wrap_objective()
+def multitarget_crossentropy(layer, n_channel, batch=None):
+    """Visualize a single channel"""
+    optimizer = torch.nn.CrossEntropyLoss()
+    @handle_batch(batch)
+    def inner(model):
+        out = model(layer)
+        return optimizer(out, n_channel.to(out.device))
+    return inner
+
 # =====================================================
 
 def dream_objective_SAE_standalone_diversity(model, **kwargs):
@@ -111,6 +121,9 @@ def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
 
 def dream_objective_multitarget(target_point:list, model, **kwargs):
     return multitarget_channel(model.get_objective_target_name(), target_point)
+
+def dream_objective_multitarget_crossentropy(target_point:list, model, **kwargs):
+    return multitarget_crossentropy(model.get_objective_target_name(), target_point)
 
 def dream_objective_latent_lossf_creator(loss_f=None, **kwargs):
     def inner(target_point, model, **inner_kwargs):
@@ -232,7 +245,8 @@ def dream_objective_crossentropy(target_point, model, **kwargs):
 class DreamObjectiveManager():
     GET_OBJECTIVE = {
         'OBJECTIVE-MULTITARGET': dream_objective_multitarget,
-        'OBJECTIVE-CROSS-ENTROPY': dream_objective_crossentropy,
+        'OBJECTIVE-MULTITARGET-CROSSENTROPY': dream_objective_multitarget_crossentropy,
+        'OBJECTIVE-CROSSENTROPY': dream_objective_crossentropy,
         'OBJECTIVE-LATENT-CHANNEL': dream_objective_latent_channel,
         'OBJECTIVE-CHANNEL': dream_objective_channel,
         'OBJECTIVE-RESNET20-C100-CHANNEL': dream_objective_RESNET20_C100_channel,

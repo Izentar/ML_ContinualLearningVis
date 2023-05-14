@@ -4,6 +4,7 @@ import torch.fft
 from abc import abstractmethod
 from collections.abc import Sequence
 
+# https://pytorch.org/docs/stable/generated/torch.svd.html
 color_correlation_svd_sqrt = np.asarray([[0.26, 0.09, 0.02],
                                          [0.27, 0.00, -0.05],
                                          [0.27, -0.09, 0.03]]).astype("float32")
@@ -11,8 +12,6 @@ color_correlation_svd_sqrt = np.asarray([[0.26, 0.09, 0.02],
 max_norm_svd_sqrt = np.max(np.linalg.norm(color_correlation_svd_sqrt, axis=0))
 
 color_correlation_normalized = color_correlation_svd_sqrt / max_norm_svd_sqrt
-
-color_mean = [0.48, 0.46, 0.41]
 
 class _ImageFunctional():
     def __init__(self, device=None) -> None:
@@ -58,7 +57,6 @@ class _Image(_ImageFunctional):
             h=None, 
             sd=None, 
             batch=None, 
-            decorrelate=False,
             channels:int=None,
             device=None,
         ):
@@ -70,21 +68,15 @@ class _Image(_ImageFunctional):
         self.channels = channels
         self.shape = [batch, ch, h, w]
 
-        self.decorrelate = decorrelate
         self.sd = sd if sd is not None else 0.01
 
-        self._color = self._to_valid_rgb
+        self._color = lambda x: x
 
     def _linear_decorrelate_color(self, tensor):
         t_permute = tensor.permute(0, 2, 3, 1)
         t_permute = torch.matmul(t_permute, torch.tensor(color_correlation_normalized.T).to(self.device))
         tensor = t_permute.permute(0, 3, 1, 2)
         return tensor
-
-    def _to_valid_rgb(self, image):
-        if self.decorrelate:
-            image = self._linear_decorrelate_color(image)
-        return torch.sigmoid(image)
     
     def param(self):
         return [self.param_tensor]
@@ -96,17 +88,24 @@ class _Image(_ImageFunctional):
         return self.params(), self.image()
 
 class FFTImage(_Image):
-    def __init__(self, *args, decay_power=1, magic=4, **kwargs) -> None:
+    def __init__(self, *args, decorrelate=False, decay_power=1, magic=4, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.decay_power = decay_power
+        self.decorrelate = decorrelate
         self.magic = magic # Magic constant from Lucid library; increasing this seems to reduce saturation
 
         #self._create_fft_image()
         self._image_f = self._ftt_image_f
+        self._color = self._to_valid_rgb
 
     def reinit(self):
         self._create_fft_image()
+
+    def _to_valid_rgb(self, image):
+        if self.decorrelate:
+            image = self._linear_decorrelate_color(image)
+        return image
 
     def _create_fft_image(self) -> torch.Tensor | torch.Tensor:
         """
@@ -211,7 +210,7 @@ class Image():
             return FFTImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
         elif(dtype == 'pixel'):
             assert w is not None, "Bad value, 'w' cannot be None for 'pixel'"
-            return PixelImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, device=device)
+            return PixelImage(w=w, h=h, sd=sd, batch=batch, channels=channels, device=device)
         elif(dtype == 'custom'):
             assert image_f != None and param_tensor != None and reinit_f != None, "Bad value, image_f and param_tensor cannot be None for dtype 'custom'"
             return CustomImage(image_f=image_f, param_tensor=param_tensor, device=device, reinit_f=reinit_f)
