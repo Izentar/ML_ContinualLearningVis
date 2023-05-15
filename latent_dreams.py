@@ -483,7 +483,7 @@ def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:i
         to_plot[layer_name] = extract_data_from_key(data=v)
     for layer_name, v in to_plot.items(): 
         for torch_size, vv in v.items():
-            plotter.plot_bar(vv, name= path / layer_name / torch_size ,nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
+            plotter.plot_bar(vv, name= path / layer_name / str(torch_size) ,nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
             
 
 def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
@@ -497,7 +497,7 @@ def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
             return
         std = extract_data_from_key(data=std)
         for torch_size, vv in std.items(): 
-            plotter.plot_errorbar(vv, name=path / "pca" / "std" / layer_name / torch_size)
+            plotter.plot_errorbar(vv, name=path / "pca" / "std" / layer_name / str(torch_size))
 
 def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, path, nrows=1, ncols=1, logger=None):
     stats = Statistics()

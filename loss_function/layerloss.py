@@ -1,12 +1,13 @@
 import torch
 from  model.statistics.base import ModuleStatData, get_hash
+from collections.abc import Sequence
 
 class LayerBase():
     def __init__(self) -> None:
         self.new_cl = False
         self.loss_dict = {}
         
-    def set_current_class(self, cl):
+    def set_current_class(self, cl:torch.Tensor|int|Sequence):
         if(isinstance(cl, torch.TensorType)):
             self.current_cl = cl.item()
         else:
@@ -27,12 +28,13 @@ class LayerBase():
         return loss + sum_loss
 
 class DeepInversionTarget(LayerBase):
-    def __init__(self, scale) -> None:
+    def __init__(self, scale, multitarget=False) -> None:
         super().__init__()
         self.scale = scale   
+        self.multitarget = multitarget
 
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
-        def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
+        def inner_single_target(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             data:ModuleStatData = layer_stat_data
             if(self.new_cl):
                 data.lazy_flush()
@@ -41,7 +43,7 @@ class DeepInversionTarget(LayerBase):
 
             layer_mean_channel = data.mean_channel[h].requires_grad_(False).to(output.device)
             layer_var_channel = data.var_channel[h].requires_grad_(False).to(output.device)
-            output = output.view(output.shape[0], -1)
+            #output = output.view(output.shape[0], -1)
 
             mean = input[0].mean([0, 2, 3])
             var = input[0].permute(1, 0, 2, 3).contiguous().view([input[0].shape[1], -1]).var(1, correction=0)
@@ -49,7 +51,32 @@ class DeepInversionTarget(LayerBase):
             val = torch.norm(layer_var_channel - var, 2) + torch.norm(layer_mean_channel - mean, 2)
             self._register_loss(full_name, output, self.scale * val)
 
-        return module.register_forward_hook(inner)
+        def inner_multi_target(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
+            data:ModuleStatData = layer_stat_data
+            if(self.new_cl):
+                data.lazy_flush()
+                self.new_cl = False
+
+            loss = []
+            for idx, cl in enumerate(self.current_cl):
+                h = get_hash(k=cl, v=output.shape[1:])
+                current_input = input[0][idx]
+
+                layer_mean_channel = data.mean_channel[h].requires_grad_(False).to(output.device)
+                layer_var_channel = data.var_channel[h].requires_grad_(False).to(output.device)
+                #new_output = output.view(output.shape[0], -1)
+
+                mean = current_input.mean([1, 2])
+                var = current_input.view([current_input.shape[0], -1]).var(1, correction=0)
+                val = torch.norm(layer_var_channel - var, 2) + torch.norm(layer_mean_channel - mean, 2)
+                loss.append(val)
+
+            loss = torch.sum(torch.stack(loss))
+            self._register_loss(full_name, output, self.scale * loss)
+
+        if(self.multitarget):
+            return module.register_forward_hook(inner_multi_target)
+        return module.register_forward_hook(inner_single_target)
         
     def gather_loss(self, loss) -> torch.Tensor:
         return self._gather_loss(loss)

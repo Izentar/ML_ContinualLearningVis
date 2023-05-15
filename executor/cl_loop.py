@@ -411,7 +411,7 @@ class CLLoop(Loop):
 
             if(utils.check_python_index(self.cfg_deep_inversion_target.use_at, self.cfg.num_loops, self.current_loop)):
                 self._try_generate_dream_print_msg("DEEP INVERSION TARGET")
-                tmp = layerloss.DeepInversionTarget(scale=self.cfg_deep_inversion_target.scale)
+                tmp = layerloss.DeepInversionTarget(scale=self.cfg_deep_inversion_target.scale, multitarget=self.args.datamodule.vis.multitarget.enable)
                 self.layerloss_deep_inversion_target = True
                 layerloss_hook_obj.append(tmp)
                 layer_handles.append(layer_stat_framework.hook_model_stats(
