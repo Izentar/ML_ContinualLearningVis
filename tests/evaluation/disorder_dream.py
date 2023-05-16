@@ -75,8 +75,8 @@ class DisorderDream():
         return image
 
     def _compare_orig_constructed(self, original_img, disorder_img, constructed_img, label, logger):
-        assert original_img.shape == constructed_img.shape
-        assert disorder_img.shape == constructed_img.shape
+        assert original_img.shape == constructed_img.shape, f"Bad shape: orig {original_img.shape} constr {constructed_img.shape}"
+        assert disorder_img.shape == constructed_img.shape, f"Bad shape: disorder {disorder_img.shape} constr {constructed_img.shape}"
         heatmap = torch.abs(original_img - constructed_img).squeeze()
         to_pil = lambda img: transforms.ToPILImage()(img)
         
@@ -214,7 +214,8 @@ class DisorderDream():
             target=used_class, 
             iterations=1, 
             rendervis_state=rendervis_state,
-        )
+        )[0] # get first from tuple and left batch dim 
+
         self._compare_orig_constructed(
             original_img=original_image,
             disorder_img=image,

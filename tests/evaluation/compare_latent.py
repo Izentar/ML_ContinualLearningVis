@@ -96,6 +96,7 @@ class CompareLatent():
                 threshold=dream_threshold,
                 batch_size=1,
                 disable_transforms=not enable_transforms,
+                image_type='pixel',
             ),
             'cfg': CustomDreamDataModule.Config(
                 train_tasks_split=[[used_class]],
@@ -135,16 +136,18 @@ class CompareLatent():
         rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
         rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
 
+        start_image = dream_module.dream_image.image().clone()
+
         constructed_dream = dream_module.generate_dreams_for_target(
             model, 
             target=used_class, 
             iterations=1, 
             rendervis_state=rendervis_state,
-        )
+        )[0]
 
-        self._log(constructed_dreams=constructed_dream, logger=logger, label=label)
+        self._log(start_image=start_image, constructed_dreams=constructed_dream, logger=logger, label=label)
 
-    def _log(self, constructed_dreams, logger, label):
+    def _log(self, start_image, constructed_dreams, logger, label):
         point_from_model = torch.from_numpy(self.point_from_model[-1]).cpu().squeeze()
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()
         print('COMPARE LATENT: model point', point_from_model)
@@ -171,5 +174,12 @@ class CompareLatent():
                 wandb.Image(
                     i,
                 ) for i in constructed_dreams
+            ]
+        })
+
+        logger.log_metrics({f'{label}/start_images': [
+                wandb.Image(
+                    i,
+                ) for i in start_image
             ]
         })

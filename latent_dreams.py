@@ -433,30 +433,36 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
     if(args.stat.compare_latent and not args.fast_dev_run.enable):
         print('STATISTICS: Compare latent')
         compare_latent = CompareLatent()
-        compare_latent(
-            model=model,
-            #loss_f=model.loss_f, 
-            used_class=0, 
-            logger=logger,
-            dream_fetch_transform=dreams_transforms,
-            target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
-            loss_obj_step_sample=compare_latent_step_sample,
-            enable_transforms=not args.datamodule.vis.disable_transforms,
-        )
+        try:
+            compare_latent(
+                model=model,
+                #loss_f=model.loss_f, 
+                used_class=0, 
+                logger=logger,
+                dream_fetch_transform=dreams_transforms,
+                target_processing_f=set_manager.target_processing if set_manager.is_target_processing_latent() else None,
+                loss_obj_step_sample=compare_latent_step_sample,
+                enable_transforms=not args.datamodule.vis.disable_transforms,
+            )
+        except Exception as e_compare_latent:
+            pp.sprint(f"{pp.COLOR.WARNING}ERROR: compare latent could not be completed. Error:\n{e_compare_latent}")
     if(args.stat.disorder_dream and not args.fast_dev_run.enable):
         print('STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
         dataset = dataset_class(root="./data", train=True, transform=transform)
-        disorder_dream(
-            model=model,
-            used_class=1, 
-            logger=logger,
-            dataset=dataset,
-            dream_transform=dreams_transforms,
-            #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
-            sigma_disorder=test_sigma_disorder,
-            start_img_value=start_img_value,
-        )
+        try:
+            disorder_dream(
+                model=model,
+                used_class=1, 
+                logger=logger,
+                dataset=dataset,
+                dream_transform=dreams_transforms,
+                #objective_f=set_manager.dream_objective if set_manager.is_target_processing_latent() else None,
+                sigma_disorder=test_sigma_disorder,
+                start_img_value=start_img_value,
+            )
+        except Exception as e_disorder_dream:
+            pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_disorder_dream}")
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
