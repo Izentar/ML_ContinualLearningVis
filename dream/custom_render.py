@@ -355,7 +355,7 @@ def render_vis(
     show_inline=False,
     progress_bar=None,
     refresh_fequency=50,
-    autocast_enable=True,
+    autocast_enable=False,
     return_tensor=True,
 ):
     """
