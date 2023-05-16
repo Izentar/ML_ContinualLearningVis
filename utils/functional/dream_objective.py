@@ -30,6 +30,18 @@ def inner_obj_latent(target_layer, target_val, batch=None, loss_f=None):
     return inner
 
 @wrap_objective()
+def inner_obj_latent_multitarget(target_layer, target_val, batch=None, loss_f=None):
+    inner_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
+
+    @handle_batch(batch)
+    def inner(model):
+        latent = model(target_layer)
+        latent_target = target_val
+        loss = inner_loss_f(latent, latent_target)
+        return loss
+    return inner
+
+@wrap_objective()
 def inner_obj_latent_obj_max_val_channel(target_layer, target_val: torch.Tensor, batch=None, loss_f=None):
     loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
 
@@ -134,6 +146,15 @@ def dream_objective_latent_lossf_creator(loss_f=None, **kwargs):
         ) #- objectives.diversity(
         #    "model_model_conv2"
         #)
+    return inner
+
+def dream_objective_latent_lossf_multitarget_creator(loss_f=None, **kwargs):
+    def inner(target_point, model, **inner_kwargs):
+        return inner_obj_latent_multitarget(
+            target_layer=model.get_objective_target_name(), 
+            target_val=target_point.to(model.device), 
+            loss_f=loss_f,
+        )
     return inner
 
 def dream_objective_latent_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2):
@@ -251,6 +272,7 @@ class DreamObjectiveManager():
         'OBJECTIVE-CHANNEL': dream_objective_channel,
         'OBJECTIVE-RESNET20-C100-CHANNEL': dream_objective_RESNET20_C100_channel,
         'OBJECTIVE-LATENT-LOSSF-CREATOR': dream_objective_latent_lossf_creator,
+        'OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR': dream_objective_latent_lossf_multitarget_creator,
         'OBJECTIVE-LATENT-NEURON-DIRECTION': dream_objective_latent_neuron_direction,
         'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
         'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity_cosine,
