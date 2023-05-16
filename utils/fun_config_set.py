@@ -259,7 +259,7 @@ class FunConfigSetPredefined(FunConfigSet):
             "SELECT-CLASSIC", 
             "target-classic", 
             "NO-SPLIT", 
-            "OBJECTIVE-CROSS-ENTROPY", 
+            "OBJECTIVE-CROSSENTROPY", 
             "resnet18", 
             "CL-MODEL"
         ],
