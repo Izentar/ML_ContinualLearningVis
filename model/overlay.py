@@ -478,7 +478,7 @@ class CLModelWithIslands(CLLatent):
             pp.sprint(f"{pp.COLOR.WARNING}WARNING: model latent buffer not loaded. Using default constructor.")
     
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        super().save_checkpoint(checkpoint)
+        super().on_save_checkpoint(checkpoint)
         checkpoint['loss_f'] = self._loss_f
         checkpoint['buffer'] = self.cyclic_latent_buffer
 
