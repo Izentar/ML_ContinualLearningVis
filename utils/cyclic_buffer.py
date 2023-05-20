@@ -1,6 +1,6 @@
 import torch
 
-class CyclicBufferByClass():
+class CyclicBufferByClass(torch.nn.Module):
     def __init__(self, num_classes, dimensions, size_per_class=200, device='cpu'):
         self.num_classes = num_classes
         self.size_per_class = size_per_class
