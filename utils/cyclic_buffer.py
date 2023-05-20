@@ -51,6 +51,7 @@ class CyclicBufferByClass(torch.nn.Module):
         return torch.mean(self.cyclic_buff[cl_idx, : self.__get_idx(cl_idx)], dim=(0, 1))
 
     def __get_idx(self, cl_idx):
+        # return current index. Index of the data that was recently pushed
         current_idx = self._buff_idx[cl_idx][0]
         return current_idx - 1 if current_idx != 0 else self.size_per_class - 1
 
@@ -139,6 +140,14 @@ class CyclicBufferByClass(torch.nn.Module):
             return torch.cov(buff)
         return self._operation_template_target(__cov, target)
 
-    def front(self, cl_idx):
-        last_idx = self.__get_idx(cl_idx)
-        return self.cyclic_buff[cl_idx, last_idx, :]
+    def front(self, target):
+        last_idx = self.__get_idx(target)
+        return self.cyclic_buff[target, last_idx, :]
+
+    def __len__(self):
+        return self.size_per_class
+
+    def get(self, target, idx):
+        last_idx = self.__get_idx(target)
+        new_idx = (last_idx + idx) % self.size_per_class
+        return self.cyclic_buff[target, new_idx, :]
