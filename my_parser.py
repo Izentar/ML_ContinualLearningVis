@@ -285,6 +285,9 @@ def convert_args_str_to_list_int(args: Namespace):
         'loop.model.reload_at', 
         'loop.model.reinit_at',
     ]
+    for k in args.__dict__.keys():
+        if(str.endswith(k, '_at') and k not in to_check):
+            to_check.append(k)
     for k in to_check:
         v = args.__dict__[k]
         if(v is None):

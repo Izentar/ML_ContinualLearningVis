@@ -381,7 +381,7 @@ def logic(args, log_args_to_wandb=True):
     if(not args.fast_dev_run.enable):
         export_config(args, custom_loop.save_folder, 'run_config.json')
 
-    if(args.loop.layer_stats.use_at is not None):
+    if(utils.check_python_enabled(args.loop.layer_stats.use_at)):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
         plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model, filepath=custom_loop.save_folder)
 
@@ -479,31 +479,37 @@ def extract_data_from_key(data:dict) -> dict:
     return new
 
 def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:int, filepath:str=None):
-    out = pca(model_stats, overestimated_rank=overestimated_rank)
-    if(out is None):
-        return
-    plotter = PointPlot()
-    to_plot = dict()
-    path = filepath if filepath is not None else Path(model.name()) / "pca"
-    for layer_name, v in out.items():
-        to_plot[layer_name] = extract_data_from_key(data=v)
-    for layer_name, v in to_plot.items(): 
-        for torch_size, vv in v.items():
-            plotter.plot_bar(vv, name= path / layer_name / str(torch_size) ,nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
+    try:
+        out = pca(model_stats, overestimated_rank=overestimated_rank)
+        if(out is None):
+            return
+        plotter = PointPlot()
+        to_plot = dict()
+        path = filepath if filepath is not None else Path(model.name()) / "pca"
+        for layer_name, v in out.items():
+            to_plot[layer_name] = extract_data_from_key(data=v)
+        for layer_name, v in to_plot.items(): 
+            for torch_size, vv in v.items():
+                plotter.plot_bar(vv, name= path / layer_name / str(torch_size) ,nrows=int(np.sqrt(len(vv))), ncols=int(np.sqrt(len(vv))) + 1)
+    except Exception as pca_exception:
+        pp.sprint(f'{pp.COLOR.WARNING}WARNING: PCA graph plot failed. Exception:\n{pca_exception}')
             
 
 def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
-    plotter = PointPlot()
-    path = filepath if filepath is not None else Path(model.name())
-    for layer_name, v in model_stats.items(): 
-        v = v.get_const_data()
-        std = v.std
-        if(std is None):
-            pp.sprint(f"{pp.COLOR.WARNING}WARNING: std graph cannot be plotted.")
-            return
-        std = extract_data_from_key(data=std)
-        for torch_size, vv in std.items(): 
-            plotter.plot_errorbar(vv, name=path / "pca" / "std" / layer_name / str(torch_size))
+    try:
+        plotter = PointPlot()
+        path = filepath if filepath is not None else Path(model.name())
+        for layer_name, v in model_stats.items(): 
+            v = v.get_const_data()
+            std = v.std
+            if(std is None):
+                pp.sprint(f"{pp.COLOR.WARNING}WARNING: std graph cannot be plotted.")
+                return
+            std = extract_data_from_key(data=std)
+            for torch_size, vv in std.items(): 
+                plotter.plot_errorbar(vv, name=path / "pca" / "std" / layer_name / str(torch_size))
+    except Exception as std_stat_exception:
+        pp.sprint(f'{pp.COLOR.WARNING}WARNING: std stat graph plot failed. Exception:\n{std_stat_exception}')
 
 def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, path, nrows=1, ncols=1, logger=None):
     stats = Statistics()
