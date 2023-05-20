@@ -58,6 +58,7 @@ class DummyLoss(torch.nn.Module):
 class ChiLossBase(torch.nn.Module):
     def __init__(self, cyclic_latent_buffer):
         super().__init__()
+        print(cyclic_latent_buffer)
         self._cloud_data = cyclic_latent_buffer
         self.to_log = {}
         self._train = True
@@ -174,8 +175,7 @@ class ChiLossFunctional(torch.nn.Module):
 
 class ChiLoss(ChiLossBase, ChiLossFunctional):
     def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1., eps=1e-5, start_mean_buff_at=500, log_np_loss=True):
-        ChiLossBase.__init__(self, cyclic_latent_buffer=cyclic_latent_buffer)
-        ChiLossFunctional.__init__(self)
+        super(ChiLoss, self).__init__(cyclic_latent_buffer=cyclic_latent_buffer)
         
         self.sigma = sigma
         self.rho = rho
@@ -413,8 +413,7 @@ class ChiLossBatched(ChiLoss):
 
 class ChiLossOneHotBase(ChiLossBase, ChiLossFunctional):
     def __init__(self, one_hot_means:dict, cyclic_latent_buffer, loss_f=torch.nn.MSELoss()):
-        ChiLossBase.__init__(self, cyclic_latent_buffer=cyclic_latent_buffer)
-        ChiLossFunctional.__init__(self)
+        super(ChiLossOneHotBase, self).__init__(cyclic_latent_buffer=cyclic_latent_buffer)
 
         self.one_hot_means = one_hot_means
         self.loss_f = loss_f
