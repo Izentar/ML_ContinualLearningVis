@@ -240,6 +240,7 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--stat.compare_latent", action="store_true", help='')
     parser.add_argument("--stat.disorder_dream", action="store_true", help='')
     parser.add_argument("--stat.collect_stats", action="store_true", help='')
+    parser.add_argument("--loop.save.ignore_config", action="store_true", help='')
 
     parser.add_argument("--wandb.watch.enable", action="store_true", help='')
     parser.add_argument("--wandb.watch.log_freq", type=int, default=1000, help='')
@@ -334,7 +335,7 @@ def log_to_wandb(args):
     print('Used config:')
     print(wandb.config)
 
-def wandb_run_name(args):
+def wandb_run_name(args, id):
     dream = "dull_"
     tr = ""
     if(args.datamodule.vis.only_vis_at is not None and args.datamodule.vis.only_vis_at != False):
@@ -351,7 +352,7 @@ def wandb_run_name(args):
     if(args.loop.vis.layerloss.grad_activ_pruning.use_at is not None and args.loop.vis.layerloss.grad_activ_pruning.use_at != False):
         text = f"{text}gap{args.loop.vis.layerloss.grad_activ_pruning.percent}_"
     
-    return f"{text}{np.random.randint(0, 5000)}"
+    return f"{id}_{text}{np.random.randint(0, 5000)}"
 
 def load_config(args: Namespace, parser: ArgumentParser, filepath:str=None) -> Namespace:
     """

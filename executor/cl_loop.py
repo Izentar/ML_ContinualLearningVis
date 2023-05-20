@@ -148,12 +148,16 @@ class CLLoop(Loop):
         dreams: bool = False
         layer_stats: bool = False
         root: str = None
+        any: bool = False
+        ignore_config: bool = False
 
         def __post_init__(self):
             if self.root is not None:
                 self.root = Path(self.root)
             else:
                 self.root = Path(default_export_path)
+            if(self.model or self.dreams or self.layer_stats or self.enable_checkpoint):
+                self.any = True
 
     @dataclass
     class Load():

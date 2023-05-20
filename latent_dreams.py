@@ -221,7 +221,7 @@ def logic(args, log_args_to_wandb=True):
     wandb_run_id = wandb.util.generate_id()
     if args.fast_dev_run.enable:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args),
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args, wandb_run_id),
         log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=False, id=wandb_run_id)
     if(log_args_to_wandb):
         log_to_wandb(args)
@@ -378,7 +378,7 @@ def logic(args, log_args_to_wandb=True):
     if(args.wandb.watch.enable):
         logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
-    if(not args.fast_dev_run.enable):
+    if(not args.fast_dev_run.enable and not custom_loop.cfg_save.ignore_config):
         export_config(args, custom_loop.save_folder, 'run_config.json')
 
     if(utils.check_python_enabled(args.loop.layer_stats.use_at)):

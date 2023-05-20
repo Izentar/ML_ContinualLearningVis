@@ -52,6 +52,11 @@ def check_python_enabled(index:list[int]|int|None|bool, is_none_good=False) -> b
     if(isinstance(index, list)):
         if(len(index) == 0):
             return False
+        else:
+            for k in index:
+                if(check_python_enabled(k, is_none_good=is_none_good)):
+                    return True
+                return False
         return True
     return True
 
