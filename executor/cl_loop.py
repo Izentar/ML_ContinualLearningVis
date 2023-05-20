@@ -690,8 +690,7 @@ class CLLoop(Loop):
         if(self.cfg_save.model and not self.fast_dev_run):
             filepath, name = self._generate_save_path('trained_model')
             self.trainer.save_checkpoint(
-                filepath / name,
-                weights_only=True
+                filepath / name
             )
 
     def _try_load_model_split_template(self, smaller, bigger):
@@ -732,6 +731,7 @@ class CLLoop(Loop):
             checkpoint = torch.load(path)
             if("state_dict" in checkpoint): # pytorch save was used
                 self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
+                self.trainer.lightning_module.load_checkpoint(checkpoint)
             else:
                 checkpoint = self._try_load_model_if_checkpoint_smaller(checkpoint)
                 checkpoint = self._try_load_model_if_checkpoint_bigger(checkpoint)

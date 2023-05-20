@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from argparse import Namespace
 from utils import utils, setup_args
 from utils import pretty_print as pp
+from typing import Any, Dict
 
 
 class CLBase(LightningModule):
@@ -176,6 +177,9 @@ class CLBase(LightningModule):
 
     @abstractmethod
     def init_weights(self):
+        pass
+
+    def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         pass
 
     def configure_optimizers(self):

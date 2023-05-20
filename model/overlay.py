@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from model import base
 import torch
 from torch import nn, sigmoid
@@ -464,6 +465,22 @@ class CLModelWithIslands(CLLatent):
             wandb.log({'chiloss/std_for_classes': table_std})
             
             self._means_once = True
+
+    def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        super().load_checkpoint(checkpoint)
+        if(loss_f := checkpoint.get('loss_f')):
+            self._loss_f = loss_f
+        else:
+            pp.sprint(f"{pp.COLOR.WARNING}WARNING: model loss function not loaded. Using default constructor.")
+        if(buffer := checkpoint.get('buffer')):
+            self.cyclic_latent_buffer = buffer
+        else:
+            pp.sprint(f"{pp.COLOR.WARNING}WARNING: model latent buffer not loaded. Using default constructor.")
+    
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        super().save_checkpoint(checkpoint)
+        checkpoint['loss_f'] = self._loss_f
+        checkpoint['buffer'] = self.cyclic_latent_buffer
 
     def _parse_std(self, data:dict):
         key = []
