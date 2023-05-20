@@ -72,10 +72,12 @@ def target_processing_latent_buffer_random_index(target, model):
     return last_point
 
 def target_processing_latent_buffer_last_point_multitarget(target, model):
-    return [target_processing_latent_buffer_last_point(t, model) for t in target]
+    tmp = [target_processing_latent_buffer_last_point(t, model) for t in target]
+    return torch.stack(tmp)
         
 def target_processing_latent_buffer_random_index_multitarget(target, model):
-    return [target_processing_latent_buffer_random_index(target, model) for t in target]
+    tmp = [target_processing_latent_buffer_random_index(target, model) for t in target]
+    return torch.stack(tmp)
 
 def target_processing_latent_mean(target, model):
     classes_mean = model.loss_f.cloud_data.mean(target)
