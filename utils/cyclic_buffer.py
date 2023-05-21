@@ -51,6 +51,7 @@ class CyclicBufferByClass(torch.nn.Module):
         return torch.mean(self.cyclic_buff[cl_idx, : self.__get_idx(cl_idx)], dim=(0, 1))
 
     def __get_idx(self, cl_idx):
+        assert isinstance(cl_idx, (int, torch.IntType)), f'Bad index type: {type(cl_idx)}\nValue: {cl_idx}'
         # return current index. Index of the data that was recently pushed
         current_idx = self._buff_idx[cl_idx][0]
         return current_idx - 1 if current_idx != 0 else self.size_per_class - 1
