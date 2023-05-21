@@ -91,6 +91,13 @@ def target_processing_latent_buffer_random_index_multitarget(target, model):
     tmp = [target_processing_latent_buffer_random_index(target, model) for t in target]
     return torch.stack(tmp)
 
+def target_processing_latent_buffer_random_index_multitarget_func(target, model):
+    def inner():
+        tmp = [target_processing_latent_buffer_random_index(target, model) for t in target]
+        tmp = torch.stack(tmp).to(model.device)
+        return tmp
+    return inner
+
 def target_processing_latent_mean(target, model):
     classes_mean = model.loss_f.cloud_data.mean(target)
     return classes_mean[target]
@@ -109,6 +116,7 @@ class TargetProcessingManager():
         'TARGET-LATENT-BUFFER-LAST-POINT-MULTITARGET': target_processing_latent_buffer_last_point_multitarget,
         'TARGET-LATENT-BUFFER-RAND-INDEX': target_processing_latent_buffer_random_index,
         'TARGET-LATENT-BUFFER-RAND-INDEX-MULTITARGET': target_processing_latent_buffer_random_index_multitarget,
+        'TARGET-LATENT-BUFFER-RAND-INDEX-MULTITARGET-FUNC': target_processing_latent_buffer_random_index_multitarget_func,
         'TARGET-LATENT-MEAN': target_processing_latent_mean,
         'TARGET-LATENT-BINARY-CLASSIFICATION': target_processing_latent_binary_classification
     }
