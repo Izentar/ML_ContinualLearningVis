@@ -88,12 +88,12 @@ def target_processing_latent_buffer_last_point_multitarget(target, model):
     return torch.stack(tmp)
         
 def target_processing_latent_buffer_random_index_multitarget(target, model):
-    tmp = [target_processing_latent_buffer_random_index(target, model) for t in target]
+    tmp = [target_processing_latent_buffer_random_index(t, model) for t in target]
     return torch.stack(tmp)
 
 def target_processing_latent_buffer_random_index_multitarget_func(target, model):
     def inner():
-        tmp = [target_processing_latent_buffer_random_index(target, model) for t in target]
+        tmp = [target_processing_latent_buffer_random_index(t, model) for t in target]
         tmp = torch.stack(tmp).to(model.device)
         return tmp
     return inner
