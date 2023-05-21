@@ -259,7 +259,8 @@ def logic(args, log_args_to_wandb=True):
     set_manager.init_dream_objectives(logger=logger, label='dream')
     print(f"Selected configuration:\n{str(set_manager)}")
 
-    source_model = set_manager.model(default_weights=args.model.default_weights, num_classes=args.model.num_classes)
+    model_latent_size = args.model.num_classes if args.model.latent.size is None else args.model.latent.size
+    source_model = set_manager.model(default_weights=args.model.default_weights, num_classes=model_latent_size)
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
