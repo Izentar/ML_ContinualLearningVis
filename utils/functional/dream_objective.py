@@ -42,6 +42,18 @@ def inner_obj_latent_multitarget(target_layer, target_val, batch=None, loss_f=No
     return inner
 
 @wrap_objective()
+def inner_obj_latent_multitarget_func(target_layer, target_val, batch=None, loss_f=None):
+    inner_loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
+
+    @handle_batch(batch)
+    def inner(model):
+        latent = model(target_layer)
+        latent_target = target_val()
+        loss = inner_loss_f(latent, latent_target)
+        return loss
+    return inner
+
+@wrap_objective()
 def inner_obj_latent_obj_max_val_channel(target_layer, target_val: torch.Tensor, batch=None, loss_f=None):
     loss_f = torch.nn.MSELoss() if loss_f is None else loss_f
 
@@ -159,9 +171,9 @@ def dream_objective_latent_lossf_multitarget_creator(loss_f=None, **kwargs):
 
 def dream_objective_latent_lossf_multitarget_creator_func(loss_f=None, **kwargs):
     def inner(target_point, model, **inner_kwargs):
-        return inner_obj_latent_multitarget(
+        return inner_obj_latent_multitarget_func(
             target_layer=model.get_objective_target_name(), 
-            target_val=target_point().to(model.device), 
+            target_val=target_point, 
             loss_f=loss_f,
         )
     return inner

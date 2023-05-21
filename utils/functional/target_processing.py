@@ -32,7 +32,7 @@ def target_processing_latent_sample_normal_std_multitarget(target, model):
         assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{t}"
         sum_mean.append(mean)
         sum_std.append(std)
-    return torch.normal(torch.stack(sum_mean), torch.stack(sum_std))
+    return torch.normal(torch.stack(sum_mean), torch.stack(sum_std)).to(model.device)
 
 def target_processing_latent_sample_normal_std_multitarget_func(target, model):
     def inner():
@@ -43,7 +43,7 @@ def target_processing_latent_sample_normal_std_multitarget_func(target, model):
             assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{t}"
             sum_mean.append(mean)
             sum_std.append(std)
-        return torch.normal(torch.stack(sum_mean), torch.stack(sum_std))
+        return torch.normal(torch.stack(sum_mean), torch.stack(sum_std)).to(model.device)
     return inner
 
 def target_processing_latent_sample_normal_mean_std_full_targets(target, model):
