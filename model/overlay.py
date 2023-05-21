@@ -271,14 +271,21 @@ class CLModelIslandsOneHot(CLLatent):
     class Latent(CLLatent.Latent):
         @dataclass
         class OneHot():
-            means: list = None
+            type: str = None
+            scale: float = 1.
+            special_class: int = 1
 
     def __init__(self, *args, **kwargs):
         kwargs.pop('loss_f', None)
         super().__init__(*args, loss_f=torch.nn.MSELoss(), **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
         
-        self._loss_f = OneHot(self.cfg_onehot.means, self.cyclic_latent_buffer, loss_f=self._loss_f)
+        onehot_means = self.get_onehots(self.cfg_onehot.type)
+        onehot_means_to_print = []
+        for k, v in onehot_means.items():
+            onehot_means_to_print.insert(k, v)
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Selected onehot type: {self.cfg_onehot.type}\nmeans:\n{torch.stack(onehot_means_to_print)}\n")
+        self._loss_f = OneHot(onehot_means, self.cyclic_latent_buffer, loss_f=self._loss_f)
 
         self.valid_correct = 0
         self.valid_all = 0
@@ -287,15 +294,46 @@ class CLModelIslandsOneHot(CLLatent):
         a, b = super()._get_config_maps()
         a.update({
             'cfg_onehot': CLModelIslandsOneHot.Latent.OneHot,
-            '': CLModelIslandsOneHot.Config,
+            #'': CLModelIslandsOneHot.Config,
             'cfg_latent': CLModelIslandsOneHot.Latent,
         })
 
         b.update({
-            'onehot': 'cfg_onehot',
+            'latent.onehot': 'cfg_onehot',
             'latent': 'cfg_latent',
         })
         return a, b
+
+    def get_onehots(self, mytype):
+        if(mytype == 'one_cl'):
+            d = {}
+            for i in range(self.cfg.num_classes):
+                d[i] = torch.zeros((self.cfg_latent.size,), dtype=torch.float)
+            for k, v in d.items():
+                if(k == self.cfg_onehot.special_class):
+                    v[self.cfg_latent.size-1] = 1 * self.cfg_onehot.scale
+                else:
+                    v[0] = 1 * self.cfg_onehot.scale
+            return d
+        elif(mytype == 'diagonal'):
+            d = {}
+            counter = 0
+            step = 0
+            for i in range(self.cfg.num_classes):
+                d[i] = torch.zeros((self.cfg_latent.size,), dtype=torch.float)
+                if(counter % self.cfg_latent.size == 0):
+                    step += 1
+                for s in range(step):
+                    d[i][(counter + s) % self.cfg_latent.size] = 1 * self.cfg_onehot.scale
+                counter += 1
+            return d
+        elif(mytype == 'random'):
+            classes = {}
+            for s in range(self.cfg.num_classes):
+                classes[s] = torch.rand(self.cfg_latent.size) * self.cfg_onehot.scale
+            return classes
+        else:
+            raise Exception(f"Bad value, could not find means in OneHot config. Key: {mytype}")
 
     def call_loss(self, input, target, train, **kwargs):
         return self._loss_f(input, target, train)

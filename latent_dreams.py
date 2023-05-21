@@ -59,61 +59,6 @@ def getDatasetList(name:str):
             return datasets_map[cap]
     raise Exception(f"Unknown dataset {name}.")
 
-def get_one_hots(mytype, one_hot_scale=1, size=10, special_class=1):
-    if(mytype == 'one_cl'):
-        #d = {
-        #    0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    1: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    2: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    3: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    4: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    5: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    6: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
-        #    8: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    9: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #}
-        d = {}
-        for i in range(size):
-            d[i] = torch.zeros((size,), dtype=torch.int32)
-        for k, v in d.items():
-            v[0] = 1 * one_hot_scale
-            if(k == special_class):
-                v[size-1] = 1 * one_hot_scale
-        return d
-    elif(mytype == 'diagonal'):
-        #return {
-        #    0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    1: torch.tensor([0, 1, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    2: torch.tensor([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    3: torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    4: torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]) * one_hot_scale,
-        #    5: torch.tensor([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]) * one_hot_scale,
-        #    6: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 0]) * one_hot_scale,
-        #    7: torch.tensor([0, 0, 0, 0, 0, 0, 0, 1, 0, 0]) * one_hot_scale,
-        #    8: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) * one_hot_scale,
-        #    9: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]) * one_hot_scale,
-        #}
-        d = {}
-        for i in range(size):
-            d[i] = torch.zeros((size,), dtype=torch.int32)
-            d[i][i] = 1 * one_hot_scale
-        return d
-
-    elif(mytype == 'accidental'):
-        return {
-            0: torch.tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            1: torch.tensor([0, 1, 1, 1, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            2: torch.tensor([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]) * one_hot_scale,
-            3: torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, -1, 0]) * one_hot_scale,
-            4: torch.tensor([0, 0, 0, 1, -1, 0, 0, 0, 0, 0]) * one_hot_scale,
-            5: torch.tensor([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]) * one_hot_scale,
-            6: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 0]) * one_hot_scale,
-            7: torch.tensor([0, 0, 0, 0, 0, 0, -1, -1, -1, 0]) * one_hot_scale,
-            8: torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) * one_hot_scale,
-            9: torch.tensor([0, 0, 0, 0, 0, 0, 1, 0, 0, 1]) * one_hot_scale,
-        }
-    
 def param_f_create(ptype):
 
     def param_f_image(dtype, image_size, dreaming_batch_size, decorrelate, **kwargs):
@@ -186,7 +131,6 @@ def logic(args, log_args_to_wandb=True):
 
     datasampler = select_datasampler(dtype=args.config.datasampler_type, main_split=main_split)
 
-    one_hot_means = get_one_hots(mytype='diagonal', size=args.model.num_classes)
     clModel_default_loss_f = torch.nn.CrossEntropyLoss()
     dream_image_f = param_f_create(ptype=args.datamodule.vis.image_type)
     render_transforms = None
@@ -290,9 +234,6 @@ def logic(args, log_args_to_wandb=True):
         loss_f=clModel_default_loss_f,
         data_passer=data_passer,
         args=args,
-        args_map={
-            'onehot.means': one_hot_means,
-        },
         cfg_map={
             'cfg_layer_replace': CLModel.LayerReplace(
                 enable=args.model.layer_replace.enable,

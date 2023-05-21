@@ -100,6 +100,7 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
     parser.add_argument("--config.task_split_type", type=str, help='From utils.functional.task_split.py')
     parser.add_argument("--config.overlay_type", type=str, help='Overlay type')
     parser.add_argument("--model.type", type=str, help='Model type') ##**
+    parser.add_argument("--model.latent.onehot.type", type=str, default='diagonal', help='Model onehot types') ##**
 
     parser.add_argument("--model.default_weights", action="store_true", help='') ##**
 
