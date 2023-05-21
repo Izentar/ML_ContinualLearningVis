@@ -34,6 +34,18 @@ def target_processing_latent_sample_normal_std_multitarget(target, model):
         sum_std.append(std)
     return torch.normal(torch.stack(sum_mean), torch.stack(sum_std))
 
+def target_processing_latent_sample_normal_std_multitarget_func(target, model):
+    def inner():
+        sum_mean = []
+        sum_std = []
+        for t in target:
+            std, mean = model.loss_f.cloud_data.std_mean_target(t)
+            assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{t}"
+            sum_mean.append(mean)
+            sum_std.append(std)
+        return torch.normal(torch.stack(sum_mean), torch.stack(sum_std))
+    return inner
+
 def target_processing_latent_sample_normal_mean_std_full_targets(target, model):
     """
         Return a set of points taken from the normal distribution.
@@ -90,6 +102,7 @@ class TargetProcessingManager():
         'TARGET-LATENT-DECODE': target_processing_latent_decode,
         'TARGET-LATENT-SAMPLE-NORMAL-STD': target_processing_latent_sample_normal_std,
         'TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET': target_processing_latent_sample_normal_std_multitarget,
+        'TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET-FUNC': target_processing_latent_sample_normal_std_multitarget_func,
         'TARGET-LATENT-SAMPLE-NORMAL-MEAN-STD-FULL-TARGETS': target_processing_latent_sample_normal_mean_std_full_targets,
         'TARGET-LATENT-SAMPLE-MULTIVARIATE': target_processing_latent_sample_multivariate,
         'TARGET-LATENT-BUFFER-LAST-POINT': target_processing_latent_buffer_last_point,

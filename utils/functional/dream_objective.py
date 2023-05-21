@@ -157,6 +157,15 @@ def dream_objective_latent_lossf_multitarget_creator(loss_f=None, **kwargs):
         )
     return inner
 
+def dream_objective_latent_lossf_multitarget_creator_func(loss_f=None, **kwargs):
+    def inner(target_point, model, **inner_kwargs):
+        return inner_obj_latent_multitarget(
+            target_layer=model.get_objective_target_name(), 
+            target_val=target_point().to(model.device), 
+            loss_f=loss_f,
+        )
+    return inner
+
 def dream_objective_latent_step_sample_normal_creator(loss_f, latent_saver: list, std_scale=0.2):
     '''
         latent_saver - must be a list, where the last tensor point 
@@ -273,6 +282,7 @@ class DreamObjectiveManager():
         'OBJECTIVE-RESNET20-C100-CHANNEL': dream_objective_RESNET20_C100_channel,
         'OBJECTIVE-LATENT-LOSSF-CREATOR': dream_objective_latent_lossf_creator,
         'OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR': dream_objective_latent_lossf_multitarget_creator,
+        'OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR-FUNC': dream_objective_latent_lossf_multitarget_creator_func,
         'OBJECTIVE-LATENT-NEURON-DIRECTION': dream_objective_latent_neuron_direction,
         'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
         'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity_cosine,
