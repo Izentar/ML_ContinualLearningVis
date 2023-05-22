@@ -201,6 +201,7 @@ class DisorderDream():
             dream_image_f=dream_image_f,
             #param_f=DisorderDream.starting_image_creator(detached_image=image),
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_transform),
+            logger=logger,
         )
 
         task_index = 0
