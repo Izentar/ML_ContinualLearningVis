@@ -85,7 +85,7 @@ class _Image(_ImageFunctional):
         return self._color(self._image_f())
 
     def param_image(self):
-        return self.params(), self.image()
+        return self.param(), self.image()
 
 class FFTImage(_Image):
     def __init__(self, *args, decorrelate=False, decay_power=1, magic=4, **kwargs) -> None:
@@ -156,7 +156,6 @@ class PixelImage(_Image):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        #self._create_pixel_image()
         self._image_f = self._pixel_image_f
     
     def reinit(self):
@@ -170,20 +169,22 @@ class PixelImage(_Image):
         return self.param_tensor
 
 class CustomImage(_ImageFunctional):
-    def __init__(self, image_f, param_tensor, reinit_f, device=None):
+    def __init__(self, reinit_f, device=None):
         super().__init__(device=device)
-        self.image_f = image_f
-        self.param_tensor = param_tensor if isinstance(param_tensor, Sequence) else [param_tensor]
         self.reinit_f = reinit_f
+        self.reinit()
 
     def param(self):
         return self.param_tensor
 
     def image(self):
-        return self.image_f()
+        return self._image_f()
 
     def reinit(self):
-        self.reinit_f(self.image_f, self.param_tensor)
+        self._image_f, self.param_tensor = self.reinit_f()
+
+    def param_image(self):
+        return self.param(), self.image()
 
 class Image():
     def __new__(
@@ -197,8 +198,6 @@ class Image():
         channels:int=None,
         decay_power=1,
         device=None,
-        image_f=None,
-        param_tensor=None,
         reinit_f=None,
     ) -> None:
         """
@@ -212,7 +211,7 @@ class Image():
             assert w is not None, "Bad value, 'w' cannot be None for 'pixel'"
             return PixelImage(w=w, h=h, sd=sd, batch=batch, channels=channels, device=device)
         elif(dtype == 'custom'):
-            assert image_f != None and param_tensor != None and reinit_f != None, "Bad value, image_f and param_tensor cannot be None for dtype 'custom'"
-            return CustomImage(image_f=image_f, param_tensor=param_tensor, device=device, reinit_f=reinit_f)
+            assert  reinit_f != None, "Bad value, reinit_f cannot be None for dtype 'custom'"
+            return CustomImage(device=device, reinit_f=reinit_f)
         else:
             raise Exception(f'Unknown type "{dtype}"')

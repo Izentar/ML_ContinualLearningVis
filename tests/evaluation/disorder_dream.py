@@ -32,13 +32,15 @@ class DisorderDream():
     def get_task_processing(self):
         return target_processing.target_processing_latent_decode
 
-    def starting_image_creator(detached_image):
-        real_image = torch.clone(detached_image).detach()
-        real_img_shape = real_image.shape        
-        real_image = torch.flatten(real_image).requires_grad_(True) 
-        #to_pil = transforms.ToPILImage()
+    def starting_image_creator(image):
+        def reinit():
+            tmp = torch.clone(image).detach().requires_grad_(True)
+            def image_f():
+                return tmp
+            return image_f, [tmp]
+        
         def starting_image(**kwargs):
-            return Image(dtype='custom', image_f=lambda: real_image.view(real_img_shape), param_tensor=[real_image], reinit_f=lambda x, y: None)
+            return Image(dtype='custom', reinit_f=reinit)
         return starting_image
 
     def wrapper_select_dream_tasks_f(used_class):
@@ -59,19 +61,21 @@ class DisorderDream():
         wandb.log({f'{label}/index_of_selected_img': index})
         return dataset[index]
 
-    def _disorder_image(self, logger, label, image, device, disorder_input_image, sigma_disorder, start_img_value=None):
-        logger.log_metrics({
-            f'{label}/original_image': wandb.Image(image)
-        })
-
+    def _disorder_image(self, image, device, disorder_input_image, sigma_disorder, start_img_value=None):
+        image = image.clone()
         if(disorder_input_image):
             mean = torch.zeros_like(image)
-            std = torch.ones_like(image) * sigma_disorder
-            #print(f'DEBUG: DISORDER DREAM: mean: {mean}; sigma: {std}')
-            random = torch.normal(mean, std**2).to(device)
+            if(sigma_disorder == 0.):
+                print(f"Disorder dreams: sigma value is equal zero: {sigma_disorder}")
+                random = mean
+            else:
+                std = torch.ones_like(image) * sigma_disorder
+                random = torch.normal(mean, std**2).to(device)
             if(start_img_value is not None):
+                print(f"Disorder dreams: created uniform image with value: {start_img_value}. Original image was deleted.")
                 image = torch.ones_like(image) * start_img_value
-                image += random
+            image += random
+            
         return image
 
     def _compare_orig_constructed(self, original_img, disorder_img, constructed_img, label, logger):
@@ -95,22 +99,6 @@ class DisorderDream():
             f'{label}/heatmap_squared_compare(disorder - constructed)': wandb.Image(to_pil(torch.sum(heatmap **2, dim=0)), mode='L')
         })
 
-    def _inner_magic_wrapper(self, fun, logger, dd_counter: CounterBase):
-        def inner(*args, **kwargs):
-            loss = fun(*args, **kwargs)
-            logger.log_metrics({f'{self.class_label}/loss': loss}, dd_counter.get())
-            dd_counter.up()
-            return loss
-        return inner
-
-    def _magic_wrapper(self, fun, logger):
-        dd_counter = Counter()
-        def inner(**kwargs):
-            objective_fun = fun(**kwargs)
-            objective_wrapped = self._inner_magic_wrapper(objective_fun, logger=logger, dd_counter=dd_counter)
-            return objective_wrapped
-        return inner
-
     def __call__(
             self, 
             model, 
@@ -123,15 +111,15 @@ class DisorderDream():
             dream_loss_f=None, 
             disorder_input_image=True,
             enable_scheduler=True, # in experiments it does not changes output significantly but the loss converge to zero
-            scheduler_step_size=2048,
+            scheduler_milestones=None,
             dream_threshold=(1024*6,),
             start_img_value=None,
+            device = 'cuda:0'
         ):
         point = None
-        device = 'cuda:0'
 
         custom_loss_f = torch.nn.MSELoss() if dream_loss_f is None else dream_loss_f
-        custom_objective_f = self._magic_wrapper(objective_f, logger) if objective_f is not None else dream_objective_latent_lossf_creator(
+        custom_objective_f = objective_f if objective_f is not None else dream_objective_latent_lossf_creator(
             logger=logger, 
             loss_f=custom_loss_f, 
             label=self.class_label,
@@ -149,12 +137,11 @@ class DisorderDream():
             point = model(image)
 
         point.to(device)
+        print('Latent point generated from model', point)
 
         original_image = image.clone()
 
-        image = self._disorder_image(
-            logger=logger,
-            label=self.class_label,
+        disorder_image = self._disorder_image(
             image=image,
             device=device,
             disorder_input_image=disorder_input_image,
@@ -162,7 +149,7 @@ class DisorderDream():
             start_img_value=start_img_value,
         )
 
-        dream_image_f = DisorderDream.starting_image_creator(detached_image=image)
+        dream_image_f = DisorderDream.starting_image_creator(image=disorder_image)
 
         cfg_map={
             'cfg_vis': CustomDreamDataModule.Visualization(
@@ -175,6 +162,7 @@ class DisorderDream():
                 train_tasks_split=[[used_class]],
             ),
             'cfg_vis_optim': CustomDreamDataModule.Visualization.Optimizer(
+                type='adam',
                 kwargs={
                     'lr':5e-3
                 },
@@ -185,9 +173,9 @@ class DisorderDream():
         if(enable_scheduler):
             cfg_map.update({
                 'cfg_vis_sched': CustomDreamDataModule.Visualization.Scheduler(
-                    type='STEP_SCHED',
+                    type='MULTISTEP_SCHED',
                     kwargs={
-                        'step_size': scheduler_step_size,
+                        'milestones': scheduler_milestones,
                         'gamma': 0.1,
                     },
                 ),
@@ -206,9 +194,11 @@ class DisorderDream():
 
         task_index = 0
         model.to(device).eval() # must be before rendervis_state or rendervis_state device can be on cpu
-        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index)
+        custom_loss_gather_f, name = dream_module.get_custom_loss_gather_f(task_index=task_index)
         rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
         rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
+
+        name[0] = f"{name[1]}/disorder_dream_target_{used_class}"
 
         constructed_dream = dream_module.generate_dreams_for_target(
             model, 
@@ -219,17 +209,18 @@ class DisorderDream():
 
         self._compare_orig_constructed(
             original_img=original_image,
-            disorder_img=image,
+            disorder_img=disorder_image,
             constructed_img=constructed_dream.to(device),
             label=self.class_label,
             logger=logger,
         )
 
-        self._log(constructed_dreams=constructed_dream, real_image=image, used_class=used_class, logger=logger, label=self.class_label)
+        self._log(constructed_dreams=constructed_dream, original_image=original_image, 
+                  disorder_image=disorder_image, used_class=used_class, logger=logger, label=self.class_label)
 
-    def _log(self, constructed_dreams, real_image, used_class, logger, label):
+    def _log(self, constructed_dreams, original_image, disorder_image, used_class, logger, label):
         logged_main_point = self.logged_main_point[0].detach().cpu().squeeze()
-        print('main ', logged_main_point)
+        print('processed main point:', logged_main_point)
         logged_main_point = logged_main_point.numpy().squeeze()
         columns = [f'd{i}' for i in range(len(logged_main_point))]
         logged_main_point = np.append(logged_main_point, used_class)
@@ -237,6 +228,10 @@ class DisorderDream():
         table_main.add_data(*logged_main_point)
 
         wandb.log({f'{label}/main_point': table_main})
+
+        logger.log_metrics({
+            f'{label}/original_image': wandb.Image(original_image)
+        })
 
         logger.log_metrics({f'{label}/constructed_dreams': [
                 wandb.Image(
@@ -246,5 +241,5 @@ class DisorderDream():
         })
 
         logger.log_metrics({
-            f'{label}/used_image': wandb.Image(real_image)
+            f'{label}/disorder_image': wandb.Image(disorder_image)
         })

@@ -28,6 +28,7 @@ If True, run on all loops, if False, do not run. If "loop.gather_layer_loss_at" 
     parser.add_argument("--config.load", action="append", help='The config file(s) that should be used. The config file \
 takes precedence over command line arguments. Config files will be applied in order of the declaration.')
     parser.add_argument("--config.export", type=str, help='File where to export current config.')
+    parser.add_argument("--config.test.disable", action="store_true", help='')
     parser.add_argument("--config.cpu", action="store_true")
     parser.add_argument("-d", "--config.dataset", type=str) ##**
     parser.add_argument("--config.datasampler_type", type=str, default='none', help='''Select datasampler type.
