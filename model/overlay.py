@@ -8,7 +8,7 @@ from robustness import model_utils
 from loss_function.chiLoss import ChiLoss, l2_latent_norm, OneHot
 from utils.data_manipulation import select_class_indices_tensor
 from utils.cyclic_buffer import CyclicBufferByClass
-from loss_function.chiLoss import ChiLossBase, DummyLoss
+from loss_function.chiLoss import ChiLossBase, DummyLoss, BaseLoss
 from model.SAE import SAE_CIFAR
 from utils import utils
 import wandb
@@ -65,12 +65,16 @@ class CLModel(base.CLBase):
                 raise Exception(f'replace_layer_from is None: {self.cfg_layer_replace.source is None} or cfg_layer_replace.destination_f is None: {self.cfg_layer_replace.destination_f is None}')
             pp.sprint(f'{pp.COLOR.WARNING}INFO: Replacing layer from "{self.cfg_layer_replace.source.__class__.__name__}d"')
             utils.replace_layer(self, 'model', self.cfg_layer_replace.source, self.cfg_layer_replace.destination_f)
-            
-        self._loss_f = DummyLoss(loss_f)
-        pp.sprint(f"{pp.COLOR.NORMAL_3}INFO: Using loss {str(self._loss_f)}")
 
-        self.save_hyperparameters(ignore=['model', '_loss_f', 'optim_manager', 
-        'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f'])
+        if(loss_f is not None):
+            self._setup_loss_f(loss_f)
+
+        self.save_hyperparameters(ignore=['model', '_loss_f', 'loss_f', 'optim_manager', 
+        'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f', 'cfg_map'])
+
+    def _setup_loss_f(self, loss_f):
+        self._loss_f = DummyLoss(loss_f) if not isinstance(loss_f, BaseLoss) else loss_f
+        pp.sprint(f"{pp.COLOR.NORMAL_3}INFO: Using loss {str(self._loss_f)}")
 
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
@@ -227,7 +231,10 @@ class CLModel(base.CLBase):
         self._loss_f.to(device)
 
     def get_obj_str_type(self) -> str:
-        return 'CLModel_' + type(self.model).__qualname__
+        if(self.cfg_robust.enable):
+            return 'CLModel_' + type(self.model.model).__qualname__
+        else:
+            return 'CLModel_' + type(self.model).__qualname__
 
     def name(self):
         return str(self.model.__class__.__name__)
@@ -410,9 +417,7 @@ class CLModelIslandsOneHot(CLLatent):
         self.log("test_step_acc", self.test_acc)
 
     def get_obj_str_type(self) -> str:
-        if(self.cfg_robust.enable):
-            return 'CLModelIslandsTest_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__
-        return 'CLModelIslandsTest_' + type(self).__qualname__ + '_' + type(self.model).__qualname__
+        return 'CLModelIslandsTest_' + super().get_obj_str_type()
 
 class CLModelWithIslands(CLLatent):
     @dataclass
@@ -432,10 +437,13 @@ class CLModelWithIslands(CLLatent):
             buff_on_same_device=False,  
             **kwargs
         ):
+        kwargs.pop('loss_f', None)
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
-        self._loss_f = ChiLoss(sigma=self.cfg_loss_chi.sigma, rho=self.cfg_loss_chi.rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
-        
+        loss_f = ChiLoss(sigma=self.cfg_loss_chi.sigma, rho=self.cfg_loss_chi.rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
+        self._setup_loss_f(loss_f)
+
+
         self.norm = l2_latent_norm
         self.buff_on_same_device = buff_on_same_device
 
@@ -553,7 +561,5 @@ class CLModelWithIslands(CLLatent):
         return super().training_step(batch=batch, batch_idx=batch_idx)
 
     def get_obj_str_type(self) -> str:
-        if(self._robust_model_set):
-            return 'CLModelWithIslands_' + type(self).__qualname__ + '_' + type(self.model.model).__qualname__
-        return 'CLModelWithIslands_' + type(self).__qualname__ + '_' + type(self.model).__qualname__
+        return 'CLModelWithIslands_' + super().get_obj_str_type()
         

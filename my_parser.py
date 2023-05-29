@@ -10,6 +10,7 @@ import os
 from utils import utils
 import numpy as np
 from json import JSONEncoder, JSONDecoder
+from utils import pretty_print as pp
 
 def arg_parser() -> tuple[Namespace, ArgumentParser]:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -332,9 +333,9 @@ def log_to_wandb(args):
     #if(wandb.run is not None): # does not work
     wandb.config.update({'Plain args': str(sys.argv)})
     wandb.config.update(args)
-    print('Input command line:')
+    pp.sprint(f'{pp.COLOR.NORMAL}\tInput command line:')
     print(' '.join(sys.argv))
-    print('Used config:')
+    pp.sprint(f'{pp.COLOR.NORMAL}\tUsed config:')
     print(wandb.config)
 
 def wandb_run_name(args, id):

@@ -4,6 +4,7 @@ import numpy as np
 import wandb
 from torch.distributions.multivariate_normal import MultivariateNormal
 from abc import abstractclassmethod
+from utils import pretty_print as pp
 
 # input - class / pos
 #        pos1, pos2, pos3
@@ -27,7 +28,10 @@ def l1_norm(model, lambd):
     norm = sum(torch.sum(torch.abs(p)) for p in model.parameters())
     return norm * lambd
 
-class DummyLoss(torch.nn.Module):
+class BaseLoss():
+    pass
+
+class DummyLoss(torch.nn.Module, BaseLoss):
     def __init__(self, loss):
         super().__init__()
         self.loss = loss
@@ -55,10 +59,11 @@ class DummyLoss(torch.nn.Module):
     def cloud_data(self):
         raise Exception('Not implemented')
 
-class ChiLossBase(torch.nn.Module):
+class ChiLossBase(torch.nn.Module, BaseLoss):
     def __init__(self, cyclic_latent_buffer):
         super().__init__()
-        print(cyclic_latent_buffer)
+        
+        pp.sprint(f"{pp.COLOR.NORMAL_2}CHI-LOSS: Used buffer: {cyclic_latent_buffer}")
         self._cloud_data = cyclic_latent_buffer
         self.to_log = {}
         self._train = True

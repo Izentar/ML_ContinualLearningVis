@@ -102,10 +102,10 @@ def select_datasampler(dtype, main_split):
         )
 
     if(dtype == 'none'):
-        print('INFO: Selected None datasampler')
+        pp.sprint(f'{pp.COLOR.NORMAL}INFO: Selected None datasampler')
         return None
     elif(dtype == 'v2'):
-        print('INFO: Selected PairingBatchSamplerV2 datasampler')
+        pp.sprint(f'{pp.COLOR.NORMAL}INFO: Selected PairingBatchSamplerV2 datasampler')
         return inner
     else:
         raise Exception(f'Unknown type: {dtype}')
@@ -201,7 +201,7 @@ def logic(args, log_args_to_wandb=True):
         logger=logger
     )
     set_manager.init_dream_objectives(logger=logger, label='dream')
-    print(f"Selected configuration:\n{str(set_manager)}")
+    pp.sprint(f"{pp.COLOR.NORMAL}Selected configuration:{pp.COLOR.RESET}\n{str(set_manager)}")
 
     model_latent_size = args.model.num_classes if args.model.latent.size is None else args.model.latent.size
     source_model = set_manager.model(default_weights=args.model.default_weights, num_classes=model_latent_size)
@@ -242,7 +242,7 @@ def logic(args, log_args_to_wandb=True):
             ) 
         },
     )
-    print(f'MODEL TYPE: {model.get_obj_str_type()}')
+    pp.sprint(f'{pp.COLOR.NORMAL_3}MODEL TYPE: {model.get_obj_str_type()}')
 
     #from lucent.modelzoo.util import get_model_layers
     #print(get_model_layers(model))
@@ -300,7 +300,7 @@ def logic(args, log_args_to_wandb=True):
     )
     progress_bar._init_progress(trainer)    
 
-    print(f"Fast dev run is {args.fast_dev_run.enable}")
+    pp.sprint(f"{pp.COLOR.WARNING}Fast dev run is {args.fast_dev_run.enable}")
     
     internal_fit_loop = trainer.fit_loop
     custom_loop = CLLoop(

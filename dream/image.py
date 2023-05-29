@@ -3,6 +3,7 @@ import numpy as np
 import torch.fft
 from abc import abstractmethod
 from collections.abc import Sequence
+from utils import pretty_print as pp
 
 # https://pytorch.org/docs/stable/generated/torch.svd.html
 color_correlation_svd_sqrt = np.asarray([[0.26, 0.09, 0.02],
@@ -203,7 +204,7 @@ class Image():
         """
             dtype - fft; pixel;
         """
-        print(f'VIS: Selected dream image type: {dtype}')
+        pp.sprint(f'{pp.COLOR.NORMAL_2}VIS: Selected dream image type: {dtype}')
         if(dtype == 'fft'):
             assert w is not None, "Bad value, 'w' cannot be None for 'fft'"
             return FFTImage(w=w, h=h, sd=sd, batch=batch, decorrelate=decorrelate, channels=channels, decay_power=decay_power, device=device)
