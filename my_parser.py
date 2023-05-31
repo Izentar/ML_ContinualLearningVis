@@ -243,7 +243,15 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--stat.compare_latent", action="store_true", help='')
     parser.add_argument("--stat.disorder_dream", action="store_true", help='')
     parser.add_argument("--stat.collect_stats", action="store_true", help='')
+    parser.add_argument("--stat.disorder.sigma", type=float, default=0.0, help='')
+    parser.add_argument("--stat.disorder.start_img_val", type=float, help='Default None')
     parser.add_argument("--loop.save.ignore_config", action="store_true", help='')
+
+    parser.add_argument("--stat.collect.latent_buffer.enable", action="store_true", help='')
+    parser.add_argument("--stat.collect.latent_buffer.name", type=str, default='default.csv', help='')
+    parser.add_argument("--stat.collect.latent_buffer.mode", type=str, default='a', help='')
+    parser.add_argument("--stat.collect.latent_buffer.cl_idx", type=int, default=1, help='')
+    parser.add_argument("--stat.collect.latent_buffer.size", type=int, default=50, help='')
 
     parser.add_argument("--wandb.watch.enable", action="store_true", help='')
     parser.add_argument("--wandb.watch.log_freq", type=int, default=1000, help='')

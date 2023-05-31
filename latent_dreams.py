@@ -34,6 +34,7 @@ from model.activation_layer import GaussA
 from pathlib import Path
 from model.overlay import CLModel
 from utils import pretty_print as pp
+from utils.data_collector import collect_data
 
 def data_transform():
     return transforms.Compose(
@@ -339,11 +340,14 @@ def logic(args, log_args_to_wandb=True):
         dreams_transforms=dreams_transforms, 
         set_manager=set_manager,
         custom_loop=custom_loop,
+        sigma_disorder=args.stat.disorder.sigma,
+        start_img_value=args.stat.disorder.start_img_val,
         try_except=True,
     )
 
 def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, 
                               collect_main_split, logger, dreams_transforms, set_manager, custom_loop,
+                              sigma_disorder, start_img_value,
                               try_except=True):
     if(not args.stat.compare_latent and not args.stat.disorder_dream and not args.stat.collect_stats):
         return
@@ -351,12 +355,10 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
     nrows = 4
     ncols = 4
     compare_latent_step_sample = False
-    sigma_disorder = 0.01
-    start_img_value = None
 
     transform = transforms.Compose([transforms.ToTensor()])
     if(args.stat.collect_stats and not args.fast_dev_run.enable):
-        print('STATISTICS: Collecting model stats')
+        pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Collecting model stats')
         dataset = dataset_class(root="./data", train=False, transform=transform)
         dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
         targets = None
@@ -377,7 +379,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             nrows=nrows, ncols=ncols, 
             logger=logger, attack_kwargs=attack_kwargs, path=custom_loop.save_folder)
     if(args.stat.compare_latent and not args.fast_dev_run.enable):
-        print('STATISTICS: Compare latent')
+        pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Compare latent')
         compare_latent = CompareLatent()
         compare_latent_call = lambda: compare_latent(
             model=model,
@@ -397,7 +399,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
         else:
             compare_latent_call()
     if(args.stat.disorder_dream and not args.fast_dev_run.enable):
-        print('STATISTICS: Disorder dream')
+        pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
         dataset = dataset_class(root="./data", train=True, transform=transform)
         disorder_dream_call = lambda: disorder_dream(
@@ -417,6 +419,21 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
                 pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_disorder_dream}")
         else:
             disorder_dream_call()
+    if(args.stat.collect.latent_buffer.enable and not args.fast_dev_run.enable):
+        if(hasattr(model.loss_f, 'cloud_data')):
+            try:
+                pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: collect points from latent buffer')
+                sample_latent_buffer(
+                    buffer=model.loss_f.cloud_data,
+                    size=args.stat.collect.latent_buffer.size,
+                    namepath=args.stat.collect.latent_buffer.name,
+                    cl_idx=args.stat.collect.latent_buffer.cl_idx,
+                    mode=args.stat.collect.latent_buffer.mode,
+                )
+            except Exception as e_collect_latent_points:
+                pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_collect_latent_points}")
+        else:
+            pp.sprint(f'{pp.COLOR.WARNING}STATISTICS WARNING: model`s loss function does not have latent buffer')
 
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
@@ -521,6 +538,26 @@ def check(split, num_classes, num_tasks, enable_robust):
         raise Exception(f"Wrong number of classes: {num_classes} / train or validation split: {len(test)}.")
     if(len(split) != num_tasks):
         raise Exception(f"Wrong number of tasks: {num_tasks} / train or validation split size: {len(split)}.")
+
+def sample_latent_buffer(buffer, size, namepath, cl_idx=None, mode='w'):
+    if(cl_idx is None):
+        collect_mean = lambda idx: buffer.mean()
+        collect_std = lambda idx: buffer.std()
+    else:
+        collect_mean = lambda idx: buffer.mean(cl_idx)
+        collect_std = lambda idx: buffer.std(cl_idx)
+    data = collect_mean()
+    header = [f'dim_{x}' for x in range(len(data))]
+    if(not isinstance(namepath, Path)):
+        namepath = Path(namepath)
+
+    mean_name = namepath.parent / 'mean.' + namepath.name
+    std_name = namepath.parent / 'std.' + namepath.name
+
+    collect_data(collect_f=collect_mean, size=size, namepath=mean_name, mode=mode, header=header)
+    collect_data(collect_f=collect_std, size=size, namepath=std_name, mode=mode, header=header)
+
+
 
 if __name__ == "__main__":
     args, _ = arg_parser()
