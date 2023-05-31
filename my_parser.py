@@ -248,9 +248,8 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--loop.save.ignore_config", action="store_true", help='')
 
     parser.add_argument("--stat.collect.latent_buffer.enable", action="store_true", help='')
-    parser.add_argument("--stat.collect.latent_buffer.name", type=str, default='default.csv', help='')
-    parser.add_argument("--stat.collect.latent_buffer.mode", type=str, default='a', help='')
-    parser.add_argument("--stat.collect.latent_buffer.cl_idx", type=int, default=1, help='')
+    parser.add_argument("--stat.collect.latent_buffer.name", type=str, help='Default None')
+    parser.add_argument("--stat.collect.latent_buffer.cl_idx", type=int, help='')
     parser.add_argument("--stat.collect.latent_buffer.size", type=int, default=50, help='')
 
     parser.add_argument("--wandb.watch.enable", action="store_true", help='')

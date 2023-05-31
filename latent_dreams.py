@@ -342,15 +342,14 @@ def logic(args, log_args_to_wandb=True):
         custom_loop=custom_loop,
         sigma_disorder=args.stat.disorder.sigma,
         start_img_value=args.stat.disorder.start_img_val,
-        try_except=True,
+        try_except=False,
+        multitarget=args.datamodule.vis.multitarget.enable,
     )
 
 def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, 
                               collect_main_split, logger, dreams_transforms, set_manager, custom_loop,
                               sigma_disorder, start_img_value,
-                              try_except=True):
-    if(not args.stat.compare_latent and not args.stat.disorder_dream and not args.stat.collect_stats):
-        return
+                              try_except=True, multitarget=False):
     collect_numb_of_points = 2500
     nrows = 4
     ncols = 4
@@ -421,17 +420,33 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             disorder_dream_call()
     if(args.stat.collect.latent_buffer.enable and not args.fast_dev_run.enable):
         if(hasattr(model.loss_f, 'cloud_data')):
-            try:
-                pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: collect points from latent buffer')
-                sample_latent_buffer(
+            namepath = args.stat.collect.latent_buffer.name
+            if(namepath is None):
+                namepath = custom_loop.save_folder / 'default.csv'
+            pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: collect points from latent buffer')
+            def sample_latent_buffer_call():
+                sample_latent_buffer_mean_std(
                     buffer=model.loss_f.cloud_data,
-                    size=args.stat.collect.latent_buffer.size,
-                    namepath=args.stat.collect.latent_buffer.name,
+                    namepath=namepath,
                     cl_idx=args.stat.collect.latent_buffer.cl_idx,
-                    mode=args.stat.collect.latent_buffer.mode,
                 )
-            except Exception as e_collect_latent_points:
-                pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_collect_latent_points}")
+                cl_idx = args.stat.collect.latent_buffer.cl_idx
+                cl_idx = cl_idx if cl_idx is not None else range(args.model.num_classes)
+                sample_latent_buffer_target_process(
+                    model=model,
+                    target_process_f=set_manager.target_processing,
+                    namepath=namepath,
+                    size=args.stat.collect.latent_buffer.size,
+                    cl_idx=cl_idx,
+                    multitarget=multitarget,
+                )
+            if(try_except):
+                try:
+                    sample_latent_buffer_call()
+                except Exception as e_collect_latent_points:
+                    pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_collect_latent_points}")
+            else:
+                sample_latent_buffer_call()
         else:
             pp.sprint(f'{pp.COLOR.WARNING}STATISTICS WARNING: model`s loss function does not have latent buffer')
 
@@ -539,23 +554,61 @@ def check(split, num_classes, num_tasks, enable_robust):
     if(len(split) != num_tasks):
         raise Exception(f"Wrong number of tasks: {num_tasks} / train or validation split size: {len(split)}.")
 
-def sample_latent_buffer(buffer, size, namepath, cl_idx=None, mode='w'):
-    if(cl_idx is None):
-        collect_mean = lambda idx: buffer.mean()
-        collect_std = lambda idx: buffer.std()
-    else:
-        collect_mean = lambda idx: buffer.mean(cl_idx)
-        collect_std = lambda idx: buffer.std(cl_idx)
-    data = collect_mean()
-    header = [f'dim_{x}' for x in range(len(data))]
+def sample_latent_buffer_mean_std(buffer, namepath, cl_idx=None):
     if(not isinstance(namepath, Path)):
         namepath = Path(namepath)
 
-    mean_name = namepath.parent / 'mean.' + namepath.name
-    std_name = namepath.parent / 'std.' + namepath.name
+    if(cl_idx is None):
+        collect_mean = lambda current_cl: lambda idx: buffer.mean_target(current_cl)
+        collect_std = lambda current_cl: lambda idx: buffer.std_target(current_cl)
+        data = utils.dict_to_tensor(buffer.mean())
+        for cl in range(data.shape[0]):
+            mean_name = namepath.parent / (f'mean.' + str(namepath.name))
+            std_name = namepath.parent / (f'std.' + str(namepath.name))
+            header = [f'cl_{cl}-dim{y}' for y in range(data.shape[-1])]
+            collect_data(collect_f=collect_mean(cl), size=1, namepath=mean_name, mode='a', header=header)
+            collect_data(collect_f=collect_std(cl), size=1, namepath=std_name, mode='a', header=header)
+    else:
+        collect_mean = lambda idx: buffer.mean_target(cl_idx)
+        collect_std = lambda idx: buffer.std_target(cl_idx)
+        d_size = collect_mean(0).shape[-1]
+        header = [f'cl_{int(cl_idx)}-dim_{x}' for x in range(d_size)]
+        mean_name = namepath.parent / ('mean.' + str(namepath.name))
+        std_name = namepath.parent / ('std.' + str(namepath.name))
+        collect_data(collect_f=collect_mean, size=1, namepath=mean_name, mode='a', header=header)
+        collect_data(collect_f=collect_std, size=1, namepath=std_name, mode='a', header=header)
 
-    collect_data(collect_f=collect_mean, size=size, namepath=mean_name, mode=mode, header=header)
-    collect_data(collect_f=collect_std, size=size, namepath=std_name, mode=mode, header=header)
+def sample_latent_buffer_target_process(model, target_process_f, namepath, size, cl_idx:torch.Tensor, multitarget):    
+    def run_singletarget(cl_idx, namepath):
+        collect_point_call = lambda idx: target_process_f(target=cl_idx, model=model)
+        header = [f'cl_{cl_idx}-dim_{x}' for x in range(collect_point_call(0).shape[0])]
+        if(not isinstance(namepath, Path)):
+            namepath = Path(namepath)
+        name = namepath.parent / 'sample' / (f'cl_{cl_idx}.' + str(namepath.name))
+        collect_data(collect_f=collect_point_call, size=size, namepath=name, mode='a', header=header)
+
+    def run_multitarget(cl_idx, namepath):
+        collect_point_call = lambda idx: target_process_f(target=cl_idx, model=model).flatten()
+        #cl = ''
+        #for c in cl_idx.numpy():
+        #    cl = cl + f'{c}-'
+        #cl = cl[: -1]
+        header = [f'cl_{c}-dim_{x}' for c in cl_idx.numpy() for x in range(target_process_f(target=cl_idx, model=model).shape[0])]
+        if(not isinstance(namepath, Path)):
+            namepath = Path(namepath)
+        name = namepath.parent / (f'sample_cl_full.' + str(namepath.name))
+        collect_data(collect_f=collect_point_call, size=size, namepath=name, mode='a', header=header)
+
+    if(isinstance(cl_idx, int)):
+        cl_idx = torch.tensor(cl_idx)
+        run_singletarget(cl_idx, namepath=namepath)
+    elif(isinstance(cl_idx, list) or multitarget):
+        cl_idx = torch.tensor(cl_idx)
+        run_multitarget(cl_idx, namepath=namepath)
+    else:
+        for cl in cl_idx:
+            run_singletarget(torch.tensor(cl), namepath=namepath)
+    
 
 
 

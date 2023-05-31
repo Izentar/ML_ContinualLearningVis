@@ -285,3 +285,9 @@ def time_in_sec_format_to_hourly(seconds):
     min = sec // 60
     sec %= 60
     return int(hour), int(min), int(sec)
+
+def dict_to_tensor(d) -> torch.Tensor:
+    l = []
+    for k, v in d.items():
+        l.insert(k, v)
+    return torch.stack(l)
