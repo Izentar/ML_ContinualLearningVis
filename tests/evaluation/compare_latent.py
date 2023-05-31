@@ -17,8 +17,8 @@ from torchvision import transforms as tr
 class CompareLatent():
     """
         Compare latent points.
-        Sample point in latent space, then do dreaming using this point.
-        After that compare the point from generated image to the previous sampled point.
+        Sample point A in latent space, then do visualization using this point A.
+        This visualization generates the second point B. Compare the point B from generated image to the previous sampled point A.
         This is done by creating custom objective function that compares main point to the sampled point 
         using provided loss function (default MSELoss).
     """
@@ -30,8 +30,6 @@ class CompareLatent():
 
     def param_f_image(self, dtype, image_size, dreaming_batch_size, decorrelate, **kwargs):
         channels, w, h = parse_image_size(image_size)
-        # uses 2D Fourier coefficients
-        # sd - scale of the random numbers [0, 1)
         return Image(dtype=dtype, w=w, h=h, channels=channels, batch=dreaming_batch_size,
             decorrelate=decorrelate)
 
@@ -97,6 +95,7 @@ class CompareLatent():
                 batch_size=1,
                 disable_transforms=not enable_transforms,
                 image_type='pixel',
+                standard_image_size=32,
             ),
             'cfg': CustomDreamDataModule.Config(
                 train_tasks_split=[[used_class]],
@@ -127,14 +126,17 @@ class CompareLatent():
             target_processing_f=custom_target_processing_f,
             dream_image_f=dream_image_f,
             empty_dream_dataset=dream_sets.DreamDataset(transform=dream_fetch_transform),
+            logger=logger,
         )
 
         task_index = 0
 
         model.to(device).eval() # must be before rendervis_state or rendervis_state device can be on cpu
-        custom_loss_gather_f, names = dream_module.get_custom_loss_gather_f(task_index=task_index)
+        custom_loss_gather_f, name = dream_module.get_custom_loss_gather_f(task_index=task_index)
         rendervis_state = dream_module.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f)
         rendervis_state.transform_f = tr.Lambda(lambda x: x.to(device))
+
+        name[0] = f"{name[1]}/compare_latent_target_{used_class}"
 
         start_image = dream_module.dream_image.image().clone()
 

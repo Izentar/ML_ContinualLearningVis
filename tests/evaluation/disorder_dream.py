@@ -70,7 +70,7 @@ class DisorderDream():
                 random = mean
             else:
                 std = torch.ones_like(image) * sigma_disorder
-                random = torch.normal(mean, std**2).to(device)
+                random = torch.normal(mean, std).to(device)
             if(start_img_value is not None):
                 print(f"Disorder dreams: created uniform image with value: {start_img_value}. Original image was deleted.")
                 image = torch.ones_like(image) * start_img_value
@@ -110,9 +110,8 @@ class DisorderDream():
             objective_f=None, 
             dream_loss_f=None, 
             disorder_input_image=True,
-            enable_scheduler=True, # in experiments it does not changes output significantly but the loss converge to zero
-            scheduler_milestones=None,
-            dream_threshold=(1024*6,),
+            scheduler_milestones=None, # in experiments it does not changes output significantly but the loss converge to zero
+            dream_threshold=(1024*2,),
             start_img_value=None,
             device = 'cuda:0'
         ):
@@ -156,7 +155,7 @@ class DisorderDream():
                 per_target=1,
                 threshold=dream_threshold,
                 batch_size=1,
-                disable_transforms=False,
+                disable_transforms=True,
             ),
             'cfg': CustomDreamDataModule.Config(
                 train_tasks_split=[[used_class]],
@@ -164,13 +163,14 @@ class DisorderDream():
             'cfg_vis_optim': CustomDreamDataModule.Visualization.Optimizer(
                 type='adam',
                 kwargs={
-                    'lr':5e-3
+                    'lr':5e-3,
+                    'betas': (0.0, 0.0)
                 },
             ),
             
         }
 
-        if(enable_scheduler):
+        if(scheduler_milestones is not None):
             cfg_map.update({
                 'cfg_vis_sched': CustomDreamDataModule.Visualization.Scheduler(
                     type='MULTISTEP_SCHED',
