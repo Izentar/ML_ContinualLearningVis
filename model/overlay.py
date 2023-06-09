@@ -635,8 +635,8 @@ class CLModelLatentDual(CLModelWithIslands):
         loss_inner = self._loss_f(self._first_output, y) 
         loss = self._outer_loss_f(latent, y) 
 
-        loss = loss * (loss_inner.item() / loss.item()) * (1. - self.cfg_loss_chi_dual.alfa) 
-        loss_inner = loss_inner * self.cfg_loss_chi_dual.alfa
+        loss = loss * (1. - self.cfg_loss_chi_dual.alfa) 
+        loss_inner = (loss_inner / (loss_inner.item() / loss.item())) * self.cfg_loss_chi_dual.alfa
 
         self.log(f"{log_label}/island", loss)
         self.log(f"{log_label}/islandInner", loss_inner)
