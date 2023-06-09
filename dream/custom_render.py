@@ -27,6 +27,7 @@ from utils.utils import hook_model
 from dream.image import _Image
 from torchvision import transforms as tr
 from torch import autocast
+from collections.abc import Sequence
 
 def _check_img_size(transform_f, image_f, standard_image_size):
     if(standard_image_size is None):
@@ -110,6 +111,7 @@ class RenderVisState():
         device=None,
         input_image_train_after_hook:list|None=None,
         scheduler=None,
+        optim_vals=None,
     ) -> None:
         self.preprocess = preprocess
         self.standard_image_size = standard_image_size
@@ -126,8 +128,8 @@ class RenderVisState():
         self._set_device(device)
         self._set_optim_image(optim_image)
         self.optim_image.reinit()
-        self._initval_optimizer = optimizer
-        self._set_optimizer(optimizer)
+        self.optim_vals = optim_vals
+        self.optimizer = optimizer
         self._set_model(model)
         self.scheduler = scheduler
 
@@ -145,6 +147,7 @@ class RenderVisState():
 
     def reinit_optim_image(self):
         self.optim_image.reinit()
+        self._set_optim_vals(self._initval_optim_val)
         self._set_optimizer(self._initval_optimizer)
 
     @property
@@ -215,7 +218,10 @@ class RenderVisState():
         self._set_thresholds(value=value)
     def _set_thresholds(self, value):
         if(value is not None):
-            self._thresholds = value
+            if(isinstance(value, Sequence)):
+                self._thresholds = value
+            else:
+                self._thresholds = (value, )
         else:
             self._thresholds = (512,)
 
@@ -244,6 +250,22 @@ class RenderVisState():
             return
         self._scheduler = value(self.optimizer)
 
+
+    @property
+    def optim_vals(self):
+        return self._optim_vals
+    @optim_vals.setter
+    def optim_vals(self, value):
+        self._initval_optim_val = value
+        self._set_optim_vals(value)
+    def _set_optim_vals(self, value):
+        if(value is None):
+            value = []
+        if(not isinstance(value, list)):
+            raise Exception("Optimizer values are not in list!")
+        self._optim_vals = self.optim_image.param() + value
+
+
     @property
     def optimizer(self) -> torch.optim.Optimizer:
         return self._optimizer
@@ -253,9 +275,9 @@ class RenderVisState():
         self._set_optimizer(value=value)
     def _set_optimizer(self, value):
         if(value is None):
-            self._optimizer = torch.optim.Adam(self.optim_image.param(), lr=1e-3)
+            self._optimizer = torch.optim.Adam(self._optim_vals, lr=1e-3)
         else:
-            self._optimizer = value(self.optim_image.param())
+            self._optimizer = value(self._optim_vals)
 
 
     @property
@@ -349,7 +371,7 @@ class RenderVisState():
 def render_vis(
     render_dataclass,
     verbose=False,
-    show_image=True,
+    show_image=False,
     save_image=False,
     image_name=None,
     show_inline=False,

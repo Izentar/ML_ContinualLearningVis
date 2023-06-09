@@ -24,7 +24,7 @@ def inner_obj_latent(target_layer, target_val, batch=None, loss_f=None):
     @handle_batch(batch)
     def inner(model):
         latent = model(target_layer)
-        latent_target = target_val.repeat(len(latent), 1)
+        latent_target = target_val.repeat(len(latent), 1).to(latent.device)
         loss = inner_loss_f(latent, latent_target)
         return loss
     return inner
@@ -35,10 +35,7 @@ def inner_obj_latent_multitarget(target_layer, target_val, batch=None, loss_f=No
 
     @handle_batch(batch)
     def inner(model):
-        latent = model(target_layer)
-        latent_target = target_val
-        loss = inner_loss_f(latent, latent_target)
-        return loss
+        return inner_loss_f(model(target_layer), target_val)
     return inner
 
 @wrap_objective()
@@ -153,7 +150,7 @@ def dream_objective_latent_lossf_creator(loss_f=None, **kwargs):
     def inner(target_point, model, **inner_kwargs):
         return inner_obj_latent(
             target_layer=model.get_objective_target_name(), 
-            target_val=target_point.to(model.device), 
+            target_val=target_point, 
             loss_f=loss_f,
         ) #- objectives.diversity(
         #    "model_model_conv2"

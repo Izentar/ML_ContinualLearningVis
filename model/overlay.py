@@ -563,3 +563,74 @@ class CLModelWithIslands(CLLatent):
     def get_obj_str_type(self) -> str:
         return 'CLModelWithIslands_' + super().get_obj_str_type()
         
+class ModelSufix(torch.nn.Module):
+    def __init__(self, model) -> None:
+        super().__init__()
+        self.model = model
+
+        self.ln = torch.nn.Linear(self.model.get_objective_layer().in_features, self.model.get_objective_layer().out_features)
+    
+    def forward(self, x, **kwargs):
+        xe = self.model(x)
+        xe = self.ln(xe)
+        return xe
+
+    def get_objective_layer_name(self):
+        return "ln"
+
+    def get_root_name(self):
+        return ""
+
+    def get_objective_layer(self):
+        return self.ln
+
+    def get_objective_layer_output_shape(self):
+        return (self.ln.out_features,)
+
+class CLModelLatentDual(CLModelWithIslands):
+    @dataclass
+    class Loss():
+        @dataclass
+        class Chi():
+            @dataclass
+            class Dual():
+                alfa: float
+
+                def __post_init__(self):
+                    if not (0. <= self.alfa and self.alfa >= 1.):
+                        raise Exception(f"Alfa param can be only in range of [0, 1]")
+
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'cfg_loss_chi_dual': CLModelLatentDual.Loss.Chi.Dual,
+        })
+        b.update({
+            'loss.chi.dual': 'cfg_loss_chi_dual',
+        })
+        return a, b
+
+    def __init__(
+            self, 
+            *args,
+            model:nn.Module=None,
+            **kwargs
+        ):
+        model = ModelSufix(model)
+        super().__init__(*args, model=model, **kwargs)
+        self._inner_loss_f = self._loss_f
+        self._loss_f = torch.nn.CrossEntropyLoss()
+
+        self._hook_handle = model.get_objective_layer().register_forward_hook(self._hook)
+        
+
+    def _hook(self, module, input, output):
+        self._first_output = output
+
+    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
+        loss = self._inner_loss_f(self._first_output, y) * self.cfg_loss_chi_dual
+        loss2 = self._loss_f(latent, y) * (1. - self.cfg_loss_chi_dual) 
+        self.log(f"{log_label}/islandInner", loss2)
+        self.log(f"{log_label}/island", loss)
+
+        return loss + loss2

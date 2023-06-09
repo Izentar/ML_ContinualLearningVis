@@ -35,6 +35,7 @@ from pathlib import Path
 from model.overlay import CLModel
 from utils import pretty_print as pp
 from utils.data_collector import collect_data
+from tests.evaluation.single_dream import SingleDream
 
 def data_transform():
     return transforms.Compose(
@@ -209,7 +210,10 @@ def logic(args, log_args_to_wandb=True):
     target_processing_f = set_manager.target_processing
     select_dream_tasks_f = set_manager.select_task
     objective_f = set_manager.dream_objective
-    val_tasks_split = train_tasks_split = set_manager.task_split(args.model.num_classes, args.config.num_tasks)
+    val_tasks_split = train_tasks_split = set_manager.task_split(
+        args.config.split.num_classes if args.config.split.num_classes is not None else args.model.num_classes, 
+        args.config.num_tasks
+    )
 
     #model_summary(source_model)
 
@@ -224,11 +228,11 @@ def logic(args, log_args_to_wandb=True):
     #if args.fast_dev_run.enable:
     #    val_tasks_split = train_tasks_split = [[0, 1], [2, 3], [4, 5]]
 
-    check(split=train_tasks_split, 
-        num_classes=args.model.num_classes, 
-        num_tasks=args.config.num_tasks,
-        enable_robust=args.model.robust.enable,
-    )
+    #check(split=train_tasks_split, 
+    #    num_classes=args.model.num_classes, 
+    #    num_tasks=args.config.num_tasks,
+    #    enable_robust=args.model.robust.enable,
+    #)
 
     model = set_manager.model_overlay(
         model=source_model,
@@ -344,16 +348,26 @@ def logic(args, log_args_to_wandb=True):
         start_img_value=args.stat.disorder.start_img_val,
         try_except=False,
         multitarget=args.datamodule.vis.multitarget.enable,
+        num_classes=args.model.num_classes,
     )
 
 def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, 
                               collect_main_split, logger, dreams_transforms, set_manager, custom_loop,
-                              sigma_disorder, start_img_value,
+                              sigma_disorder, start_img_value, num_classes,
                               try_except=True, multitarget=False):
     collect_numb_of_points = 2500
     nrows = 4
     ncols = 4
     compare_latent_step_sample = False
+
+    def run(f, name):
+        if(try_except):
+            try:
+                f()
+            except Exception as e_name:
+                pp.sprint(f"{pp.COLOR.WARNING}ERROR: {name} could not be completed. Error:\n{e_name}")
+        else:
+            f()
 
     transform = transforms.Compose([transforms.ToTensor()])
     if(args.stat.collect_stats and not args.fast_dev_run.enable):
@@ -390,13 +404,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             loss_obj_step_sample=compare_latent_step_sample,
             enable_transforms=not args.datamodule.vis.disable_transforms,
         )
-        if(try_except):
-            try:
-                compare_latent_call()
-            except Exception as e_compare_latent:
-                pp.sprint(f"{pp.COLOR.WARNING}ERROR: compare latent could not be completed. Error:\n{e_compare_latent}")
-        else:
-            compare_latent_call()
+        run(compare_latent_call, 'compare latent')
     if(args.stat.disorder_dream and not args.fast_dev_run.enable):
         pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
@@ -411,13 +419,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
             sigma_disorder=sigma_disorder,
             start_img_value=start_img_value,
         )
-        if(try_except):
-            try:
-                disorder_dream_call()
-            except Exception as e_disorder_dream:
-                pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_disorder_dream}")
-        else:
-            disorder_dream_call()
+        run(disorder_dream_call, 'disorder dreams')
     if(args.stat.collect.latent_buffer.enable and not args.fast_dev_run.enable):
         if(hasattr(model.loss_f, 'cloud_data')):
             namepath = args.stat.collect.latent_buffer.name
@@ -440,16 +442,19 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
                     cl_idx=cl_idx,
                     multitarget=multitarget,
                 )
-            if(try_except):
-                try:
-                    sample_latent_buffer_call()
-                except Exception as e_collect_latent_points:
-                    pp.sprint(f"{pp.COLOR.WARNING}ERROR: disorder dreams could not be completed. Error:\n{e_collect_latent_points}")
-            else:
-                sample_latent_buffer_call()
+            run(sample_latent_buffer_call, 'collect latent buffer points')
         else:
             pp.sprint(f'{pp.COLOR.WARNING}STATISTICS WARNING: model`s loss function does not have latent buffer')
-
+    if(args.stat.collect.single_dream.enable and not args.fast_dev_run.enable):
+        tmp = SingleDream(
+            drift_sigma=args.stat.collect.single_dream.sigma,
+            logger=logger,
+            num_classes=num_classes,
+        )
+        single_dream_call = lambda: tmp(
+            model=model,
+        )
+        run(single_dream_call, 'single dream')
     # show dream png
     #cl_data_module.dreams_dataset.dreams[-1].show()
 
@@ -480,7 +485,6 @@ def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:i
     except Exception as pca_exception:
         pp.sprint(f'{pp.COLOR.WARNING}WARNING: PCA graph plot failed. Exception:\n{pca_exception}')
             
-
 def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     try:
         plotter = PointPlot()

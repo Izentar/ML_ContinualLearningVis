@@ -77,6 +77,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             self.transforms = not self.disable_transforms
             self.threshold = self.threshold if isinstance(self.threshold, tuple) or isinstance(self.threshold, list) else (self.threshold, )
             self.standard_image_size = self.standard_image_size if self.standard_image_size is not None else self.image_size
+            self.batch_size = self.batch_size if self.batch_size < self.per_target else self.per_target
 
         @dataclass
         class Multitarget():
@@ -152,7 +153,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         self.dream_image = dream_image_f(
             dtype=self.cfg_vis.image_type, 
             image_size=self.cfg_vis.image_size, 
-            dreaming_batch_size=self.cfg_vis.batch_size, 
+            dreaming_batch_size=self.cfg_vis.batch_size,
             decorrelate=self.cfg_vis.decorrelate
         )
         
@@ -421,7 +422,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         for _ in range(iterations):
             batch_target = self._multitarget_select_targets(target)
             self._layer_hook_obj_set_current_class(layer_hook_obj, batch_target)
-            target_point = self.target_processing_f(target=batch_target, model=model)
+            target_point:torch.Tensor = self.target_processing_f(target=batch_target, model=model)
             rendervis_state.objective_f = self.dream_objective_f(target=batch_target, target_point=target_point, model=model, source_dataset_obj=self)
 
             rendered_images = render_vis(

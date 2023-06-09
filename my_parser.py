@@ -101,6 +101,7 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
     parser.add_argument("--config.target_processing_type", type=str, help='From utils.functional.target_processing.py')
     parser.add_argument("--config.task_split_type", type=str, help='From utils.functional.task_split.py')
     parser.add_argument("--config.overlay_type", type=str, help='Overlay type')
+    parser.add_argument("--config.split.num_classes", type=int, help='')
     parser.add_argument("--model.type", type=str, help='Model type') ##**
     parser.add_argument("--model.latent.onehot.type", type=str, default='diagonal', help='Model onehot types') ##**
 
@@ -251,6 +252,9 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--stat.collect.latent_buffer.name", type=str, help='Default None')
     parser.add_argument("--stat.collect.latent_buffer.cl_idx", type=int, help='')
     parser.add_argument("--stat.collect.latent_buffer.size", type=int, default=50, help='')
+
+    parser.add_argument("--stat.collect.single_dream.enable", action="store_true", help='')
+    parser.add_argument("--stat.collect.single_dream.sigma", type=float, default=0.0, help='')
 
     parser.add_argument("--wandb.watch.enable", action="store_true", help='')
     parser.add_argument("--wandb.watch.log_freq", type=int, default=1000, help='')

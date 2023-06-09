@@ -166,3 +166,94 @@ markers = itertools.cycle(markers_list)
 colors = itertools.cycle(colors_list)
 
 Path(tmp_stat_folder).mkdir(exist_ok=True, parents=True)
+
+PREDEFINED_TYPES = {
+    "decode": [
+        "select-decremental", 
+        "target-latent-decode", 
+        "split-decremental", 
+        "objective-latent-lossf-creator", 
+        "sae", 
+        "cl-model-island-test"
+    ],
+    "island-mean-std-split-decremental": [
+        "select-decremental", 
+        "target-latent-sample-normal-buffer", 
+        "split-decremental", 
+        "objective-latent-lossf-creator", 
+        "sae", 
+        "cl-model-island"
+    ],
+    "island-mean-std-split-classic": [
+        "select-decremental", 
+        "target-latent-sample-normal-buffer", 
+        "split-classic", 
+        "objective-latent-lossf-creator", 
+        "sae", 
+        "cl-model-island"
+    ],
+    "last-point": [
+        "select-decremental", 
+        "target-latent-buffer-last-point", 
+        "split-decremental", 
+        "objective-latent-lossf-creator", 
+        "sae", 
+        "cl-model-island"
+    ],
+    "cl-sae-crossentropy": [
+        "select-decremental", 
+        "target-classic", 
+        "split-decremental", 
+        "objective-channel", 
+        "sae", 
+        "cl-model"
+    ],
+    "resnet-pretrain-c100": [
+        "select-decremental", 
+        "target-classic", 
+        "split-decremental", 
+        "objective-channel", 
+        "resnet20c100", 
+        "cl-model"
+    ],
+    "latent-default": [
+        "SELECT-CLASSIC", 
+        "TARGET-LATENT-SAMPLE-NORMAL-STD", 
+        "NO-SPLIT", 
+        "OBJECTIVE-LATENT-LOSSF-CREATOR", 
+        "", 
+        "CL-MODEL-ISLAND"
+    ],
+    "latent-multitarget": [
+        "SELECT-CLASSIC", 
+        "TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET", 
+        "NO-SPLIT", 
+        "OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR", 
+        "", 
+        "CL-MODEL-ISLAND"
+    ],
+    "crossentropy-default": [
+        "SELECT-CLASSIC", 
+        "target-classic", 
+        "NO-SPLIT", 
+        "OBJECTIVE-CROSSENTROPY", 
+        "", 
+        "CL-MODEL"
+    ],
+    "crossentropy-default": [
+        "SELECT-CLASSIC", 
+        "target-classic", 
+        "NO-SPLIT", 
+        "OBJECTIVE-MULTITARGET-CROSSENTROPY", 
+        "", 
+        "CL-MODEL"
+    ],
+    "latent-dual-multitarget": [
+        "SELECT-CLASSIC", 
+        "TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET", 
+        "NO-SPLIT", 
+        "OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR", 
+        "", 
+        "CL-MODEL-LATENT-DUAL"
+    ],
+}

@@ -10,8 +10,9 @@ from typing import Union
 from model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
 from model.vgg import vgg11_bn
 from model.ResNet import ResNet18, Resnet20C100, ResNet34, CustomResNet34
-from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsOneHot
+from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsOneHot, CLModelLatentDual
 from model.DLA import DLA
+from config.default import PREDEFINED_TYPES
 
 class FunConfigSetBase():
     # must be {main phrase: rule}
@@ -39,6 +40,7 @@ class FunConfigSetBase():
     GET_OVERLAY = {
         'CL-MODEL': CLModel,
         'CL-MODEL-ISLAND': CLModelWithIslands,
+        'CL-MODEL-LATENT-DUAL': CLModelLatentDual,
         'CL-MODEL-ISLAND-ONEHOT': CLModelIslandsOneHot,
     }
     
@@ -198,73 +200,6 @@ connect to BB AA::BB): {fun_name}::{rule_name}\nName {rule_name} could not be fo
         return self.model_ov(*margs, **mkwargs)
 
 class FunConfigSetPredefined(FunConfigSet):
-    PREDEFINED_TYPES = {
-        "decode": [
-            "select-decremental", 
-            "target-latent-decode", 
-            "split-decremental", 
-            "objective-latent-lossf-creator", 
-            "sae", 
-            "cl-model-island-test"
-        ],
-        "island-mean-std-split-decremental": [
-            "select-decremental", 
-            "target-latent-sample-normal-buffer", 
-            "split-decremental", 
-            "objective-latent-lossf-creator", 
-            "sae", 
-            "cl-model-island"
-        ],
-        "island-mean-std-split-classic": [
-            "select-decremental", 
-            "target-latent-sample-normal-buffer", 
-            "split-classic", 
-            "objective-latent-lossf-creator", 
-            "sae", 
-            "cl-model-island"
-        ],
-        "last-point": [
-            "select-decremental", 
-            "target-latent-buffer-last-point", 
-            "split-decremental", 
-            "objective-latent-lossf-creator", 
-            "sae", 
-            "cl-model-island"
-        ],
-        "cl-sae-crossentropy": [
-            "select-decremental", 
-            "target-classic", 
-            "split-decremental", 
-            "objective-channel", 
-            "sae", 
-            "cl-model"
-        ],
-        "resnet-pretrain-c100": [
-            "select-decremental", 
-            "target-classic", 
-            "split-decremental", 
-            "objective-channel", 
-            "resnet20c100", 
-            "cl-model"
-        ],
-        "sae-chiloss": [
-            "SELECT-CLASSIC", 
-            "TARGET-LATENT-SAMPLE-NORMAL-STD", 
-            "NO-SPLIT", 
-            "OBJECTIVE-LATENT-LOSSF-CREATOR", 
-            "sae", 
-            "CL-MODEL-ISLAND"
-        ],
-        "resnet18-crossentropy": [
-            "SELECT-CLASSIC", 
-            "target-classic", 
-            "NO-SPLIT", 
-            "OBJECTIVE-CROSSENTROPY", 
-            "resnet18", 
-            "CL-MODEL"
-        ],
-    }
-
     def __init__(
         self, 
         name_type: str, 
@@ -276,10 +211,11 @@ class FunConfigSetPredefined(FunConfigSet):
         otype: str=None, 
         logger=None
     ):
-        if(name_type not in FunConfigSetPredefined.PREDEFINED_TYPES):
+        self.PREDEFINED_TYPES = PREDEFINED_TYPES
+        if(name_type not in self.PREDEFINED_TYPES):
             raise Exception(f"Unknown predefined type: {name_type}")
 
-        type_list = FunConfigSetPredefined.PREDEFINED_TYPES[name_type]
+        type_list = self.PREDEFINED_TYPES[name_type]
         select_task_type = type_list[0] if select_task_type is None else select_task_type
         target_processing_type = type_list[1] if target_processing_type is None else target_processing_type
         task_split_type = type_list[2] if task_split_type is None else task_split_type
