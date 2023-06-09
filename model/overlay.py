@@ -494,6 +494,7 @@ class CLModelWithIslands(CLLatent):
         self.test_acc(classified_to_class, y)
         self.log("test_acc", self.test_acc)
 
+        # log additional data only once
         if(not self._means_once):
             new_means = {str(k): v for k, v in self.loss_f.cloud_data.mean().items()}
             distance_key, dist_val = self._calc_distance_to_each_other(new_means)
@@ -568,7 +569,7 @@ class ModelSufix(torch.nn.Module):
         super().__init__()
         self.model = model
 
-        self.ln = torch.nn.Linear(self.model.get_objective_layer().in_features, self.model.get_objective_layer().out_features)
+        self.ln = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
     
     def forward(self, x, **kwargs):
         xe = self.model(x)
@@ -618,8 +619,7 @@ class CLModelLatentDual(CLModelWithIslands):
         ):
         model = ModelSufix(model)
         super().__init__(*args, model=model, **kwargs)
-        self._inner_loss_f = self._loss_f
-        self._loss_f = torch.nn.CrossEntropyLoss()
+        self._outer_loss_f = DummyLoss(torch.nn.CrossEntropyLoss())
 
         self._hook_handle = model.get_objective_layer().register_forward_hook(self._hook)
         
@@ -628,8 +628,8 @@ class CLModelLatentDual(CLModelWithIslands):
         self._first_output = output
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        loss = self._inner_loss_f(self._first_output, y) * self.cfg_loss_chi_dual
-        loss2 = self._loss_f(latent, y) * (1. - self.cfg_loss_chi_dual) 
+        loss = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.alfa
+        loss2 = self._outer_loss_f(latent, y) * (1. - self.cfg_loss_chi_dual.alfa) 
         self.log(f"{log_label}/islandInner", loss2)
         self.log(f"{log_label}/island", loss)
 
