@@ -598,7 +598,7 @@ class CLModelLatentDual(CLModelWithIslands):
                 alfa: float
 
                 def __post_init__(self):
-                    if not (0. <= self.alfa and self.alfa >= 1.):
+                    if not (0. <= self.alfa and self.alfa <= 1.):
                         raise Exception(f"Alfa param can be only in range of [0, 1]")
 
     def _get_config_maps(self):
