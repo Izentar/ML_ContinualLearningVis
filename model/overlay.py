@@ -570,10 +570,14 @@ class ModelSufix(torch.nn.Module):
         self.model = model
 
         self.ln = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
+        self.ln2 = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
+        self.ln3 = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
     
     def forward(self, x, **kwargs):
-        xe = self.model(x)
-        xe = self.ln(xe)
+        xe = relu(self.model(x))
+        xe = relu(self.ln(xe))
+        xe = relu(self.ln2(xe))
+        xe = self.ln3(xe)
         return xe
 
     def get_objective_layer_name(self):
