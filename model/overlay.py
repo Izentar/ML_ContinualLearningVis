@@ -630,7 +630,7 @@ class CLModelLatentDual(CLModelWithIslands):
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.alfa
         loss2 = self._outer_loss_f(latent, y) * (1. - self.cfg_loss_chi_dual.alfa) 
-        self.log(f"{log_label}/islandInner", loss2)
-        self.log(f"{log_label}/island", loss)
+        self.log(f"{log_label}/island", loss2)
+        self.log(f"{log_label}/islandInner", loss)
 
         return loss + loss2
