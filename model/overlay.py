@@ -655,6 +655,12 @@ class CLModelLatentDual(CLModelWithIslands):
         self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         
+        if(self.cfg_loss_chi_dual.inner_scale == 0.):
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
+        if(self.cfg_loss_chi_dual.outer_scale == 0.):
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} outer scale set to zero.")
+        if(self.cfg_loss_chi_dual.inner_scale == 0. and self.cfg_loss_chi_dual.outer_scale == 0.):
+            raise Exception("Both losses (inner, outer) cannot be zero!")
 
     def _hook(self, module, input, output):
         self._inner_output = output
