@@ -182,16 +182,24 @@ class CLBase(LightningModule):
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         pass
 
-    def configure_optimizers(self):
+    def _create_scheduler(self, optim):
+        if(self.scheduler_construct_f is not None):
+            if(isinstance(optim, list)):
+                optim = optim[0]
+            self.scheduler = self.scheduler_construct_f(optim)
+
+    def _create_optimizer(self) -> torch.optim.Optimizer:
         if(self.optimizer_construct_f is None):
             optim = torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])
         else:
-            optim = self.optimizer_construct_f(self.parameters())
-        
-        if(self.scheduler_construct_f is not None):
-            self.scheduler = self.scheduler_construct_f(optim)
+            optim = self.optimizer_construct_f(self.parameters())        
         self.optimizer = optim
         return optim
+
+    def configure_optimizers(self):
+        optims = self._create_optimizer()
+        self._create_scheduler(optims)
+        return optims
 
     # training_epoch_end
     def training_epoch_end(self, output):

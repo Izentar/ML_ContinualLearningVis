@@ -3,6 +3,7 @@ from model import base
 import torch
 from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
+from config.default import optim_Adam_config
 from torch.autograd.variable import Variable
 from robustness import model_utils
 from loss_function.chiLoss import ChiLoss, l2_latent_norm, OneHot
@@ -14,6 +15,7 @@ from utils import utils
 import wandb
 import pandas as pd
 from utils import pretty_print as pp
+import torchmetrics
 
 from config.default import datasets, datasets_map
 from dataclasses import dataclass, field
@@ -494,6 +496,9 @@ class CLModelWithIslands(CLLatent):
         self.test_acc(classified_to_class, y)
         self.log("test_acc", self.test_acc)
 
+        self._test_step_log_data()
+
+    def _test_step_log_data(self):
         # log additional data only once
         if(not self._means_once):
             new_means = {str(k): v for k, v in self.loss_f.cloud_data.mean().items()}
@@ -591,6 +596,13 @@ class ModelSufix(torch.nn.Module):
 
     def get_objective_layer_output_shape(self):
         return (self.ln.out_features,)
+    
+    def outer_params(self):
+        return [self.ln.weight, self.ln2.weight, self.ln3.weight]
+    
+    @property
+    def name(self):
+        return self.model.name
 
 class CLModelLatentDual(CLModelWithIslands):
     @dataclass
@@ -600,6 +612,7 @@ class CLModelLatentDual(CLModelWithIslands):
             @dataclass
             class Dual():
                 alfa: float
+                chi_scale: float = 1e+9
 
                 def __post_init__(self):
                     if not (0. <= self.alfa and self.alfa <= 1.):
@@ -626,16 +639,68 @@ class CLModelLatentDual(CLModelWithIslands):
         self._outer_loss_f = DummyLoss(torch.nn.CrossEntropyLoss())
 
         self._hook_handle = model.get_objective_layer().register_forward_hook(self._hook)
+
+        self.valid_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes).to(self.device)
+        self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         
 
     def _hook(self, module, input, output):
         self._first_output = output
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        loss_inner = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.alfa
+        if(self._optimizer_idx == 0):
+            loss_inner = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.alfa
+            self.log(f"{log_label}/islandInner", loss_inner)
+            return loss_inner
+        
         loss = self._outer_loss_f(latent, y) * (1. - self.cfg_loss_chi_dual.alfa) 
-
         self.log(f"{log_label}/island", loss)
-        self.log(f"{log_label}/islandInner", loss_inner)
+        return loss
+    
+    def _create_optimizer(self) -> torch.optim.Optimizer:
+        if(self.optimizer_construct_f is None):
+            optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
+            optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
+        else:
+            optim = self.optimizer_construct_f(self.model.model.parameters())        
+            optim2 = self.optimizer_construct_f(self.model.outer_params())        
+        self.optimizer = optim
+        return [optim, optim2]
 
-        return loss_inner + loss
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        x, y = batch
+        model_out = self(x)
+        latent, _ = self.get_model_out_data(model_out)
+        val_loss_outer = self._outer_loss_f(latent, y, train=False)
+        val_loss_inner = self._loss_f(latent, y, train=False)
+        self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
+        self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
+
+        valid_acc = self.valid_accs(dataloader_idx)
+        valid_acc(self._outer_loss_f.classify(latent), y)
+        self.log("valid_acc_outer", valid_acc.compute())
+
+        self.valid_acc_inner(self._loss_f.classify(self._first_output), y)
+        self.log("valid_acc_inner", self.valid_acc_inner.compute())
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        model_out = self(x)
+        latent, _ = self.get_model_out_data(model_out)
+        test_loss_inner = self._loss_f(self._first_output, y, train=False)
+        self.log("test_loss_inner", test_loss_inner, on_step=True)
+
+        test_loss_outer = self._outer_loss_f(latent, y, train=False)
+        self.log("test_loss_outer", test_loss_outer, on_step=True)
+
+        self.test_acc_inner(self._loss_f.classify(self._first_output), y)
+        self.log("test_acc_inner", self.test_acc)
+
+        self.test_acc(self._loss_f.classify(latent), y)
+        self.log("test_acc_outer", self.test_acc)
+
+        self._test_step_log_data()
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        self._optimizer_idx = optimizer_idx
+        return super().training_step(batch=batch, batch_idx=batch_idx)
