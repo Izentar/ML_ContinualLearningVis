@@ -69,6 +69,10 @@ class VGG(nn.Module, ModelBase):
     def init_weights(self):
         self._initialize_weights()
 
+    @property
+    def name(self):
+        return "VGG"
+
 def make_layers(cfg, batch_norm=False):
     layers = []
     in_channels = 3

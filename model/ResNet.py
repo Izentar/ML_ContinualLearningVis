@@ -40,6 +40,10 @@ class ResNet18(ResNetBase):
 
     def get_objective_layer_output_shape(self):
         return (self.resnet.fc.out_features,)
+    
+    @property
+    def name(self):
+        return "ResNet18"
         
 class ResNet34(ResNetBase):
     def __init__(self, num_classes, default_weights:bool=None, *args, **kwargs):
@@ -67,6 +71,9 @@ class ResNet34(ResNetBase):
     def get_objective_layer_output_shape(self):
         return (self.resnet.fc.out_features,)
 
+    @property
+    def name(self):
+        return "ResNet34"
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -178,6 +185,9 @@ class CustomResNet34(nn.Module, ModelBase):
     def get_objective_layer_output_shape(self):
         return (self.resnet.linear.out_features,)
     
+    @property
+    def name(self):
+        return "CustomResNet34"
 
 class Resnet20C100(ResNetBase):
     def __init__(self, pretrained=True, *args, **kwargs):
@@ -200,3 +210,7 @@ class Resnet20C100(ResNetBase):
 
     def get_objective_layer_output_shape(self):
         return (self.resnet.output.out_features, )
+    
+    @property
+    def name(self):
+        return "Resnet20C100"

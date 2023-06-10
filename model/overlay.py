@@ -65,7 +65,7 @@ class CLModel(base.CLBase):
         if(self.cfg_layer_replace.enable):
             if(self.cfg_layer_replace.source is None or self.cfg_layer_replace.destination_f is None):
                 raise Exception(f'replace_layer_from is None: {self.cfg_layer_replace.source is None} or cfg_layer_replace.destination_f is None: {self.cfg_layer_replace.destination_f is None}')
-            pp.sprint(f'{pp.COLOR.WARNING}INFO: Replacing layer from "{self.cfg_layer_replace.source.__class__.__name__}d"')
+            pp.sprint(f'{pp.COLOR.WARNING}INFO: Replacing layer from "{self.cfg_layer_replace.source.__class__.__name__}"')
             utils.replace_layer(self, 'model', self.cfg_layer_replace.source, self.cfg_layer_replace.destination_f)
 
         if(loss_f is not None):
@@ -111,6 +111,10 @@ class CLModel(base.CLBase):
     @property
     def loss_f(self):
         return self._loss_f
+    
+    @property
+    def name(self):
+        return type(self).__name__
 
     def _get_dataset_list(name:str):
         if name is not None:
@@ -237,9 +241,6 @@ class CLModel(base.CLBase):
             return 'CLModel_' + type(self.model.model).__qualname__
         else:
             return 'CLModel_' + type(self.model).__qualname__
-
-    def name(self):
-        return str(self.model.__class__.__name__)
 
     def init_weights(self):
         if(not self._robust_model_set):
@@ -611,12 +612,14 @@ class CLModelLatentDual(CLModelWithIslands):
         class Chi():
             @dataclass
             class Dual():
-                alfa: float
-                chi_scale: float = 1e+9
+                inner_scale: float = 1.
+                outer_scale: float = 1.
 
                 def __post_init__(self):
-                    if not (0. <= self.alfa and self.alfa <= 1.):
-                        raise Exception(f"Alfa param can be only in range of [0, 1]")
+                    if not (0. <= self.inner_scale and self.inner_scale <= 1.):
+                        raise Exception(f"Inner scale param can be only in range of [0, 1]")
+                    if not (0. <= self.outer_scale and self.outer_scale <= 1.):
+                        raise Exception(f"Outer scale param can be only in range of [0, 1]")
 
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
@@ -649,11 +652,11 @@ class CLModelLatentDual(CLModelWithIslands):
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         if(self._optimizer_idx == 0):
-            loss_inner = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.alfa
+            loss_inner = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/islandInner", loss_inner)
             return loss_inner
         
-        loss = self._outer_loss_f(latent, y) * (1. - self.cfg_loss_chi_dual.alfa) 
+        loss = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
         self.log(f"{log_label}/island", loss)
         return loss
     

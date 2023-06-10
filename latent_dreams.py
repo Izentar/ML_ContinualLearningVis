@@ -476,7 +476,7 @@ def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:i
             return
         plotter = PointPlot()
         to_plot = dict()
-        path = filepath if filepath is not None else Path(model.name()) / "pca"
+        path = filepath if filepath is not None else Path(model.name) / "pca"
         for layer_name, v in out.items():
             to_plot[layer_name] = extract_data_from_key(data=v)
         for layer_name, v in to_plot.items(): 
@@ -488,7 +488,7 @@ def plot_pca_graph(model_stats:dict, model:torch.nn.Module, overestimated_rank:i
 def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     try:
         plotter = PointPlot()
-        path = filepath if filepath is not None else Path(model.name())
+        path = filepath if filepath is not None else Path(model.name)
         for layer_name, v in model_stats.items(): 
             v = v.get_const_data()
             std = v.std

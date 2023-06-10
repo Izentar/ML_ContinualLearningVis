@@ -796,7 +796,7 @@ class CLDataModule(DreamDataModule):
         dataset_targets = get_target_from_dataset(self.train_task, toTensor=True)
 
         classes = torch.unique(dataset_targets).to(model.device)
-        #model_output_size = model(model.get_objective_target_name()).size(dim=1)
+        #model_output_size = model(model.get_objective_target_name).size(dim=1)
         #classes_buffer = torch.zeros((len(classes), steps_to_locate_mean, 10),
         #    device=model.device,
         #    dtype=torch.float64)

@@ -654,7 +654,7 @@ class ModelLayerStatistics(torch.nn.Module):
             if(tmp is not None):
                 self.layers[k].data = tmp
             elif(strict):
-                raise Exception(f'Could not find key {k} in model {self.trainer.lightning_module.name()}. Used "strict" flag.')
+                raise Exception(f'Could not find key {k} in model {self.trainer.lightning_module.name}. Used "strict" flag.')
 
 def hook_model_stats(model:torch.nn.Module, stats: dict, fun, 
     hook_to:list[str]|list[torch.nn.Module|list]=None) -> list:

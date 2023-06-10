@@ -549,8 +549,8 @@ class CLLoop(Loop):
     def _generate_save_path(self, dtype: str):
         date = datetime.datetime.now().strftime("%d-%m-%Y")
         time = datetime.datetime.now().strftime("%H-%M-%S")
-        model_type = type(self.trainer.lightning_module.model).__name__
-        overlay_type = type(self.trainer.lightning_module).__name__
+        model_type = self.trainer.lightning_module.model.name
+        overlay_type = self.trainer.lightning_module.name
 
         # here put your root folder
         folder = Path(overlay_type) / model_type / self._generate_save_path_dream()

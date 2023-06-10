@@ -179,6 +179,10 @@ class CLBase(LightningModule):
     def init_weights(self):
         pass
 
+    @property
+    def name(self):
+        raise Exception("Not implemented")
+
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         pass
 
