@@ -116,14 +116,14 @@ class CLBase(LightningModule):
             self._valid_accs[str(idx)] = tmp
             return tmp
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "dream" not in batch:
-            return self.training_step_normal(batch["normal"])
+            return self.training_step_normal(batch["normal"], optimizer_idx)
         if 'normal' not in batch:
-            return self.training_step_dream(batch["dream"])
+            return self.training_step_dream(batch["dream"], optimizer_idx)
 
-        loss_normal = self.training_step_normal(batch["normal"])
-        loss_dream = self.training_step_dream(batch["dream"])
+        loss_normal = self.training_step_normal(batch["normal"], optimizer_idx)
+        loss_dream = self.training_step_dream(batch["dream"], optimizer_idx)
         return loss_normal + loss_dream
 
     def get_model_out_data(self, model_out):
@@ -138,7 +138,7 @@ class CLBase(LightningModule):
         return latent, model_out_dict
 
     @abstractmethod
-    def training_step_normal(self, batch):
+    def training_step_normal(self, batch, optimizer_idx):
         pass
 
     @abstractmethod

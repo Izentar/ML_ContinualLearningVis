@@ -129,7 +129,7 @@ class CLModel(base.CLBase):
     def call_loss(self, input, target, train, **kwargs):
         return self._loss_f(input, target, train)
 
-    def training_step_normal(self, batch):
+    def training_step_normal(self, batch, optimizer_idx):
         x, y = batch
 
         if(self.cfg_robust.enable):
@@ -152,10 +152,17 @@ class CLModel(base.CLBase):
             model_out_dict=model_out_dict,
             log_label="train_loss", 
         )
+        self.training_step_acc(
+            x=x, y=y,
+            loss=loss, latent=latent, 
+            model_out_dict=model_out_dict, optimizer_idx=optimizer_idx
+        )
+        return loss
+
+    def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
         self.log("train_loss/total", loss)
         self.train_acc(self._loss_f.classify(latent), y)
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
-        return loss
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self._loss_f(latent, y)
@@ -645,6 +652,7 @@ class CLModelLatentDual(CLModelWithIslands):
 
         self.valid_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes).to(self.device)
         self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
+        self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         
 
     def _hook(self, module, input, output):
@@ -653,11 +661,11 @@ class CLModelLatentDual(CLModelWithIslands):
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         if(self._optimizer_idx == 0):
             loss_inner = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.inner_scale
-            self.log(f"{log_label}/islandInner", loss_inner)
+            self.log(f"{log_label}/island_CHI-K", loss_inner)
             return loss_inner
         
         loss = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
-        self.log(f"{log_label}/island", loss)
+        self.log(f"{log_label}/island_CROSS-E", loss)
         return loss
     
     def _create_optimizer(self) -> torch.optim.Optimizer:
@@ -691,19 +699,33 @@ class CLModelLatentDual(CLModelWithIslands):
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
         test_loss_inner = self._loss_f(self._first_output, y, train=False)
-        self.log("test_loss_inner", test_loss_inner, on_step=True)
+        self.log("test_loss_inner", test_loss_inner)
 
         test_loss_outer = self._outer_loss_f(latent, y, train=False)
-        self.log("test_loss_outer", test_loss_outer, on_step=True)
+        self.log("test_loss_outer", test_loss_outer)
 
         self.test_acc_inner(self._loss_f.classify(self._first_output), y)
         self.log("test_acc_inner", self.test_acc)
 
-        self.test_acc(self._loss_f.classify(latent), y)
+        self.test_acc(self._outer_loss_f.classify(latent), y)
         self.log("test_acc_outer", self.test_acc)
 
         self._test_step_log_data()
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         self._optimizer_idx = optimizer_idx
-        return super().training_step(batch=batch, batch_idx=batch_idx)
+        loss = super().training_step(batch=batch, batch_idx=batch_idx)
+        if(optimizer_idx == 0):
+            self._saved_loss = loss.item()
+        return loss
+    
+    def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
+        if(optimizer_idx == 0):
+            self.train_acc_inner(self._loss_f.classify(latent), y)
+            self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
+        if(optimizer_idx == 1):
+            self.log("train_loss/total", loss.item() + self._saved_loss)
+            self.train_acc(self._outer_loss_f.classify(latent), y)
+            self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
+        
+        return loss
