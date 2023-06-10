@@ -140,8 +140,10 @@ Checks if the output image has the provided shape. Do not include batch here. De
 current batch should be close to each other. Should be lesser than model.loss.chi.rho. The smaller the less scattered points of the same class.')
     parser.add_argument("--model.loss.chi.rho", type=float, default=1., help='How far means from different targets \
 should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
+    
     parser.add_argument("--model.loss.chi.dual.inner_scale", type=float, default=1., help="For use chi loss.")
     parser.add_argument("--model.loss.chi.dual.outer_scale", type=float, default=1., help="For use only cross entropy.")
+    parser.add_argument("--model.loss.chi.dual.optimize_ce_all", action="store_true", help="Use only cross entropy on model.")
 
     parser.add_argument("--loop.vis.layerloss.deep_inversion.use_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
     parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1., help='')

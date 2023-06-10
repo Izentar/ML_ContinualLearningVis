@@ -23,6 +23,7 @@ class FunConfigSetBase():
         'TARGET-LATENT-DECODE': 'CL-MODEL-ISLAND-TEST',
         'CL-MODEL': 'TARGET-CLASSIC',
         'TARGET-CLASSIC': 'CL-MODEL',
+        'TARGET-CLASSIC': 'CL-MODEL-LATENT-DUAL',
     }
     
     GET_MODEL = {

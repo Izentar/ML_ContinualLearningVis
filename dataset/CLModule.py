@@ -292,6 +292,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def _generate_dreams(self, model, targets, iterations, layer_hook_obj:list, rendervis_state, run_name:list[str]):
         if(self.cfg_vis_multitarget.enable):
+            pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Using multitarget visualization")
             new_images, new_targets = self._generate_dream_multi_target_iter(
                 model=model, 
                 target=targets, 
@@ -301,6 +302,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 run_name=run_name,
             )
         else:
+            pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Using singletarget visualization")
             new_images, new_targets = self._generate_dream_target_iter(
                 model=model, 
                 target=targets, 

@@ -569,10 +569,10 @@ class CLModelWithIslands(CLLatent):
                 vals.append(pdist(v, v2))
         return keys, vals
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
         if(self.cyclic_latent_buffer is not None and self.buff_on_same_device):
             self.cyclic_latent_buffer.to(self.device)
-        return super().training_step(batch=batch, batch_idx=batch_idx)
+        return super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
 
     def get_obj_str_type(self) -> str:
         return 'CLModelWithIslands_' + super().get_obj_str_type()
@@ -594,16 +594,16 @@ class ModelSufix(torch.nn.Module):
         return xe
 
     def get_objective_layer_name(self):
-        return "ln"
+        return "ln3"
 
     def get_root_name(self):
         return ""
 
     def get_objective_layer(self):
-        return self.ln
+        return self.ln3
 
     def get_objective_layer_output_shape(self):
-        return (self.ln.out_features,)
+        return (self.ln3.out_features,)
     
     def outer_params(self):
         return [self.ln.weight, self.ln2.weight, self.ln3.weight]
@@ -621,6 +621,7 @@ class CLModelLatentDual(CLModelWithIslands):
             class Dual():
                 inner_scale: float = 1.
                 outer_scale: float = 1.
+                optimize_ce_all: bool = False
 
                 def __post_init__(self):
                     if not (0. <= self.inner_scale and self.inner_scale <= 1.):
@@ -656,11 +657,11 @@ class CLModelLatentDual(CLModelWithIslands):
         
 
     def _hook(self, module, input, output):
-        self._first_output = output
+        self._inner_output = output
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        if(self._optimizer_idx == 0):
-            loss_inner = self._loss_f(self._first_output, y) * self.cfg_loss_chi_dual.inner_scale
+        if(self._optimizer_idx == 0 and not self.cfg_loss_chi_dual.optimize_ce_all):
+            loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             return loss_inner
         
@@ -669,36 +670,56 @@ class CLModelLatentDual(CLModelWithIslands):
         return loss
     
     def _create_optimizer(self) -> torch.optim.Optimizer:
+        optim2 = None
         if(self.optimizer_construct_f is None):
-            optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
-            optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
+            if(self.cfg_loss_chi_dual.optimize_ce_all):
+                optim = torch.optim.Adam(self.model.parameters(), lr=optim_Adam_config["lr"])
+            else:
+                optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
+                optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
         else:
-            optim = self.optimizer_construct_f(self.model.model.parameters())        
-            optim2 = self.optimizer_construct_f(self.model.outer_params())        
+            if(self.cfg_loss_chi_dual.optimize_ce_all):
+                optim = self.optimizer_construct_f(self.model.parameters()) 
+            else:
+                optim = self.optimizer_construct_f(self.model.model.parameters())        
+                optim2 = self.optimizer_construct_f(self.model.outer_params())        
         self.optimizer = optim
+        if(optim2 is None):
+            return optim
         return [optim, optim2]
+    
+    def _validation_step_inner(self, latent, y):
+        if(self.cfg_loss_chi_dual.optimize_ce_all):
+            return
+        val_loss_inner = self._loss_f(latent, y, train=False)
+        self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
+
+        self.valid_acc_inner(self._loss_f.classify(self._inner_output), y)
+        self.log("valid_acc_inner", self.valid_acc_inner.compute())
+
+    def _validation_step_outer(self, latent, y, dataloader_idx):
+        val_loss_outer = self._outer_loss_f(latent, y, train=False)
+        self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
+        
+        valid_acc = self.valid_accs(dataloader_idx)
+        valid_acc(self._outer_loss_f.classify(latent), y)
+        self.log("valid_acc_outer", valid_acc.compute())
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        val_loss_outer = self._outer_loss_f(latent, y, train=False)
-        val_loss_inner = self._loss_f(latent, y, train=False)
-        self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
-        self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
-
-        valid_acc = self.valid_accs(dataloader_idx)
-        valid_acc(self._outer_loss_f.classify(latent), y)
-        self.log("valid_acc_outer", valid_acc.compute())
-
-        self.valid_acc_inner(self._loss_f.classify(self._first_output), y)
-        self.log("valid_acc_inner", self.valid_acc_inner.compute())
+        self._validation_step_inner(latent=latent, y=y)
+        self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
 
     def _test_step_inner(self, y): 
-        test_loss_inner = self._loss_f(self._first_output, y, train=False)
+        if(self.cfg_loss_chi_dual.optimize_ce_all):
+            return
+        test_loss_inner = self._loss_f(self._inner_output, y, train=False)
         self.log("test_loss_inner", test_loss_inner)
 
-        self.test_acc_inner(self._loss_f.classify(self._first_output), y)
+        #print(self._loss_f.classify(self._inner_output), y)
+        self.test_acc_inner(self._loss_f.classify(self._inner_output), y)
         self.log("test_acc_inner", self.test_acc_inner)
 
     def _test_step_outer(self, latent, y):
@@ -718,9 +739,9 @@ class CLModelLatentDual(CLModelWithIslands):
 
         self._test_step_log_data()
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
         self._optimizer_idx = optimizer_idx
-        loss = super().training_step(batch=batch, batch_idx=batch_idx)
+        loss = super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
         if(optimizer_idx == 0):
             self._saved_loss = loss.item()
         return loss
