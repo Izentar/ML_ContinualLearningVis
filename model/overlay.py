@@ -169,7 +169,7 @@ class CLModel(base.CLBase):
         self.log(f"{log_label}/classification_loss", loss)
         return loss
 
-    def training_step_dream(self, batch):
+    def training_step_dream(self, batch, optimizer_idx):
         x, y = batch
 
         if(self.cfg_robust.enable):

@@ -141,7 +141,7 @@ class CLBase(LightningModule):
         pass
 
     @abstractmethod
-    def training_step_dream(self, batch):
+    def training_step_dream(self, batch, optimizer_idx):
         pass
 
     @abstractmethod
