@@ -205,7 +205,7 @@ class CLModel(base.CLBase):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        val_loss = cross_entropy(self._loss_f.classify(latent), y)
+        val_loss = cross_entropy(self._loss_f.classify(latent), y, train=False)
         self.log("val_last_step_loss", val_loss, on_epoch=True)
         valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(latent, y)
@@ -215,9 +215,9 @@ class CLModel(base.CLBase):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        test_loss = cross_entropy(self._loss_f.classify(latent), y)
+        test_loss = cross_entropy(self._loss_f.classify(latent), y, train=False)
         self.log("test_loss", test_loss, on_step=True)
-        self.test_acc(self._loss_f.classify(latent), y)
+        self.test_acc(self._loss_f.classify(latent), y, train=False)
         self.log("test_step_acc", self.test_acc)
 
     def get_objective_target_name(self) -> str:
@@ -393,7 +393,7 @@ class CLModelIslandsOneHot(CLLatent):
         x, y = batch
         model_out = self(x)
         y_model, _ = self.get_model_out_data(model_out)
-        val_loss = self._loss_f(y_model, y)
+        val_loss = self._loss_f(y_model, y, train=False)
         self.log("val_last_step_loss", val_loss, on_epoch=True)
 
         classified_to_class = self._loss_f.classify(y_model)
@@ -418,7 +418,7 @@ class CLModelIslandsOneHot(CLLatent):
         x, y = batch
         model_out = self(x)
         y_model, _ = self.get_model_out_data(model_out)
-        test_loss = self._loss_f(y_model, y)
+        test_loss = self._loss_f(y_model, y, train=False)
         self.log("test_loss", test_loss, on_step=True)
 
         classified_to_class = self._loss_f.classify(y_model)
@@ -694,21 +694,27 @@ class CLModelLatentDual(CLModelWithIslands):
         self.valid_acc_inner(self._loss_f.classify(self._first_output), y)
         self.log("valid_acc_inner", self.valid_acc_inner.compute())
 
+    def _test_step_inner(self, y): 
+        test_loss_inner = self._loss_f(self._first_output, y, train=False)
+        self.log("test_loss_inner", test_loss_inner)
+
+        self.test_acc_inner(self._loss_f.classify(self._first_output), y)
+        self.log("test_acc_inner", self.test_acc_inner)
+
+    def _test_step_outer(self, latent, y):
+        test_loss_outer = self._outer_loss_f(latent, y, train=False)
+        self.log("test_loss_outer", test_loss_outer)
+
+        self.test_acc(self._outer_loss_f.classify(latent), y)
+        self.log("test_acc_outer", self.test_acc)
+
     def test_step(self, batch, batch_idx):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        test_loss_inner = self._loss_f(self._first_output, y, train=False)
-        self.log("test_loss_inner", test_loss_inner)
-
-        test_loss_outer = self._outer_loss_f(latent, y, train=False)
-        self.log("test_loss_outer", test_loss_outer)
-
-        self.test_acc_inner(self._loss_f.classify(self._first_output), y)
-        self.log("test_acc_inner", self.test_acc)
-
-        self.test_acc(self._outer_loss_f.classify(latent), y)
-        self.log("test_acc_outer", self.test_acc)
+        
+        self._test_step_inner(y)
+        self._test_step_outer(latent=latent, y=y)
 
         self._test_step_log_data()
 

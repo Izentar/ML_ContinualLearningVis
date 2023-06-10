@@ -78,7 +78,6 @@ class CLBase(LightningModule):
         self.train_acc_dream = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self._valid_accs = nn.ModuleDict()
         self.test_acc = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
-        self.num_classes = self.cfg.num_classes
 
         self.data_passer = data_passer
         self.optimizer_construct_f = self.optim_manager.get_optimizer(**self.cfg_optim.kwargs)
