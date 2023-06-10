@@ -660,14 +660,16 @@ class CLModelLatentDual(CLModelWithIslands):
         self._inner_output = output
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        if(self._optimizer_idx == 0 and not self.cfg_loss_chi_dual.optimize_ce_all):
+        if(self._optimizer_idx == 0 and not self.cfg_loss_chi_dual.optimize_ce_all and self.cfg_loss_chi_dual.inner_scale != 0.):
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             return loss_inner
         
-        loss = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
-        self.log(f"{log_label}/island_CROSS-E", loss)
-        return loss
+        if(self.cfg_loss_chi_dual.outer_scale != 0):
+            loss = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
+            self.log(f"{log_label}/island_CROSS-E", loss)
+            return loss
+        raise Exception("Both losses (inner, outer) cannot be zero!")
     
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optim2 = None
