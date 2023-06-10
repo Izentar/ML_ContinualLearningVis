@@ -665,8 +665,13 @@ class CLModelLatentDual(CLModelWithIslands):
     def _hook(self, module, input, output):
         self._inner_output = output
 
+    def _is_inner_enabled(self):
+        return self._optimizer_idx == 0 and not self.cfg_loss_chi_dual.optimize_ce_all and self.cfg_loss_chi_dual.inner_scale != 0. or (
+            self.cfg_loss_chi_dual.outer_scale == 0
+        )
+
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        if(self._optimizer_idx == 0 and not self.cfg_loss_chi_dual.optimize_ce_all and self.cfg_loss_chi_dual.inner_scale != 0.):
+        if(self._is_inner_enabled()):
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             return loss_inner
@@ -697,7 +702,7 @@ class CLModelLatentDual(CLModelWithIslands):
         return [optim, optim2]
     
     def _validation_step_inner(self, latent, y):
-        if(self.cfg_loss_chi_dual.optimize_ce_all):
+        if(not self._is_inner_enabled()):
             return
         val_loss_inner = self._loss_f(latent, y, train=False)
         self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
@@ -717,11 +722,12 @@ class CLModelLatentDual(CLModelWithIslands):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
+        self._optimizer_idx = 0
         self._validation_step_inner(latent=latent, y=y)
         self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
 
     def _test_step_inner(self, y): 
-        if(self.cfg_loss_chi_dual.optimize_ce_all):
+        if(not self._is_inner_enabled()):
             return
         test_loss_inner = self._loss_f(self._inner_output, y, train=False)
         self.log("test_loss_inner", test_loss_inner)
@@ -741,7 +747,7 @@ class CLModelLatentDual(CLModelWithIslands):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        
+        self._optimizer_idx = 0
         self._test_step_inner(y)
         self._test_step_outer(latent=latent, y=y)
 
@@ -750,16 +756,20 @@ class CLModelLatentDual(CLModelWithIslands):
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         self._optimizer_idx = optimizer_idx
         loss = super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
-        if(optimizer_idx == 0):
+        if(optimizer_idx == 0 and self._is_inner_enabled()):
             self._saved_loss = loss.item()
         return loss
     
     def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
-        if(optimizer_idx == 0):
+        if(optimizer_idx == 0 and self._is_inner_enabled()):
             self.train_acc_inner(self._loss_f.classify(latent), y)
             self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
         if(optimizer_idx == 1):
-            self.log("train_loss/total", loss.item() + self._saved_loss)
+            if(self._is_inner_enabled()):
+                l = loss.item() + self._saved_loss
+            else:
+                l = loss.item()
+            self.log("train_loss/total", l)
             self.train_acc(self._outer_loss_f.classify(latent), y)
             self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
         
