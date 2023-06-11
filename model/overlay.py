@@ -648,7 +648,7 @@ class CLModelLatentDual(CLModelWithIslands):
         super().__init__(*args, model=model, **kwargs)
         self._outer_loss_f = DummyLoss(torch.nn.CrossEntropyLoss())
 
-        self._hook_handle = model.get_objective_layer().register_forward_hook(self._hook)
+        self._hook_handle = model.model.get_objective_layer().register_forward_hook(self._hook)
 
         self.valid_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes).to(self.device)
         self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
@@ -677,9 +677,9 @@ class CLModelLatentDual(CLModelWithIslands):
             return loss_inner
         
         if(self.cfg_loss_chi_dual.outer_scale != 0):
-            loss = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
-            self.log(f"{log_label}/island_CROSS-E", loss)
-            return loss
+            loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
+            self.log(f"{log_label}/island_CROSS-E", loss_outer)
+            return loss_outer
         raise Exception("Both losses (inner, outer) cannot be zero!")
     
     def _create_optimizer(self) -> torch.optim.Optimizer:
