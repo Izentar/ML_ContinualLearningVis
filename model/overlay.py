@@ -701,10 +701,10 @@ class CLModelLatentDual(CLModelWithIslands):
             return optim
         return [optim, optim2]
     
-    def _validation_step_inner(self, latent, y):
+    def _validation_step_inner(self, y):
         if(not self._is_inner_enabled()):
             return
-        val_loss_inner = self._loss_f(latent, y, train=False)
+        val_loss_inner = self._loss_f(self._inner_output, y, train=False)
         self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
 
         self.valid_acc_inner(self._loss_f.classify(self._inner_output), y)
@@ -725,7 +725,7 @@ class CLModelLatentDual(CLModelWithIslands):
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
         self._optimizer_idx = 0
-        self._validation_step_inner(latent=latent, y=y)
+        self._validation_step_inner(y=y)
         self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
 
     def _test_step_inner(self, y): 
@@ -769,7 +769,7 @@ class CLModelLatentDual(CLModelWithIslands):
         self.log("train_loss/total", loss.item() + self._saved_loss)
 
         if(self._is_inner_enabled()):
-            self.train_acc_inner(self._loss_f.classify(latent), y)
+            self.train_acc_inner(self._loss_f.classify(self._inner_output), y)
             self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
             return loss
         
