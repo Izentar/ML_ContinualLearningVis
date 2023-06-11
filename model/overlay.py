@@ -621,7 +621,6 @@ class CLModelLatentDual(CLModelWithIslands):
             class Dual():
                 inner_scale: float = 1.
                 outer_scale: float = 1.
-                optimize_ce_all: bool = False
 
                 def __post_init__(self):
                     if not (0. <= self.inner_scale and self.inner_scale <= 1.):
@@ -654,6 +653,7 @@ class CLModelLatentDual(CLModelWithIslands):
         self.valid_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes).to(self.device)
         self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
+        self._saved_loss = 0.0
         
         if(self.cfg_loss_chi_dual.inner_scale == 0.):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
@@ -666,8 +666,8 @@ class CLModelLatentDual(CLModelWithIslands):
         self._inner_output = output
 
     def _is_inner_enabled(self):
-        return self._optimizer_idx == 0 and not self.cfg_loss_chi_dual.optimize_ce_all and self.cfg_loss_chi_dual.inner_scale != 0. or (
-            self.cfg_loss_chi_dual.outer_scale == 0
+        return self._optimizer_idx == 0 and self.cfg_loss_chi_dual.inner_scale != 0. or (
+            self.cfg_loss_chi_dual.outer_scale == 0.
         )
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
@@ -685,13 +685,13 @@ class CLModelLatentDual(CLModelWithIslands):
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optim2 = None
         if(self.optimizer_construct_f is None):
-            if(self.cfg_loss_chi_dual.optimize_ce_all):
+            if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = torch.optim.Adam(self.model.parameters(), lr=optim_Adam_config["lr"])
             else:
                 optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
                 optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
         else:
-            if(self.cfg_loss_chi_dual.optimize_ce_all):
+            if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = self.optimizer_construct_f(self.model.parameters()) 
             else:
                 optim = self.optimizer_construct_f(self.model.model.parameters())        
@@ -711,6 +711,8 @@ class CLModelLatentDual(CLModelWithIslands):
         self.log("valid_acc_inner", self.valid_acc_inner.compute())
 
     def _validation_step_outer(self, latent, y, dataloader_idx):
+        if(self.cfg_loss_chi_dual.outer_scale == 0.):
+            return
         val_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
         
@@ -737,6 +739,8 @@ class CLModelLatentDual(CLModelWithIslands):
         self.log("test_acc_inner", self.test_acc_inner)
 
     def _test_step_outer(self, latent, y):
+        if(self.cfg_loss_chi_dual.outer_scale == 0.):
+            return
         test_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("test_loss_outer", test_loss_outer)
 
@@ -756,21 +760,21 @@ class CLModelLatentDual(CLModelWithIslands):
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         self._optimizer_idx = optimizer_idx
         loss = super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
-        if(optimizer_idx == 0 and self._is_inner_enabled()):
+        self._saved_loss = 0.0
+        if(self.cfg_loss_chi_dual.inner_scale != 0. and self.cfg_loss_chi_dual.outer_scale != 0.):
             self._saved_loss = loss.item()
         return loss
     
     def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
-        if(optimizer_idx == 0 and self._is_inner_enabled()):
+        self.log("train_loss/total", loss.item() + self._saved_loss)
+
+        if(self._is_inner_enabled()):
             self.train_acc_inner(self._loss_f.classify(latent), y)
             self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
-        if(optimizer_idx == 1):
-            if(self._is_inner_enabled()):
-                l = loss.item() + self._saved_loss
-            else:
-                l = loss.item()
-            self.log("train_loss/total", l)
+            return loss
+        
+        if(self.cfg_loss_chi_dual.outer_scale != 0.):
             self.train_acc(self._outer_loss_f.classify(latent), y)
             self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
-        
-        return loss
+            return loss
+        raise Exception('Unacceptable state.')

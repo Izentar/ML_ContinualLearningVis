@@ -143,7 +143,6 @@ should be appart from each other. Should be greather than model.loss.chi.sigma. 
     
     parser.add_argument("--model.loss.chi.dual.inner_scale", type=float, default=1., help="For use chi loss.")
     parser.add_argument("--model.loss.chi.dual.outer_scale", type=float, default=1., help="For use only cross entropy.")
-    parser.add_argument("--model.loss.chi.dual.optimize_ce_all", action="store_true", help="Use only cross entropy on model.")
 
     parser.add_argument("--loop.vis.layerloss.deep_inversion.use_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
     parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1., help='')
