@@ -17,13 +17,6 @@ from config.default import PREDEFINED_TYPES
 class FunConfigSetBase():
     # must be {main phrase: rule}
     SPECIFIC_COMBINATIONS = {
-        'OBJECTIVE-SAE-STANDALONE-DIVERSITY': 'SAE',
-        'OBJECTIVE-RESNET20-C100-DIVERSITY': 'RESNET20C100',
-        'OBJECTIVE-RESNET20-C100-CHANNEL': 'RESNET20',
-        'TARGET-LATENT-DECODE': 'CL-MODEL-ISLAND-TEST',
-        'CL-MODEL': 'TARGET-CLASSIC',
-        'TARGET-CLASSIC': 'CL-MODEL',
-        'TARGET-CLASSIC': 'CL-MODEL-LATENT-DUAL',
     }
     
     GET_MODEL = {

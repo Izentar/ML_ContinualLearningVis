@@ -205,7 +205,7 @@ class CLModel(base.CLBase):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        val_loss = cross_entropy(self._loss_f.classify(latent), y, train=False)
+        val_loss = cross_entropy(self._loss_f.classify(latent), y)
         self.log("val_last_step_loss", val_loss, on_epoch=True)
         valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(latent, y)
@@ -215,7 +215,7 @@ class CLModel(base.CLBase):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        test_loss = cross_entropy(self._loss_f.classify(latent), y, train=False)
+        test_loss = cross_entropy(self._loss_f.classify(latent), y)
         self.log("test_loss", test_loss, on_step=True)
         self.test_acc(self._loss_f.classify(latent), y, train=False)
         self.log("test_step_acc", self.test_acc)
