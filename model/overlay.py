@@ -217,7 +217,7 @@ class CLModel(base.CLBase):
         latent, _ = self.get_model_out_data(model_out)
         test_loss = cross_entropy(self._loss_f.classify(latent), y)
         self.log("test_loss", test_loss, on_step=True)
-        self.test_acc(self._loss_f.classify(latent), y, train=False)
+        self.test_acc(self._loss_f.classify(latent), y)
         self.log("test_step_acc", self.test_acc)
 
     def get_objective_target_name(self) -> str:
