@@ -240,7 +240,7 @@ PREDEFINED_TYPES = {
         "", 
         "CL-MODEL"
     ],
-    "crossentropy-default": [
+    "crossentropy-multitarget": [
         "SELECT-CLASSIC", 
         "target-classic", 
         "NO-SPLIT", 
