@@ -152,4 +152,4 @@ class ClLatentOneHot(ClLatent):
         self.log("test_step_acc", self.test_acc)
 
     def get_obj_str_type(self) -> str:
-        return 'CLModelIslandsTest_' + super().get_obj_str_type()
+        return 'ClLatentOneHot_' + super().get_obj_str_type()

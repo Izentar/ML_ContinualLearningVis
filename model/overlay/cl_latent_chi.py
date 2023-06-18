@@ -157,5 +157,5 @@ class ClLatentChi(ClLatent):
         return super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
 
     def get_obj_str_type(self) -> str:
-        return 'CLModelWithIslands_' + super().get_obj_str_type()
+        return 'ClLatentChi_' + super().get_obj_str_type()
         

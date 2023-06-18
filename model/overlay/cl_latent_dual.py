@@ -210,3 +210,7 @@ class ClLatentDual(ClLatentChi):
             self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
             return loss
         raise Exception('Unacceptable state.')
+
+    def get_obj_str_type(self) -> str:
+        return 'ClLatentDual_' + super().get_obj_str_type()
+        
