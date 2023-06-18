@@ -2,10 +2,10 @@ import unittest
 from loss_function.chiLoss import ChiLoss
 from torch import testing as tst
 import torch
-from model.overlay import CLModel, CLModelWithReconstruction
-from model.SAE import SAE_CIFAR
-from dataset import dream_sets
-from multidimensional_dreams import getDataset, getDatasetList, getModelType
+from model.overlay.cl_model import CLModel
+from model.model.SAE import SAE_CIFAR
+from datamodule import dream_sets
+from latent_dreams import getDataset, getDatasetList, getModelType
 from utils import data_manipulation as datMan
 import pytorch_lightning as pl
 
@@ -100,16 +100,16 @@ class TestCLModelWithReconstruction(unittest.TestCase):
         dataset_robust = dataset_class_robust(data_path="./data", num_classes=num_classes)
         model_overlay = getModelType(auxiliary_reconstruction)
 
-        self.model = CLModelWithReconstruction(
-            model=SAE_CIFAR(num_classes=num_classes),
-            robust_dataset=dataset_robust,
-            num_tasks=num_tasks,
-            num_classes=num_classes,
-            attack_kwargs=attack_kwargs,
-            dreams_with_logits=dreams_with_logits,
-            train_normal_robustly=train_normal_robustly,
-            train_dreams_robustly=train_dreams_robustly,
-        ).to('cpu')
+        #self.model = CLModelWithReconstruction(
+        #    model=SAE_CIFAR(num_classes=num_classes),
+        #    robust_dataset=dataset_robust,
+        #    num_tasks=num_tasks,
+        #    num_classes=num_classes,
+        #    attack_kwargs=attack_kwargs,
+        #    dreams_with_logits=dreams_with_logits,
+        #    train_normal_robustly=train_normal_robustly,
+        #    train_dreams_robustly=train_dreams_robustly,
+        #).to('cpu')
 
     def test_train_step_normal(self):
         ret = torch.tensor(0.43149739503860474).to('cpu')

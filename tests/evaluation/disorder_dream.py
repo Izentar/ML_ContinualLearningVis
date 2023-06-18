@@ -1,5 +1,5 @@
 import torch
-from dataset import dream_sets
+from datamodule import dream_sets
 from utils.functional import target_processing
 from utils.functional.dream_objective import dream_objective_latent_lossf_creator
 import wandb
@@ -16,7 +16,7 @@ from torchvision import transforms as tr
 class DisorderDream():
     """
         Create image from the latent point created by model.
-        It is done by sampling image from dataset by selected class, then image goes through the model giving latent point.
+        It is done by sampling image from datamodule by selected class, then image goes through the model giving latent point.
         After that do custom dreaming based on that point but use the previous selected image as the starting base for dreaming.
         You can compare sampled and generated image in the logs.
     """

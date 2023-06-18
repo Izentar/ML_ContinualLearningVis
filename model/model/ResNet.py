@@ -3,7 +3,7 @@ from torchvision.models import resnet18, resnet, ResNet18_Weights, resnet34, Res
 from torchvision import models
 from torch import nn
 from pytorchcv.model_provider import get_model as ptcv_get_model
-from model.model_base import ModelBase
+from model.model.base import ModelBase
 
 class ResNetBase(nn.Module, ModelBase):
     def _initialize_weights(self):

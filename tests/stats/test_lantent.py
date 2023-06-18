@@ -2,10 +2,10 @@ import unittest
 from loss_function.chiLoss import ChiLoss
 from torch import testing as tst
 import torch
-from model.overlay import CLModel, CLModelWithReconstruction
-from model.SAE import SAE_CIFAR
-from dataset import dream_sets
-from multidimensional_dreams import getDataset, getDatasetList, getModelType
+from model.overlay.cl_model import CLModel
+from model.model.SAE import SAE_CIFAR
+from datamodule import dream_sets
+from latent_dreams import getDataset, getDatasetList, getModelType
 from utils import data_manipulation as datMan
 import pytorch_lightning as pl
 from stats.point_plot import PointPlot, Statistics

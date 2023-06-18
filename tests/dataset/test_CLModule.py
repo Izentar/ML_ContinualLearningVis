@@ -1,13 +1,13 @@
 import unittest
-from dataset.CLModule import CLDataModule
+from datamodule.CLModule import CLDataModule
 from utils import data_manipulation as datMan
-import multidimensional_dreams as md
+import latent_dreams as md
 from torchvision import transforms
 from torch import testing as tst
 
-from model.SAE import SAE_standalone
+from model.model.SAE import SAE_standalone
 from loss_function.chiLoss import ChiLoss
-from dataset import dream_sets
+from datamodule import dream_sets
 
 from torchvision.datasets import CIFAR10, CIFAR100
 

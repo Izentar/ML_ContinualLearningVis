@@ -1,17 +1,17 @@
-from select import select
 from utils.functional import dream_objective
 from utils.functional import select_task
 from utils.functional import target_processing
 from utils.functional import task_split
-from utils.functional import model_optimizer
 
 from typing import Union
 
-from model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
-from model.vgg import vgg11_bn
-from model.ResNet import ResNet18, Resnet20C100, ResNet34, CustomResNet34
-from model.overlay import CLModelWithIslands, CLModel, CLModelIslandsOneHot, CLModelLatentDual
-from model.DLA import DLA
+from model.model.SAE import SAE_CIFAR, SAE_CIFAR_GAUSS, SAE_CIFAR_CONJ
+from model.model.vgg import vgg11_bn
+from model.model.ResNet import ResNet18, Resnet20C100, ResNet34, CustomResNet34
+from model.overlay.cl_latent_onehot import ClLatentOneHot
+from model.overlay.cl_model import ClModel
+from model.overlay.cl_latent_dual import ClLatentChi, ClLatentDual
+from model.model.DLA import DLA
 from config.default import PREDEFINED_TYPES
 
 class FunConfigSetBase():
@@ -32,10 +32,10 @@ class FunConfigSetBase():
     }
 
     GET_OVERLAY = {
-        'CL-MODEL': CLModel,
-        'CL-MODEL-ISLAND': CLModelWithIslands,
-        'CL-MODEL-LATENT-DUAL': CLModelLatentDual,
-        'CL-MODEL-ISLAND-ONEHOT': CLModelIslandsOneHot,
+        'CL-MODEL': ClModel,
+        'CL-MODEL-ISLAND': ClLatentChi,
+        'CL-MODEL-LATENT-DUAL': ClLatentDual,
+        'CL-MODEL-ISLAND-ONEHOT': ClLatentOneHot,
     }
     
     def __init__(

@@ -16,7 +16,7 @@ from utils import pretty_print as pp
 from typing import Any, Dict
 
 
-class CLBase(LightningModule):
+class ClBase(LightningModule):
     @dataclass
     class Config():
         num_classes: int
@@ -89,9 +89,9 @@ class CLBase(LightningModule):
 
     def _get_config_maps(self):
         return {
-            'cfg_optim': CLBase.Optimizer,
-            'cfg_sched': CLBase.Scheduler,
-            'cfg': CLBase.Config,
+            'cfg_optim': ClBase.Optimizer,
+            'cfg_sched': ClBase.Scheduler,
+            'cfg': ClBase.Config,
         },{
             'optim': 'cfg_optim',
             'sched': 'cfg_sched',

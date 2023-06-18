@@ -4,10 +4,10 @@ import torch.nn.init as init
 import torch.nn.functional as F
 from torch.nn.functional import cross_entropy
 from torch.autograd import Variable
-from model.model_base import ModelBase
+from model.model.base import ModelBase
 
 
-from model import base
+from model.overlay import cl_base
 
 import sys
 import numpy as np
@@ -147,7 +147,7 @@ def vgg19_bn(**kwargs):
     model = VGG(make_layers(cfg['E'], batch_norm=True), **kwargs)
     return model
 
-class VGGBaseModel(base.CLBase):
+class VGGBaseModel(cl_base.ClBase):
     def __init__(self, loss_f=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_f = loss_f if loss_f is not None else cross_entropy

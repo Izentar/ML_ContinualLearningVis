@@ -1,4 +1,4 @@
-from dataset.CLModule import DreamDataModule
+from datamodule.CLModule import DreamDataModule
 
 
 class CustomDreamDataModule(DreamDataModule):

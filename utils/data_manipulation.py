@@ -1,6 +1,3 @@
-from numpy import random
-from lucent.optvis import objectives
-import math
 import numpy as np
 from torch.utils.data import Subset, random_split, ConcatDataset
 import torch

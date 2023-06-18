@@ -6,7 +6,7 @@ Reference:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.model_base import ModelBase
+from model.model.base import ModelBase
 
 class BasicBlock(nn.Module):
     expansion = 1

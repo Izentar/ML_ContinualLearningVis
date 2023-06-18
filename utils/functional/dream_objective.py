@@ -1,7 +1,6 @@
 import torch
 from lucent.optvis.objectives import wrap_objective, handle_batch
 from lucent.optvis import objectives
-from utils.counter import Counter, CounterBase, CounterKeys, CounterKeysBase
 import torch.nn.functional as F
 
 """

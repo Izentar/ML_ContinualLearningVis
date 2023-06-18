@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Union
 from pytorch_lightning.loops.base import Loop
 from pytorch_lightning.loops.fit_loop import FitLoop
 from pytorch_lightning.trainer.states import TrainerFn
-from dataset.CLModule import BaseCLDataModule, CLDataModule
+from datamodule.CLModule import BaseCLDataModule, CLDataModule
 
 from config.default import fast_dev_run_config
 import gc

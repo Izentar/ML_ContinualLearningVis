@@ -7,13 +7,13 @@ from executor.cl_loop import CLLoop
 from config.default import datasets, datasets_map
 #from loss_function import point_scope
 
-from dataset import dream_sets
+from datamodule import dream_sets
 
 from lucent.optvis import param
 from dream import transform as dream_tr
 
-from dataset.CLModule import CLDataModule
-from dataset.pairing import PairingBatchSampler, PairingBatchSamplerV2
+from datamodule.CLModule import CLDataModule
+from datamodule.pairing import PairingBatchSampler, PairingBatchSamplerV2
 import torch
 import numpy as np
 
@@ -30,9 +30,9 @@ from utils.utils import parse_image_size
 import wandb
 from dream.image import Image
 from utils import utils
-from model.activation_layer import GaussA
+from loss_function.activation_layer import GaussA
 from pathlib import Path
-from model.overlay import CLModel
+from model.overlay.cl_model import ClModel
 from utils import pretty_print as pp
 from utils.data_collector import collect_data
 from tests.evaluation.single_dream import SingleDream
@@ -240,7 +240,7 @@ def logic(args, log_args_to_wandb=True):
         data_passer=data_passer,
         args=args,
         cfg_map={
-            'cfg_layer_replace': CLModel.LayerReplace(
+            'cfg_layer_replace': ClModel.LayerReplace(
                 enable=args.model.layer_replace.enable,
                 source=torch.nn.ReLU,
                 destination_f=lambda a, b, x: GaussA(30),

@@ -1,11 +1,11 @@
-from model import base
+from model.overlay import cl_base
 import torch
 from torch import nn, sigmoid
 from torch.nn.functional import relu, cross_entropy, mse_loss
 from torch.autograd.variable import Variable
 import math
-from model.model_base import ModelBase
-from model.activation_layer import gaussA, conjunction, GaussA
+from model.model.base import ModelBase
+from loss_function.activation_layer import gaussA, conjunction, GaussA
 from utils import pretty_print as pp
 
 class SAE_CIFAR(nn.Module, ModelBase):

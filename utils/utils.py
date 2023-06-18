@@ -291,3 +291,7 @@ def dict_to_tensor(d) -> torch.Tensor:
     for k, v in d.items():
         l.insert(k, v)
     return torch.stack(l)
+
+
+
+

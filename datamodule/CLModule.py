@@ -12,7 +12,7 @@ from math import ceil
 from abc import ABC, abstractmethod
 
 from utils.data_manipulation import get_target_from_dataset
-from model import base
+from model.overlay import cl_base
 from utils import utils, setup_args
 from utils.functional.model_optimizer import ModelOptimizerManager
 from dataclasses import dataclass, field
@@ -767,7 +767,7 @@ class CLDataModule(DreamDataModule):
             ) if self.datasampler is not None else None
         )
 
-    def __calculate_std_mean_multidim(self, model: base.CLBase, task_index):
+    def __calculate_std_mean_multidim(self, model: cl_base.ClBase, task_index):
         """
             Calculate mean and std from current train_task dataset.
             Returns a tuple of std and mean (in that order!) in a shape (<class <mean>>, <class <std>>)

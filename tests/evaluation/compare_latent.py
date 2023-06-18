@@ -1,5 +1,5 @@
 import torch
-from dataset import dream_sets
+from datamodule import dream_sets
 from lucent.optvis import param
 import wandb
 from torch.optim.lr_scheduler import StepLR

@@ -1,4 +1,4 @@
-from dataset.CLModule import CLDataModule
+from datamodule.CLModule import CLDataModule
 import torch
 import numpy as np
 from typing import List

@@ -30,7 +30,7 @@ from . import loaders
 from .tools.helpers import get_label_mapping
 
 ###
-# Datasets: (all subclassed from dataset)
+# Datasets: (all subclassed from datamodule)
 # In order:
 ## ImageNet
 ## Restricted Imagenet

@@ -9,7 +9,7 @@ import torch
 from utils import data_manipulation as datMan
 import pytorch_lightning as pl
 from torch import testing as tst
-from multidimensional_dreams import getDataset, data_transform
+from latent_dreams import getDataset, data_transform
 from torchvision import transforms
 
 class TestDataManipulation(unittest.TestCase):
