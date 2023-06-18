@@ -22,6 +22,10 @@ from argparse import Namespace
 from utils import pretty_print as pp
 from torchvision import transforms
 import math, random
+from copy import copy
+from utils.counter import CounterKeys
+from typing import Callable, Any
+from dream.image import _Image
 
 class BaseCLDataModule(LightningDataModule, ABC):
     @abstractmethod
@@ -72,6 +76,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         standard_image_size: Union[int, list, None] = None
         decorrelate: bool = True
         max_logged_image_per_target: int = 8
+        flush: bool = True
 
         def __post_init__(self):
             self.transforms = not self.disable_transforms
@@ -105,17 +110,17 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     self.kwargs = {}
 
     def __init__(self,
-        select_dream_tasks_f,
-        dream_objective_f,
-        dream_image_f,
-        target_processing_f,
+        select_dream_tasks_f: Callable[[Sequence[int], int], set],
+        dream_objective_f: Callable[[torch.Tensor, torch.Tensor, torch.nn.Module, 'DreamDataModule'], Callable[[torch.nn.Module], torch.Tensor]],
+        dream_image_f: Callable[[str, tuple|int, int, bool], _Image],
+        target_processing_f: Callable[[torch.Tensor, torch.nn.Module], torch.Tensor],
         fast_dev_run:bool=False,
         fast_dev_run_dream_threshold=None,
         progress_bar=None,
         empty_dream_dataset=None,
         logger=None,
         render_transforms=None,
-        custom_f=lambda *args: None,
+        custom_f: Callable[[Any], None]=lambda *args: None,
         data_passer=None,
         args=None,
         cfg_map=None,
@@ -214,7 +219,8 @@ class DreamDataModule(BaseCLDataModule, ABC):
         pass
 
     def flush_wandb(self):
-        wandb.log({'train_dream_examples': self.wandb_dream_img_table})
+        # fix for updating table, shallow copy https://github.com/wandb/wandb/issues/2981
+        wandb.log({'train_dream_examples': copy(self.wandb_dream_img_table)})
         self.wandb_flushed = True
 
     def __del__(self):
@@ -270,6 +276,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f, input_image_train_after_hook=input_image_train_after_obj)
         
         iterations = ceil(self.cfg_vis.per_target / self.cfg_vis.batch_size)
+        image_log_idx = CounterKeys(keys=list(targets))
 
         new_dreams, new_targets = self._generate_dreams(
             model=model,
@@ -278,6 +285,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             layer_hook_obj=layer_hook_obj,
             rendervis_state=rendervis_state,
             run_name=run_name,
+            image_log_idx=image_log_idx,
         )
 
         self.dreams_dataset.extend(new_dreams, new_targets, model)
@@ -290,7 +298,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, targets, iterations, layer_hook_obj:list, rendervis_state, run_name:list[str]):
+    def _generate_dreams(self, model, targets, iterations, layer_hook_obj:list, rendervis_state, run_name:list[str], image_log_idx):
         if(self.cfg_vis_multitarget.enable):
             pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Using multitarget visualization")
             new_images, new_targets = self._generate_dream_multi_target_iter(
@@ -300,6 +308,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 layer_hook_obj=layer_hook_obj,
                 rendervis_state=rendervis_state,
                 run_name=run_name,
+                image_log_idx=image_log_idx,
             )
         else:
             pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Using singletarget visualization")
@@ -310,6 +319,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 layer_hook_obj=layer_hook_obj,
                 rendervis_state=rendervis_state,
                 run_name=run_name,
+                image_log_idx=image_log_idx,
             )
         return new_images, new_targets
 
@@ -327,7 +337,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def _generate_dream_multi_target_iter(
             self, model:torch.nn.Module, target:set, iterations:int, 
-            layer_hook_obj:list, rendervis_state, run_name:list[str]
+            layer_hook_obj:list, rendervis_state, run_name:list[str], image_log_idx
         ):
         all_images = []
         all_targets = []
@@ -342,6 +352,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 layer_hook_obj=layer_hook_obj,
                 iterations=iterations, 
                 rendervis_state=rendervis_state,
+                image_log_idx=image_log_idx,
             )
             all_images.append(new_images)
             all_targets.extend(new_targets)
@@ -356,7 +367,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def _generate_dream_target_iter(self, 
             model:torch.nn.Module, target:list, iterations:int, 
-            layer_hook_obj:list, rendervis_state, run_name:list[str]
+            layer_hook_obj:list, rendervis_state, run_name:list[str], image_log_idx
         ):
         all_images = [] 
         all_targets = []
@@ -373,6 +384,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 target=t, 
                 iterations=iterations, 
                 rendervis_state=rendervis_state,
+                image_log_idx=image_log_idx,
             )
             all_images.append(new_images)
             all_targets.extend(new_targets)
@@ -387,14 +399,19 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         return all_images, all_targets
     
-    def _log_images(self, new_images, target):
+    def _log_images(self, new_images, target, image_log_idx):
         if not self.fast_dev_run and self.logger is not None:
             if(isinstance(target, Sequence)): # it target is batched
                 for idx, (image, t) in enumerate(zip(new_images, target)):
-                    self._log_image_to_table(idx, image, t)
+                    new_idx = idx + image_log_idx[t]
+                    self._log_image_to_table(new_idx, image, t)
             else:
-                for idx, image in enumerate(new_images):
+                if(self.cfg_vis.max_logged_image_per_target <= image_log_idx[target]):
+                    return
+                for idx, image in enumerate(new_images, image_log_idx[target]):
                     self._log_image_to_table(idx, image, target)
+            if(self.cfg_vis.flush):
+                self.flush_wandb()
 
     def _log_image_to_table(self, idx, image, target):
         if(self.cfg_vis.max_logged_image_per_target <= idx):
@@ -415,11 +432,13 @@ class DreamDataModule(BaseCLDataModule, ABC):
                 img
             )
 
-    def generate_dreams_for_multitarget(self, model, target, layer_hook_obj, iterations, rendervis_state):
+    def generate_dreams_for_multitarget(self, model, target, layer_hook_obj, iterations, rendervis_state, image_log_idx=None):
         if(not self.cfg_vis_multitarget.enable):
             raise Exception('Multitarget not enabled')
         new_images = []
         new_targets = []
+        if(image_log_idx is None):
+            image_log_idx = CounterKeys(target)
 
         for _ in range(iterations):
             batch_target = self._multitarget_select_targets(target)
@@ -441,13 +460,16 @@ class DreamDataModule(BaseCLDataModule, ABC):
             if(self.progress_bar is not None):
                 self.progress_bar.update('target_vis') # if key not found, ignore
         new_images = torch.cat(new_images)
-        self._log_images(new_images, batch_target)
+        self._log_images(new_images, batch_target, image_log_idx)
         return new_images, new_targets
 
-    def generate_dreams_for_target(self, model, target, iterations, rendervis_state):
+    def generate_dreams_for_target(self, model, target, iterations, rendervis_state, image_log_idx=None):
         if(self.cfg_vis_multitarget.enable):
             raise Exception('Multitarget enabled')
         images = []
+        if(image_log_idx is None):
+            image_log_idx = CounterKeys([target])
+
         if(self.progress_bar is not None):
             text = f"[bright_red]Repeat for class: {target}"
             self.progress_bar.setup_progress_bar('target_vis', text, iterations=iterations)
@@ -468,7 +490,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             if(self.progress_bar is not None):
                 self.progress_bar.update('target_vis')
         images = torch.cat(images)
-        self._log_images(images, target)
+        self._log_images(images, target, image_log_idx)
         return images, [target] * images.shape[0]
 
     def get_task_classes(self, task_number):

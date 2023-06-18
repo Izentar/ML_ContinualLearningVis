@@ -9,13 +9,13 @@ import math
     After choosing task classes, for each target class there will be processed by function from target_precessing.py.
 """
 
-def select_task_classic(tasks, task_index):
+def select_task_classic(tasks, task_index) -> set:
     """
         Get only current task set.
     """
     return set(tasks[task_index])
 
-def select_task_decremental(tasks, task_index):
+def select_task_decremental(tasks, task_index) -> set:
     """
         Get difference between previous and current tasks.
     """
@@ -27,7 +27,7 @@ def select_task_decremental(tasks, task_index):
     previous_split = set(tasks[task_index - 1])
     return previous_split - current_split
 
-def select_task_with_memory(tasks, task_index):
+def select_task_with_memory(tasks, task_index) -> set:
     """
         Get difference between all of the previous tasks and current tasks.
     """
@@ -41,7 +41,7 @@ def select_task_with_memory(tasks, task_index):
     current_split = set(tasks[task_index])
     return accumulator - current_split
 
-def select_task_with_fading_memory(tasks, task_index, fading_scale, random_distr_f=None):
+def select_task_with_fading_memory(tasks, task_index, fading_scale, random_distr_f=None) -> set:
     """
         Get difference between all of the previous tasks and current tasks.
         fading_scale: [0.0, 1.0], uses geometric sequence to calculate probability threshold of

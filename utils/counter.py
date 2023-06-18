@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from collections.abc import Sequence
 
 class CounterBase():
     @abstractmethod
@@ -50,7 +51,7 @@ class Counter(CounterBase):
         self.value = self.start
 
 class CounterKeys(CounterKeysBase):
-    def __init__(self, start=0, keys=None) -> None:
+    def __init__(self, start=0, keys:Sequence[int]=None) -> None:
         keys = keys if keys is not None else [0]
         self.start = start
         self.values = {}
@@ -68,6 +69,9 @@ class CounterKeys(CounterKeysBase):
     def get(self, key):
         self._create_exist(key)
         return self.values[key]
+    
+    def __getitem__(self, key):
+        return self.get(key)
 
     def reset(self, key=None):
         if(key is None):
