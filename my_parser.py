@@ -81,7 +81,6 @@ If less than in dataset then model will be trained and validated only using this
     parser.add_argument("--model.latent.size", type=int)
 
     parser.add_argument("--model.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
-    parser.add_argument("--model.optim.kwargs.weight_decay", type=float, default=1e-2, help='')
     parser.add_argument("--model.optim.kwargs.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
     parser.add_argument("--model.optim.kwargs.momentum", type=float, default=0, help='')
     parser.add_argument("--model.optim.kwargs.dampening", type=float, default=0, help='')
