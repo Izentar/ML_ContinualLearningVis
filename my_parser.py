@@ -121,8 +121,11 @@ Without running this and running "loop.train_at" will run only test. Use this wi
 in batch during dreaming should be produced.')
     parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
     parser.add_argument("--datamodule.vis.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
+    parser.add_argument("--datamodule.vis.optim.kwargs.gamma", type=float, default=1, help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.weight_decay", type=float, default=0, help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.amsgrad", action="store_true", help='')
+    parser.add_argument("--datamodule.vis.optim.kwargs.momentum", type=float, default=0, help='')
+    parser.add_argument("--datamodule.vis.optim.kwargs.dampening", type=float, default=0, help='')
     parser.add_argument("--datamodule.vis.sched.type", type=str)
     parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[512, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
