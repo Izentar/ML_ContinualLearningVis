@@ -49,7 +49,6 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
 
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
-    parser.add_argument("--model.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--model.sched.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
 to choose epoch at which to call it.')
     parser.add_argument("--model.sched.kwargs.gamma", default=1., type=float)
@@ -85,6 +84,8 @@ If less than in dataset then model will be trained and validated only using this
     parser.add_argument("--model.optim.kwargs.momentum", type=float, default=0, help='')
     parser.add_argument("--model.optim.kwargs.dampening", type=float, default=0, help='')
     parser.add_argument("--model.optim.kwargs.weight_decay", type=float, default=0, help='')
+    parser.add_argument("--model.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
+    parser.add_argument("--model.optim.kwargs.amsgrad", action="store_true", help='')
 
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
@@ -121,6 +122,7 @@ in batch during dreaming should be produced.')
     parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
     parser.add_argument("--datamodule.vis.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.weight_decay", type=float, default=0, help='')
+    parser.add_argument("--datamodule.vis.optim.kwargs.amsgrad", action="store_true", help='')
     parser.add_argument("--datamodule.vis.sched.type", type=str)
     parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[512, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
