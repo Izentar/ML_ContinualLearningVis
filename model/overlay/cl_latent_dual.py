@@ -72,7 +72,7 @@ class ClLatentDual(ClLatentChi):
 
             def __after_init__(self, inner_optim):
                 if self.kwargs is not None:
-                    for k, v in self.kwargs:
+                    for k, v in self.kwargs.items():
                         if v is None:
                             self.kwargs[k] = inner_optim.kwargs[k]
                 else:
