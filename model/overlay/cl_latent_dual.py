@@ -9,6 +9,7 @@ from copy import copy
 
 from dataclasses import dataclass
 from model.overlay.cl_latent_chi import ClLatentChi
+from utils.functional.model_optimizer import ModelOptimizerManager
 
 class ModelSufix(torch.nn.Module):
     def __init__(self, model, num_classes) -> None:
