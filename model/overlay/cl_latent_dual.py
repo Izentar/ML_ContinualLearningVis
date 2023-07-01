@@ -160,7 +160,7 @@ class ClLatentDual(ClLatentChi):
             if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = self.optimizer_construct_f(self.model.parameters()) 
             else:
-                assert optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
+                assert self.optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
                 optim = self.optimizer_construct_f(self.model.model.parameters())        
                 optim2 = self.optimizer_construct_outer_f(self.model.outer_params())        
         self.optimizer = optim
