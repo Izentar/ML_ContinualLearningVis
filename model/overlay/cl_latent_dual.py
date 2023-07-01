@@ -88,7 +88,7 @@ class ClLatentDual(ClLatentChi):
         })
         b.update({
             'loss.chi.dual': 'cfg_loss_chi_dual',
-            'outer.optim': 'cfg_outeroptim',
+            'outer.optim': 'cfg_outer_optim',
         })
         return a, b
 
