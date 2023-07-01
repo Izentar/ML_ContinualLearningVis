@@ -5,18 +5,20 @@ from loss_function.chiLoss import DummyLoss
 from utils import pretty_print as pp
 from torch.nn.functional import relu
 import torchmetrics
+from copy import copy
 
 from dataclasses import dataclass
 from model.overlay.cl_latent_chi import ClLatentChi
 
 class ModelSufix(torch.nn.Module):
-    def __init__(self, model) -> None:
+    def __init__(self, model, num_classes) -> None:
         super().__init__()
         self.model = model
+        self.num_classes = num_classes
 
         self.ln = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
         self.ln2 = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
-        self.ln3 = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
+        self.ln3 = torch.nn.Linear(self.model.get_objective_layer().out_features, num_classes)    
     
     def forward(self, x, **kwargs):
         xe = relu(self.model(x))
@@ -60,13 +62,33 @@ class ClLatentDual(ClLatentChi):
                     if not (0. <= self.outer_scale and self.outer_scale <= 1.):
                         raise Exception(f"Outer scale param can be only in range of [0, 1]")
 
+    @dataclass
+    class Outer():
+        @dataclass
+        class Optimizer():        
+            type: str = None
+            reset_type: str = None
+            kwargs: dict = None
+
+            def __after_init__(self, inner_optim):
+                if self.kwargs is None:
+                    self.kwargs = copy(inner_optim.kwargs)
+                    self.kwargs['weight_decay'] = 1e-4
+                if self.type is None:
+                    self.type = inner_optim.type
+                if self.reset_type is None:
+                    self.reset_type = inner_optim.reset_type
+                
+
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
             'cfg_loss_chi_dual': ClLatentDual.Loss.Chi.Dual,
+            'cfg_outer_optim': ClLatentDual.Outer.Optimizer,
         })
         b.update({
             'loss.chi.dual': 'cfg_loss_chi_dual',
+            'outer.optim': 'cfg_outeroptim',
         })
         return a, b
 
@@ -76,8 +98,10 @@ class ClLatentDual(ClLatentChi):
             model:torch.nn.Module=None,
             **kwargs
         ):
-        model = ModelSufix(model)
+        num_classes = kwargs['args'].model.num_classes
+        model = ModelSufix(model, num_classes)
         super().__init__(*args, model=model, **kwargs)
+        self.cfg_outer_optim.__after_init__(self.cfg_optim)
         self._outer_loss_f = DummyLoss(torch.nn.CrossEntropyLoss())
 
         self._hook_handle = model.model.get_objective_layer().register_forward_hook(self._hook)
@@ -86,6 +110,12 @@ class ClLatentDual(ClLatentChi):
         self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self._saved_loss = 0.0
+
+        self.outer_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_outer_optim.type,
+            reset_optim_type=self.cfg_outer_optim.reset_type,
+        )
+        self.optimizer_construct_outer_f = self.outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
         
         if(self.cfg_loss_chi_dual.inner_scale == 0.):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
@@ -126,8 +156,9 @@ class ClLatentDual(ClLatentChi):
             if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = self.optimizer_construct_f(self.model.parameters()) 
             else:
+                assert optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
                 optim = self.optimizer_construct_f(self.model.model.parameters())        
-                optim2 = self.optimizer_construct_f(self.model.outer_params())        
+                optim2 = self.optimizer_construct_outer_f(self.model.outer_params())        
         self.optimizer = optim
         if(optim2 is None):
             return optim

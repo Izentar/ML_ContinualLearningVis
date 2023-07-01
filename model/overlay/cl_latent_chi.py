@@ -56,11 +56,6 @@ class ClLatentChi(ClLatent):
 
     def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
         loss = self._loss_f(latent, y)
-
-        if(self.cfg.norm_lambda != 0.):
-            norm = self.norm(latent, self.cfg.norm_lambda)
-            self.log(f"{log_label}/norm", norm)
-            loss += norm
         self.log(f"{log_label}/island", loss)
 
         return loss
