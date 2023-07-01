@@ -71,9 +71,12 @@ class ClLatentDual(ClLatentChi):
             kwargs: dict = None
 
             def __after_init__(self, inner_optim):
-                if self.kwargs is None:
+                if self.kwargs is not None:
+                    for k, v in self.kwargs:
+                        if v is None:
+                            self.kwargs[k] = inner_optim.kwargs[k]
+                else:
                     self.kwargs = copy(inner_optim.kwargs)
-                    self.kwargs['weight_decay'] = 1e-4
                 if self.type is None:
                     self.type = inner_optim.type
                 if self.reset_type is None:

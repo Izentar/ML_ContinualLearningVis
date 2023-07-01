@@ -87,6 +87,14 @@ If less than in dataset then model will be trained and validated only using this
     parser.add_argument("--model.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--model.optim.kwargs.amsgrad", action="store_true", help='')
 
+    parser.add_argument("--model.outer.optim.kwargs.lr", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.gamma", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.momentum", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.dampening", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.weight_decay", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.betas", nargs='+', type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.amsgrad", help='')
+
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
     parser.add_argument("--model.sched.steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
