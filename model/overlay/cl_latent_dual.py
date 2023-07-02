@@ -128,21 +128,33 @@ class ClLatentDual(ClLatentChi):
         if(self.cfg_loss_chi_dual.inner_scale == 0. and self.cfg_loss_chi_dual.outer_scale == 0.):
             raise Exception("Both losses (inner, outer) cannot be zero!")
 
+
+        # Not need here to enable this. Calculating double loss in this case does not
+        # affect the result. It can only make training slower. Here I use optimizer_idx argument. 
+        #self.automatic_optimization = False
+
     def _hook(self, module, input, output):
         self._inner_output = output
 
-    def _is_inner_enabled(self):
-        return self._optimizer_idx == 0 and self.cfg_loss_chi_dual.inner_scale != 0. or (
-            self.cfg_loss_chi_dual.outer_scale == 0.
-        )
+    def _is_inner_turn(self, optimizer_idx=None):
+        return (not self._dual_optim or optimizer_idx is None) or (self._dual_optim and self.optimizer_idx == 0)
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
-        if(self._is_inner_enabled()):
+    def _is_inner_enabled(self, optimizer_idx=None):
+        return (self._is_inner_turn(optimizer_idx) and self.cfg_loss_chi_dual.inner_scale != 0.) or self.cfg_loss_chi_dual.outer_scale == 0.
+
+    def _is_outer_turn(self, optimizer_idx=None):
+        return (not self._dual_optim or optimizer_idx is None) or (self._dual_optim and optimizer_idx == 1)
+
+    def _is_outer_enabled(self, optimizer_idx=None):
+        return (self._is_outer_turn(optimizer_idx) and self.cfg_loss_chi_dual.outer_scale != 0)
+
+    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+        if(self._is_inner_enabled(optimizer_idx)):
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             return loss_inner
         
-        if(self.cfg_loss_chi_dual.outer_scale != 0):
+        if(self._is_outer_enabled(optimizer_idx)):
             loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
             self.log(f"{log_label}/island_CROSS-E", loss_outer)
             return loss_outer
@@ -153,16 +165,20 @@ class ClLatentDual(ClLatentChi):
         if(self.optimizer_construct_f is None):
             if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = torch.optim.Adam(self.model.parameters(), lr=optim_Adam_config["lr"])
+                self._dual_optim = False
             else:
                 optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
                 optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
+                self._dual_optim = True  
         else:
             if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = self.optimizer_construct_f(self.model.parameters()) 
+                self._dual_optim = False
             else:
                 assert self.optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
                 optim = self.optimizer_construct_f(self.model.model.parameters())        
-                optim2 = self.optimizer_construct_outer_f(self.model.outer_params())        
+                optim2 = self.optimizer_construct_outer_f(self.model.outer_params())      
+                self._dual_optim = True 
         self.optimizer = optim
         if(optim2 is None):
             return optim
@@ -178,7 +194,7 @@ class ClLatentDual(ClLatentChi):
         self.log("valid_acc_inner", self.valid_acc_inner.compute())
 
     def _validation_step_outer(self, latent, y, dataloader_idx):
-        if(self.cfg_loss_chi_dual.outer_scale == 0.):
+        if(self._is_outer_enabled(optimizer_idx)):
             return
         val_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
@@ -191,7 +207,6 @@ class ClLatentDual(ClLatentChi):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        self._optimizer_idx = 0
         self._validation_step_inner(y=y)
         self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
 
@@ -206,7 +221,7 @@ class ClLatentDual(ClLatentChi):
         self.log("test_acc_inner", self.test_acc_inner)
 
     def _test_step_outer(self, latent, y):
-        if(self.cfg_loss_chi_dual.outer_scale == 0.):
+        if(self._is_outer_enabled(optimizer_idx)):
             return
         test_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("test_loss_outer", test_loss_outer)
@@ -218,14 +233,12 @@ class ClLatentDual(ClLatentChi):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        self._optimizer_idx = 0
         self._test_step_inner(y)
         self._test_step_outer(latent=latent, y=y)
 
         self._test_step_log_data()
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        self._optimizer_idx = optimizer_idx
         loss = super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
         self._saved_loss = 0.0
         if(self.cfg_loss_chi_dual.inner_scale != 0. and self.cfg_loss_chi_dual.outer_scale != 0.):
@@ -235,12 +248,12 @@ class ClLatentDual(ClLatentChi):
     def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
         self.log("train_loss/total", loss.item() + self._saved_loss)
 
-        if(self._is_inner_enabled()):
+        if(self._is_inner_enabled(optimizer_idx)):
             self.train_acc_inner(self._loss_f.classify(self._inner_output), y)
             self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
             return loss
         
-        if(self.cfg_loss_chi_dual.outer_scale != 0.):
+        if(self._is_outer_enabled(optimizer_idx)):
             self.train_acc(self._outer_loss_f.classify(latent), y)
             self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
             return loss
@@ -249,3 +262,62 @@ class ClLatentDual(ClLatentChi):
     def get_obj_str_type(self) -> str:
         return 'ClLatentDual_' + super().get_obj_str_type()
         
+class ClLatentDualHalved(ClLatentDual):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.automatic_optimization = False
+
+    def _create_optimizer(self) -> torch.optim.Optimizer:
+        optims = super()._create_optimizer()
+        halves = self._create_optimizer_halves()
+        if(isinstance(optims, list)):
+            return halves.append(optims[-1])
+        else:
+            return halves.append(optims)
+
+    def _create_optimizer_halves(self):
+        if(self.optimizer_construct_f is None):
+            optim_first_half = torch.optim.Adam(self.model.model.first_half_params(), lr=optim_Adam_config["lr"])
+            optim_second_half = torch.optim.Adam(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
+        else:  
+            optim_first_half = self.optimizer_construct_f(self.model.model.first_half_params(), lr=optim_Adam_config["lr"])
+            optim_second_half = self.optimizer_construct_outer_f(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
+        return [optim_first_half, optim_second_half]
+
+    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+        first_half_optim, second_half_optim = self.optimizers()
+        if(len(optims) == 2):
+            first_half_optim, second_half_optim = optims
+        elif(len(optims) == 3):
+            first_half_optim, second_half_optim, outer_optim = optims
+        else:
+            raise Exception("Internal error. Unreachable state.")
+        if(self._is_inner_enabled(optimizer_idx)):
+            loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
+            self.log(f"{log_label}/island_CHI-K", loss_inner)
+
+            first_half_optim.zero_grad()
+            second_half_optim.zero_grad()
+
+            self.manual_backward(loss_inner)
+
+            second_half_optim.step()
+            first_half_optim.step()
+
+            return loss_inner
+        
+        if(self._is_outer_enabled(optimizer_idx)):
+            loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
+            self.log(f"{log_label}/island_CROSS-E", loss_outer)
+
+            outer_optim.zero_grad()
+            self.manual_backward(loss_outer)
+            outer_optim.step()
+
+            return loss_outer
+        raise Exception("Both losses (inner, outer) cannot be zero!")
+
+    def training_step(self, batch, batch_idx, optimizer_idx=None):
+        super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
+        # do not return anything
+

@@ -140,6 +140,7 @@ class ClModel(cl_base.ClBase):
             latent=latent, 
             model_out_dict=model_out_dict,
             log_label="train_loss", 
+            optimizer_idx=optimizer_idx,
         )
         self.training_step_acc(
             x=x, y=y,
@@ -153,7 +154,7 @@ class ClModel(cl_base.ClBase):
         self.train_acc(self._loss_f.classify(latent), y)
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
+    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
         loss = self._loss_f(latent, y)
         self.log(f"{log_label}/classification_loss", loss)
         return loss
@@ -175,19 +176,21 @@ class ClModel(cl_base.ClBase):
             latent=latent, 
             model_out_dict=model_out_dict, 
             log_label="train_loss_dream",
+            optimizer_idx=optimizer_idx,
         )
         self.log("train_loss_dream/total", loss)
         self.train_acc_dream(self._loss_f.classify(latent), y)
         self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
         return loss
 
-    def process_losses_dreams(self, x, y, latent, log_label, model_out_dict=None):
+    def process_losses_dreams(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
         return self.process_losses_normal(
             x=x, 
             y=y, 
             latent=latent, 
             model_out_dict=model_out_dict,
-            log_label=log_label 
+            log_label=log_label,
+            optimizer_idx=optimizer_idx,
         )
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):

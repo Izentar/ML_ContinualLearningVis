@@ -86,7 +86,7 @@ class ClLatentOneHot(ClLatent):
     def decode(self, target):
         return self._loss_f.decode(target)
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None):
+    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
         loss = self._loss_f(latent, y)
         self.log(f"{log_label}/MSE_loss", loss)
 
@@ -105,13 +105,14 @@ class ClLatentOneHot(ClLatent):
 
         return loss
 
-    def process_losses_dreams(self, x, y, latent, log_label, model_out_dict=None):
+    def process_losses_dreams(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
         return self.process_losses_normal(
             x=x, 
             y=y, 
             latent=latent, 
             model_out_dict=model_out_dict,
-            log_label=log_label 
+            log_label=log_label,
+            dataloader_idx=dataloader_idx
         )
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):

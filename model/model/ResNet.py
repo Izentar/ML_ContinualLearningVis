@@ -164,6 +164,12 @@ class CreatorResNet(nn.Module):
         out = self.linear(feature)
         return out
  
+    def first_half_params(self):
+        return [self.conv1, self.bn1, self.layer1, self.layer2, self.layer3]
+
+    def second_half_params(self):
+        return [self.layer4, self.linear]
+
 class CustomResNet34(nn.Module, ModelBase):
     def __init__(self, num_classes, *args, **kwargs):
         super().__init__()
@@ -188,6 +194,12 @@ class CustomResNet34(nn.Module, ModelBase):
     @property
     def name(self):
         return "CustomResNet34"
+
+    def first_half_params(self):
+        return self.resnet.first_half_params()
+
+    def second_half_params(self):
+        return self.resnet.second_half_params()
 
 class Resnet20C100(ResNetBase):
     def __init__(self, pretrained=True, *args, **kwargs):

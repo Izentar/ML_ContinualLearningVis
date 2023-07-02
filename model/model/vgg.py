@@ -152,7 +152,7 @@ class VGGBaseModel(cl_base.ClBase):
         super().__init__(*args, **kwargs)
         self.loss_f = loss_f if loss_f is not None else cross_entropy
 
-    def training_step_normal(self, batch):
+    def training_step_normal(self, batch, optimizer_idx):
         x, y = batch
         y_model_out = self(x)
         loss_classification = self.loss_f(y_model_out, y)
@@ -161,7 +161,7 @@ class VGGBaseModel(cl_base.ClBase):
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
         return loss_classification
 
-    def training_step_dream(self, batch):
+    def training_step_dream(self, batch, optimizer_idx):
         x, y = batch
         y_model_out = self(x)
         loss_classification = self.loss_f(y_model_out, y)
