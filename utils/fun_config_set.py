@@ -10,7 +10,7 @@ from model.model.vgg import vgg11_bn
 from model.model.ResNet import ResNet18, Resnet20C100, ResNet34, CustomResNet34
 from model.overlay.cl_latent_onehot import ClLatentOneHot
 from model.overlay.cl_model import ClModel
-from model.overlay.cl_latent_dual import ClLatentChi, ClLatentDual
+from model.overlay.cl_latent_dual import ClLatentChi, ClLatentDual, ClLatentDualHalved
 from model.model.DLA import DLA
 from config.default import PREDEFINED_TYPES
 
@@ -35,6 +35,7 @@ class FunConfigSetBase():
         'CL-MODEL': ClModel,
         'CL-MODEL-ISLAND': ClLatentChi,
         'CL-MODEL-LATENT-DUAL': ClLatentDual,
+        'CL-MODEL-LATENT-DUAL-HALVED': ClLatentDualHalved,
         'CL-MODEL-ISLAND-ONEHOT': ClLatentOneHot,
     }
     

@@ -256,4 +256,12 @@ PREDEFINED_TYPES = {
         "", 
         "CL-MODEL-LATENT-DUAL"
     ],
+    "latent-dual-halved-multitarget": [
+        "SELECT-CLASSIC", 
+        "TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET", 
+        "NO-SPLIT", 
+        "OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR", 
+        "", 
+        "CL-MODEL-LATENT-DUAL-HALVED"
+    ],
 }
