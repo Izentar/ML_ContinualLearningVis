@@ -117,10 +117,8 @@ class ClModel(cl_base.ClBase):
 
     def call_loss(self, input, target, train, **kwargs):
         return self._loss_f(input, target, train)
-
-    def training_step_normal(self, batch, optimizer_idx):
-        x, y = batch
-
+    
+    def training_step_normal_setup(self, x, y):
         if(self.cfg_robust.enable):
             model_out = self(
                 x, target=y, **vars(self.cfg_robust_kwargs)
@@ -134,6 +132,12 @@ class ClModel(cl_base.ClBase):
         for k, v in self._loss_f.to_log.items():
             self.log(k, v)
 
+        return latent, model_out_dict
+
+    def training_step_normal(self, batch, optimizer_idx):
+        x, y = batch
+        latent, model_out_dict = self.training_step_normal_setup(x=x, y=y)
+
         loss = self.process_losses_normal(
             x=x, 
             y=y, 
@@ -142,14 +146,14 @@ class ClModel(cl_base.ClBase):
             log_label="train_loss", 
             optimizer_idx=optimizer_idx,
         )
-        self.training_step_acc(
+        self.training_step_acc_normal(
             x=x, y=y,
             loss=loss, latent=latent, 
             model_out_dict=model_out_dict, optimizer_idx=optimizer_idx
         )
         return loss
 
-    def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
+    def training_step_acc_normal(self, x, y, loss, latent, model_out_dict, optimizer_idx):
         self.log("train_loss/total", loss)
         self.train_acc(self._loss_f.classify(latent), y)
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
@@ -158,10 +162,8 @@ class ClModel(cl_base.ClBase):
         loss = self._loss_f(latent, y)
         self.log(f"{log_label}/classification_loss", loss)
         return loss
-
-    def training_step_dream(self, batch, optimizer_idx):
-        x, y = batch
-
+    
+    def training_step_dream_setup(self, x, y):
         if(self.cfg_robust.enable):
             model_out = self(
                 x, target=y, **vars(self.cfg_robust_kwargs)
@@ -169,6 +171,12 @@ class ClModel(cl_base.ClBase):
         else:
             model_out = self(x)
         latent, model_out_dict = self.get_model_out_data(model_out)
+
+        return latent, model_out_dict
+    
+    def training_step_dream(self, batch, optimizer_idx):
+        x, y = batch
+        latent, model_out_dict = self.training_step_dream_setup(x=x, y=y)
 
         loss = self.process_losses_dreams(
             x=x, 
@@ -178,10 +186,18 @@ class ClModel(cl_base.ClBase):
             log_label="train_loss_dream",
             optimizer_idx=optimizer_idx,
         )
+        self.training_step_acc_dream(
+            x=x, y=y,
+            loss=loss, latent=latent, 
+            model_out_dict=model_out_dict, optimizer_idx=optimizer_idx
+        )
+        
+        return loss
+    
+    def training_step_acc_dream(self, x, y, loss, latent, model_out_dict, optimizer_idx):
         self.log("train_loss_dream/total", loss)
         self.train_acc_dream(self._loss_f.classify(latent), y)
         self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
-        return loss
 
     def process_losses_dreams(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         return self.process_losses_normal(

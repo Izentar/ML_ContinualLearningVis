@@ -127,6 +127,7 @@ class ClLatentDual(ClLatentChi):
         if(self.cfg_loss_chi_dual.inner_scale == 0. and self.cfg_loss_chi_dual.outer_scale == 0.):
             raise Exception("Both losses (inner, outer) cannot be zero!")
 
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}outer optim{pp.COLOR.NORMAL} config: {self.cfg_outer_optim}")
 
         # Not need here to enable this. Calculating double loss in this case does not
         # affect the result. It can only make training slower. Here I use optimizer_idx argument. 
@@ -243,18 +244,24 @@ class ClLatentDual(ClLatentChi):
             self._saved_loss = loss.item()
         return loss
     
+    def training_step_acc_inner(self, x, y, latent):
+        self.train_acc_inner(self._loss_f.classify(self._inner_output), y)
+        self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
+        
+    def training_step_acc_outer(self, x, y, latent):
+        self.train_acc(self._outer_loss_f.classify(latent), y)
+        self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
+    
     def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
         self.log("train_loss/total", loss.item() + self._saved_loss)
 
         if(self._is_inner_enabled(optimizer_idx)):
-            self.train_acc_inner(self._loss_f.classify(self._inner_output), y)
-            self.log("train_step_acc_inner", self.train_acc_inner, on_step=False, on_epoch=True) 
+            self.training_step_acc_inner(x=x, y=y, latent=latent)
+            return loss
+        if(self._is_outer_enabled(optimizer_idx)):
+            self.training_step_acc_outer(x=x, y=y, latent=latent)
             return loss
         
-        if(self._is_outer_enabled(optimizer_idx)):
-            self.train_acc(self._outer_loss_f.classify(latent), y)
-            self.log("train_step_acc_outer", self.train_acc, on_step=False, on_epoch=True) 
-            return loss
         raise Exception('Unacceptable state.')
 
     def get_obj_str_type(self) -> str:
@@ -263,9 +270,9 @@ class ClLatentDual(ClLatentChi):
 class ClLatentDualHalved(ClLatentDual):
 
     @dataclass
-    class Outer():
+    class Inner():
         @dataclass
-        class HalfOptimizer():
+        class Optimizer():
             @dataclass
             class First():        
                 type: str = None
@@ -282,28 +289,31 @@ class ClLatentDualHalved(ClLatentDual):
         super().__init__(*args, **kwargs)
         self.automatic_optimization = False
 
-        ClLatentDual.__after_init__(self.cfg_outer_optim_first_half, self.cfg_optim)
-        ClLatentDual.__after_init__(self.cfg_outer_optim_second_half, self.cfg_optim)
+        ClLatentDual.__after_init__(self.cfg_inner_optim_first, self.cfg_optim)
+        ClLatentDual.__after_init__(self.cfg_inner_optim_second, self.cfg_optim)
 
-        outer_first_half_optim_manager = ModelOptimizerManager(
-            optimizer_type=self.cfg_outer_optim_first_half.type,
+        inner_first_half_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_inner_optim_first.type,
         )
-        outer_second_half_optim_manager = ModelOptimizerManager(
-            optimizer_type=self.cfg_outer_optim_second_half.type,
+        inner_second_half_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_inner_optim_second.type,
         )
 
-        self.optimizer_construct_first_half_f = outer_first_half_optim_manager.get_optimizer(**self.cfg_outer_optim_first_half.kwargs)
-        self.optimizer_construct_second_half_f = outer_second_half_optim_manager.get_optimizer(**self.cfg_outer_optim_second_half.kwargs)
+        self.optimizer_construct_first_half_f = inner_first_half_optim_manager.get_optimizer(**self.cfg_inner_optim_first.kwargs)
+        self.optimizer_construct_second_half_f = inner_second_half_optim_manager.get_optimizer(**self.cfg_inner_optim_second.kwargs)
+
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner first optim{pp.COLOR.NORMAL} config: {self.cfg_inner_optim_first}")
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner second optim{pp.COLOR.NORMAL} config: {self.cfg_inner_optim_second}")
 
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
-            'cfg_outer_optim_first_half': ClLatentDualHalved.Outer.HalfOptimizer.First,
-            'cfg_outer_optim_second_half': ClLatentDualHalved.Outer.HalfOptimizer.Second,
+            'cfg_inner_optim_first': ClLatentDualHalved.Inner.Optimizer.First,
+            'cfg_inner_optim_second': ClLatentDualHalved.Inner.Optimizer.Second,
         })
         b.update({
-            'outer.optim_half.first': 'cfg_outer_optim_first_half',
-            'outer.optim_half.second': 'cfg_outer_optim_second_half',
+            'inner.optim.first': 'cfg_inner_optim_first',
+            'inner.optim.second': 'cfg_inner_optim_second',
         })
         return a, b
 
@@ -324,35 +334,84 @@ class ClLatentDualHalved(ClLatentDual):
             optim_first_half = self.optimizer_construct_first_half_f(self.model.model.first_half_params())
             optim_second_half = self.optimizer_construct_second_half_f(self.model.model.second_half_params())
         return [optim_first_half, optim_second_half]
-
-    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
-        first_half_optim, second_half_optim, outer_optim = self.optimizers()
-        if(self._is_inner_enabled(optimizer_idx)):
-            loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
-            self.log(f"{log_label}/island_CHI-K", loss_inner)
-
-            first_half_optim.zero_grad()
-            second_half_optim.zero_grad()
-
-            self.manual_backward(loss_inner)
-
-            second_half_optim.step()
-            first_half_optim.step()
-
-            return loss_inner
-        
-        if(self._is_outer_enabled(optimizer_idx)):
-            loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
-            self.log(f"{log_label}/island_CROSS-E", loss_outer)
-
-            outer_optim.zero_grad()
-            self.manual_backward(loss_outer)
-            outer_optim.step()
-
-            return loss_outer
-        raise Exception("Both losses (inner, outer) cannot be zero!")
+    
+    def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
+        self.log("train_loss/total", loss)
+        self.train_acc(self._loss_f.classify(latent), y)
+        self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
 
     def training_step(self, batch, batch_idx):
-        super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
-        # do not return anything
+        # call grandparent method
+        super(ClLatentDual, self).training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
+        # do not return anything, only change optimizer_idx to None
 
+    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx):
+        loss_inner_item = 0.
+        loss_outer_item = 0.
+        backward = False
+        first_half_optim, second_half_optim, outer_optim = self.optimizers()
+
+        outer_optim.zero_grad()
+        first_half_optim.zero_grad()
+        second_half_optim.zero_grad()
+
+        if(self._is_outer_enabled()):
+            loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
+            self.log(f"{log_label}/island_CROSS-E", loss_outer)
+            loss_outer_item = loss_outer.item()
+
+            self.manual_backward(loss_outer)
+            backward = True # backward only once from this point
+            outer_optim.step()
+
+        if(self._is_inner_enabled()):
+            loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
+            self.log(f"{log_label}/island_CHI-K", loss_inner)
+            loss_inner_item = loss_inner.item()
+
+            if not backward:
+                self.manual_backward(loss_inner)
+            second_half_optim.step()
+            first_half_optim.step()
+            
+        return loss_inner_item, loss_outer_item
+
+    def training_step_normal(self, batch, optimizer_idx):
+        x, y = batch
+        latent, _ = self.training_step_normal_setup(x=x, y=y)
+        log_label = "train_loss"
+
+        loss_inner_item, loss_outer_item = self.process_losses_normal(
+            x=x, 
+            y=y, 
+            latent=latent, 
+            log_label=log_label,
+            optimizer_idx=optimizer_idx,
+        )
+        
+        self.log(f"{log_label}/total", loss_inner_item + loss_outer_item)
+
+        if(self._is_inner_enabled()):
+            self.training_step_acc_inner(x=x, y=y, latent=latent)
+        if(self._is_outer_enabled()):
+            self.training_step_acc_outer(x=x, y=y, latent=latent)
+        return 0.0
+    
+    def training_step_dream(self, batch, optimizer_idx):
+        x, y = batch
+        latent, model_out_dict = self.training_step_dream_setup(x=x, y=y)
+        log_label = "train_loss_dream"
+
+        loss_inner_item, loss_outer_item = self.process_losses_normal(
+            x=x, 
+            y=y, 
+            latent=latent, 
+            model_out_dict=model_out_dict, 
+            log_label=log_label,
+            optimizer_idx=optimizer_idx,
+        )
+        self.log(f"{log_label}/total", loss_inner_item + loss_outer_item)
+        self.train_acc_dream(self._loss_f.classify(latent), y)
+        self.log(f"{log_label}train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
+
+        return 0.0

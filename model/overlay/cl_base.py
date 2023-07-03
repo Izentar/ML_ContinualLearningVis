@@ -86,6 +86,8 @@ class ClBase(LightningModule):
 
         self.schedulers = None
 
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: {pp.COLOR.NORMAL_4}Default optim{pp.COLOR.NORMAL} config: {self.cfg_optim}")
+
     def _get_config_maps(self):
         return {
             'cfg_optim': ClBase.Optimizer,
