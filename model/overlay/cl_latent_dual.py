@@ -70,19 +70,18 @@ class ClLatentDual(ClLatentChi):
             type: str = None
             reset_type: str = None
             kwargs: dict = None
-
-            def __after_init__(self, inner_optim):
-                if self.kwargs is not None:
-                    for k, v in self.kwargs.items():
-                        if v is None:
-                            self.kwargs[k] = inner_optim.kwargs[k]
-                else:
-                    self.kwargs = copy(inner_optim.kwargs)
-                if self.type is None:
-                    self.type = inner_optim.type
-                if self.reset_type is None:
-                    self.reset_type = inner_optim.reset_type
                 
+    def __after_init__(source_optim, other_optim):
+        if source_optim.kwargs is not None:
+            for k, v in source_optim.kwargs.items():
+                if v is None:
+                    source_optim.kwargs[k] = other_optim.kwargs[k]
+        else:
+            source_optim.kwargs = copy(other_optim.kwargs)
+        if source_optim.type is None:
+            source_optim.type = other_optim.type
+        if source_optim.reset_type is None:
+            source_optim.reset_type = other_optim.reset_type
 
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
@@ -105,7 +104,7 @@ class ClLatentDual(ClLatentChi):
         num_classes = kwargs['args'].model.num_classes
         model = ModelSufix(model, num_classes)
         super().__init__(*args, model=model, **kwargs)
-        self.cfg_outer_optim.__after_init__(self.cfg_optim)
+        ClLatentDual.__after_init__(self.cfg_outer_optim, self.cfg_optim)
         self._outer_loss_f = DummyLoss(torch.nn.CrossEntropyLoss())
 
         self._hook_handle = model.model.get_objective_layer().register_forward_hook(self._hook)
@@ -115,11 +114,11 @@ class ClLatentDual(ClLatentChi):
         self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self._saved_loss = 0.0
 
-        self.outer_optim_manager = ModelOptimizerManager(
+        outer_optim_manager = ModelOptimizerManager(
             optimizer_type=self.cfg_outer_optim.type,
             reset_optim_type=self.cfg_outer_optim.reset_type,
         )
-        self.optimizer_construct_outer_f = self.outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
+        self.optimizer_construct_outer_f = outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
         
         if(self.cfg_loss_chi_dual.inner_scale == 0.):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
@@ -262,9 +261,54 @@ class ClLatentDual(ClLatentChi):
         return 'ClLatentDual_' + super().get_obj_str_type()
         
 class ClLatentDualHalved(ClLatentDual):
+
+    @dataclass
+    class Outer():
+        @dataclass
+        class HalfOptimizer():
+            @dataclass
+            class First():        
+                type: str = None
+                reset_type: str = None
+                kwargs: dict = None
+
+            @dataclass
+            class Second():        
+                type: str = None
+                reset_type: str = None
+                kwargs: dict = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.automatic_optimization = False
+
+        ClLatentDual.__after_init__(self.cfg_outer_optim_first_half, self.cfg_optim)
+        ClLatentDual.__after_init__(self.cfg_outer_optim_second_half, self.cfg_optim)
+
+        outer_first_half_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_outer_optim_first_half.type,
+        )
+        outer_second_half_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_outer_optim_second_half.type,
+        )
+
+        self.optimizer_construct_first_half_f = outer_first_half_optim_manager.get_optimizer(**self.cfg_outer_optim_first_half.kwargs)
+        self.optimizer_construct_second_half_f = outer_second_half_optim_manager.get_optimizer(**self.cfg_outer_optim_second_half.kwargs)
+
+        print(self.cfg_outer_optim_first_half)
+        exit()
+
+    def _get_config_maps(self):
+        a, b = super()._get_config_maps()
+        a.update({
+            'cfg_outer_optim_first_half': ClLatentDualHalved.Outer.HalfOptimizer.First,
+            'cfg_outer_optim_second_half': ClLatentDualHalved.Outer.HalfOptimizer.Second,
+        })
+        b.update({
+            'outer.optim_half.first': 'cfg_outer_optim_first_half',
+            'outer.optim_half.second': 'cfg_outer_optim_second_half',
+        })
+        return a, b
 
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optims = super()._create_optimizer()
@@ -280,8 +324,8 @@ class ClLatentDualHalved(ClLatentDual):
             optim_first_half = torch.optim.Adam(self.model.model.first_half_params(), lr=optim_Adam_config["lr"])
             optim_second_half = torch.optim.Adam(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
         else:  
-            optim_first_half = self.optimizer_construct_f(self.model.model.first_half_params())
-            optim_second_half = self.optimizer_construct_outer_f(self.model.model.second_half_params())
+            optim_first_half = self.optimizer_construct_first_half_f(self.model.model.first_half_params())
+            optim_second_half = self.optimizer_construct_second_half_f(self.model.model.second_half_params())
         return [optim_first_half, optim_second_half]
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):

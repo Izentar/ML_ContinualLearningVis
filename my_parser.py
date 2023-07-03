@@ -48,12 +48,10 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--datamodule.test_num_workers", type=int, help='Number of test dataloader workers.')
     parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
 
-    parser.add_argument("--model.optim.type", type=str, default='adam', help='')
     parser.add_argument("--model.sched.type", type=str, default='none', help='Type of scheduler. Use "model.scheduler.steps" \
 to choose epoch at which to call it.')
     parser.add_argument("--model.sched.kwargs.gamma", default=1., type=float)
     parser.add_argument("--model.sched.kwargs.milestones", nargs='+', type=int)
-    parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
 
     parser.add_argument("--loop.save.model", action="store_true", help='Save model at the end of all training loops') ##**
     parser.add_argument("--loop.load.model", action="store_true", help='') ##**
@@ -79,6 +77,8 @@ Array size should be the same as num_loops for each loop.') ##**
 If less than in dataset then model will be trained and validated only using this number of classes')
     parser.add_argument("--model.latent.size", type=int)
 
+    parser.add_argument("--model.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')
     parser.add_argument("--model.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the optimizer.')
     parser.add_argument("--model.optim.kwargs.gamma", type=float, default=1, help='Gamma parameter for optimizer if exist.')
     parser.add_argument("--model.optim.kwargs.momentum", type=float, default=0, help='')
@@ -87,6 +87,8 @@ If less than in dataset then model will be trained and validated only using this
     parser.add_argument("--model.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--model.optim.kwargs.amsgrad", action="store_true", help='')
 
+    parser.add_argument("--model.outer.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.outer.optim.reset_type", type=str, default='default', help='')
     parser.add_argument("--model.outer.optim.kwargs.lr", type=float, help='')
     parser.add_argument("--model.outer.optim.kwargs.gamma", type=float, help='')
     parser.add_argument("--model.outer.optim.kwargs.momentum", type=float, help='')
@@ -94,6 +96,26 @@ If less than in dataset then model will be trained and validated only using this
     parser.add_argument("--model.outer.optim.kwargs.weight_decay", type=float, help='')
     parser.add_argument("--model.outer.optim.kwargs.betas", nargs='+', type=float, help='')
     parser.add_argument("--model.outer.optim.kwargs.amsgrad", help='')
+
+    parser.add_argument("--model.outer.optim_half.first.type", type=str, default='adam', help='')
+    parser.add_argument("--model.outer.optim_half.first.reset_type", type=str, default='default', help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.lr", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.gamma", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.momentum", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.dampening", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.weight_decay", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.betas", nargs='+', type=float, help='')
+    parser.add_argument("--model.outer.optim_half.first.kwargs.amsgrad", help='')
+
+    parser.add_argument("--model.outer.optim_half.second.type", type=str, default='adam', help='')
+    parser.add_argument("--model.outer.optim_half.second.reset_type", type=str, default='default', help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.lr", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.gamma", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.momentum", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.dampening", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.weight_decay", type=float, help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.betas", nargs='+', type=float, help='')
+    parser.add_argument("--model.outer.optim_half.second.kwargs.amsgrad", help='')
 
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
@@ -127,6 +149,8 @@ Without running this and running "loop.train_at" will run only test. Use this wi
     parser.add_argument("--datamodule.vis.multitarget.random", action="store_true", help='') 
     parser.add_argument("--datamodule.vis.batch_size", type=int, default=128, help='How many images \
 in batch during dreaming should be produced.')
+    
+    parser.add_argument("--datamodule.vis.optim.type", type=str, default='adam', help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.lr", type=float, default=1e-3, help='Learning rate of the dream optimizer.')
     parser.add_argument("--datamodule.vis.optim.kwargs.betas", nargs='+', type=float, default=[0.9, 0.999], help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.gamma", type=float, default=1, help='')
@@ -134,6 +158,7 @@ in batch during dreaming should be produced.')
     parser.add_argument("--datamodule.vis.optim.kwargs.amsgrad", action="store_true", help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.momentum", type=float, default=0, help='')
     parser.add_argument("--datamodule.vis.optim.kwargs.dampening", type=float, default=0, help='')
+
     parser.add_argument("--datamodule.vis.sched.type", type=str)
     parser.add_argument("--datamodule.vis.threshold", nargs='+', type=int, default=[512, ], help='How many iterations should \
 be used to generate an output image during dreaming, using only max value. Values lesser than max are points where the \
@@ -171,8 +196,6 @@ should be appart from each other. Should be greather than model.loss.chi.sigma. 
 
     parser.add_argument("--loop.vis.image_reg.l2.use_at", type=str, nargs='+', help='')   
     parser.add_argument("--loop.vis.image_reg.l2.coeff", type=float, default=1e-05, help='')
-
-    parser.add_argument("--datamodule.vis.optim.type", type=str, default='adam', help='')
 
 
     ######################################
