@@ -179,7 +179,6 @@ class ClLatentDual(ClLatentChi):
                 optim = self.optimizer_construct_f(self.model.model.parameters())        
                 optim2 = self.optimizer_construct_outer_f(self.model.outer_params())      
                 self._dual_optim = True 
-        self.optimizer = optim
         if(optim2 is None):
             return optim
         return [optim, optim2]
@@ -270,28 +269,23 @@ class ClLatentDualHalved(ClLatentDual):
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optims = super()._create_optimizer()
         halves = self._create_optimizer_halves()
-        if(isinstance(optims, list)):
-            return halves.append(optims[-1])
-        else:
-            return halves.append(optims)
+        if(not self._dual_optim):
+            raise Exception("Cannot have halved optimizers when only using one optimizer.")
+        halves.append(optims[-1])
+        return halves
+            
 
     def _create_optimizer_halves(self):
         if(self.optimizer_construct_f is None):
             optim_first_half = torch.optim.Adam(self.model.model.first_half_params(), lr=optim_Adam_config["lr"])
             optim_second_half = torch.optim.Adam(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
         else:  
-            optim_first_half = self.optimizer_construct_f(self.model.model.first_half_params(), lr=optim_Adam_config["lr"])
-            optim_second_half = self.optimizer_construct_outer_f(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
+            optim_first_half = self.optimizer_construct_f(self.model.model.first_half_params())
+            optim_second_half = self.optimizer_construct_outer_f(self.model.model.second_half_params())
         return [optim_first_half, optim_second_half]
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
-        first_half_optim, second_half_optim = self.optimizers()
-        if(len(optims) == 2):
-            first_half_optim, second_half_optim = optims
-        elif(len(optims) == 3):
-            first_half_optim, second_half_optim, outer_optim = optims
-        else:
-            raise Exception("Internal error. Unreachable state.")
+        first_half_optim, second_half_optim, outer_optim = self.optimizers()
         if(self._is_inner_enabled(optimizer_idx)):
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
@@ -317,7 +311,7 @@ class ClLatentDualHalved(ClLatentDual):
             return loss_outer
         raise Exception("Both losses (inner, outer) cannot be zero!")
 
-    def training_step(self, batch, batch_idx, optimizer_idx=None):
-        super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
+    def training_step(self, batch, batch_idx):
+        super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
         # do not return anything
 

@@ -112,7 +112,7 @@ class ClLatentOneHot(ClLatent):
             latent=latent, 
             model_out_dict=model_out_dict,
             log_label=log_label,
-            dataloader_idx=dataloader_idx
+            optimizer_idx=optimizer_idx
         )
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):

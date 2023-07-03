@@ -84,8 +84,7 @@ class ClBase(LightningModule):
         self.scheduler_construct_f = self.optim_manager.get_scheduler(**self.cfg_sched.kwargs)
         self.optimizer_restart_params_f = self.optim_manager.get_reset_optimizer_f(**self.cfg_optim.kwargs)
 
-        self.scheduler = None
-        self.optimizer = None
+        self.schedulers = None
 
     def _get_config_maps(self):
         return {
@@ -185,34 +184,39 @@ class ClBase(LightningModule):
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         pass
 
-    def _create_scheduler(self, optim):
+    def _create_scheduler(self, optim, optim_idx, optim_len):
         if(self.scheduler_construct_f is not None):
             if(isinstance(optim, list)):
                 optim = optim[0]
-            self.scheduler = self.scheduler_construct_f(optim)
+            if(self.schedulers is None):
+                self.schedulers = [None] * optim_len
+            self.schedulers[optim_idx] = optim_idx, self.scheduler_construct_f(optim)
 
     def _create_optimizer(self) -> torch.optim.Optimizer:
         if(self.optimizer_construct_f is None):
             optim = torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])
         else:
             optim = self.optimizer_construct_f(self.parameters())        
-        self.optimizer = optim
         return optim
 
     def configure_optimizers(self):
         optims = self._create_optimizer()
-        self._create_scheduler(optims)
+        for optim_idx, o in enumerate(optims):
+            self._create_scheduler(o, optim_idx=optim_idx, optim_len=len(optims))
         return optims
 
     # training_epoch_end
     def training_epoch_end(self, output):
-        if(self.scheduler is not None):
+        if(self.schedulers is None or len(self.schedulers) == 0):
+            return
+        optims = self.optimizers()
+        for optim_idx, opt in enumerate(optims):
             if(self.current_epoch >= self.data_passer['epoch_per_task'] - 1):
-                self.optimizer_restart_params_f(self.optimizer)
-                self.scheduler = self.scheduler_construct_f(self.optimizer)
-                pp.sprint(f'{pp.COLOR.NORMAL}Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.scheduler.get_last_lr()}')
+                self.optimizer_restart_params_f(opt, optim_idx=optim_idx)
+                self.schedulers[optim_idx] = self.scheduler_construct_f(opt, optim_idx=optim_idx)
+                pp.sprint(f'{pp.COLOR.NORMAL}Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.schedulers[optim_idx].get_last_lr()}')
                 return
-            last_lr = self.scheduler.get_last_lr()
-            self.scheduler.step()
-            if(last_lr != self.scheduler.get_last_lr()):
-                pp.sprint(f"{pp.COLOR.NORMAL}Changed learning rate from: '{last_lr}' to: '{self.scheduler._last_lr}'")
+            last_lr = self.schedulers[optim_idx].get_last_lr()
+            self.schedulers[optim_idx].step()
+            if(last_lr != self.schedulers[optim_idx].get_last_lr()):
+                pp.sprint(f"{pp.COLOR.NORMAL}Changed learning rate from: '{last_lr}' to: '{self.schedulers[optim_idx]._last_lr}' for optimizer index: {optim_idx}")

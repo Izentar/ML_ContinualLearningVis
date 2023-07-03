@@ -165,10 +165,10 @@ class CreatorResNet(nn.Module):
         return out
  
     def first_half_params(self):
-        return [self.conv1, self.bn1, self.layer1, self.layer2, self.layer3]
+        return [self.conv1.weight, self.bn1.weight] + list(self.layer1.parameters()) + list(self.layer2.parameters()) + list(self.layer3.parameters())
 
     def second_half_params(self):
-        return [self.layer4, self.linear]
+        return [self.linear.weight] + list(self.layer4.parameters())
 
 class CustomResNet34(nn.Module, ModelBase):
     def __init__(self, num_classes, *args, **kwargs):

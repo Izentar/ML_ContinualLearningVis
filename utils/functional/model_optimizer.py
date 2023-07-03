@@ -2,7 +2,7 @@ import torch
 from utils.utils import search_kwargs
 
 def default_reset_optim(lr, **kwargs):
-    def inner_default_reset_optim(optim, sched=None):
+    def inner_default_reset_optim(optim, optim_idx, sched=None):
         for g in optim.param_groups:
             g['lr'] = lr
     return inner_default_reset_optim
