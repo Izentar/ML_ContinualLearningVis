@@ -295,9 +295,6 @@ class ClLatentDualHalved(ClLatentDual):
         self.optimizer_construct_first_half_f = outer_first_half_optim_manager.get_optimizer(**self.cfg_outer_optim_first_half.kwargs)
         self.optimizer_construct_second_half_f = outer_second_half_optim_manager.get_optimizer(**self.cfg_outer_optim_second_half.kwargs)
 
-        print(self.cfg_outer_optim_first_half)
-        exit()
-
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
