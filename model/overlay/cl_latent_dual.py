@@ -137,7 +137,7 @@ class ClLatentDual(ClLatentChi):
         self._inner_output = output
 
     def _is_inner_turn(self, optimizer_idx=None):
-        return (not self._dual_optim or optimizer_idx is None) or (self._dual_optim and self.optimizer_idx == 0)
+        return (not self._dual_optim or optimizer_idx is None) or (self._dual_optim and optimizer_idx == 0)
 
     def _is_inner_enabled(self, optimizer_idx=None):
         return (self._is_inner_turn(optimizer_idx) and self.cfg_loss_chi_dual.inner_scale != 0.) or self.cfg_loss_chi_dual.outer_scale == 0.
@@ -148,7 +148,7 @@ class ClLatentDual(ClLatentChi):
     def _is_outer_enabled(self, optimizer_idx=None):
         return (self._is_outer_turn(optimizer_idx) and self.cfg_loss_chi_dual.outer_scale != 0)
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         if(self._is_inner_enabled(optimizer_idx)):
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
@@ -194,7 +194,7 @@ class ClLatentDual(ClLatentChi):
         self.log("valid_acc_inner", self.valid_acc_inner.compute())
 
     def _validation_step_outer(self, latent, y, dataloader_idx):
-        if(self._is_outer_enabled(optimizer_idx)):
+        if(not self._is_outer_enabled()):
             return
         val_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
@@ -221,7 +221,7 @@ class ClLatentDual(ClLatentChi):
         self.log("test_acc_inner", self.test_acc_inner)
 
     def _test_step_outer(self, latent, y):
-        if(self._is_outer_enabled(optimizer_idx)):
+        if(not self._is_outer_enabled()):
             return
         test_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("test_loss_outer", test_loss_outer)
@@ -284,7 +284,7 @@ class ClLatentDualHalved(ClLatentDual):
             optim_second_half = self.optimizer_construct_outer_f(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
         return [optim_first_half, optim_second_half]
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         first_half_optim, second_half_optim = self.optimizers()
         if(len(optims) == 2):
             first_half_optim, second_half_optim = optims

@@ -54,7 +54,7 @@ class ClLatentChi(ClLatent):
         })
         return a, b
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         loss = self._loss_f(latent, y)
         self.log(f"{log_label}/island", loss)
 

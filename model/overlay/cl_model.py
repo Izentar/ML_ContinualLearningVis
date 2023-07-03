@@ -154,7 +154,7 @@ class ClModel(cl_base.ClBase):
         self.train_acc(self._loss_f.classify(latent), y)
         self.log("train_step_acc", self.train_acc, on_step=False, on_epoch=True)
 
-    def process_losses_normal(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         loss = self._loss_f(latent, y)
         self.log(f"{log_label}/classification_loss", loss)
         return loss
@@ -183,7 +183,7 @@ class ClModel(cl_base.ClBase):
         self.log("train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
         return loss
 
-    def process_losses_dreams(self, x, y, latent, log_label, model_out_dict=None, optimizer_idx):
+    def process_losses_dreams(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         return self.process_losses_normal(
             x=x, 
             y=y, 
