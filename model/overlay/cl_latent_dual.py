@@ -145,9 +145,6 @@ class ClLatentDual(ClLatentChi):
         if(self.cfg_loss_chi_dual.inner_scale == 0. and self.cfg_loss_chi_dual.outer_scale == 0.):
             raise Exception("Both losses (inner, outer) cannot be zero!")
 
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}outer optim{pp.COLOR.NORMAL} config: {self.cfg_outer_optim}")
-        pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}outer sched{pp.COLOR.NORMAL_2} config: {self.cfg_outer_sched}")
-
         # Not need here to enable this. Calculating double loss in this case does not
         # affect the result. It can only make training slower. Here I use optimizer_idx argument. 
         #self.automatic_optimization = False
@@ -202,37 +199,12 @@ class ClLatentDual(ClLatentChi):
 
         optim = optim_construct_f(optim_params)
         if(optim2_params is None):
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}optim{pp.COLOR.NORMAL} config: {self.cfg_optim}")
             return optim
             
         optim2 = optim2_construct_f(optim2_params)
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}outer optim{pp.COLOR.NORMAL} config: {self.cfg_outer_optim}")
         return optim, optim2
-
-
-
-
-        if(optimizer_construct_f is None):
-            if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
-                optim = torch.optim.Adam(self.model.parameters(), lr=optim_Adam_config["lr"])
-                self._dual_optim = False
-            else:
-                optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
-                optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
-                self._dual_optim = True  
-                self.schedulers_construct_f.append(self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs))
-        else:
-            if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
-                optim = optimizer_construct_f(self.model.parameters()) 
-                self._dual_optim = False
-            else:
-                optimizer_construct_outer_f = self.outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
-                assert optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
-                optim = optimizer_construct_f(self.model.model.parameters())        
-                optim2 = optimizer_construct_outer_f(self.model.outer_params())      
-                self._dual_optim = True 
-                self.schedulers_construct_f.append(self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs))
-        if(optim2 is None):
-            return optim
-        return [optim, optim2]
     
     def get_scheduler_construct(self, idx):
         match idx:
@@ -415,8 +387,6 @@ class ClLatentDualHalved(ClLatentDual):
         if(not self._dual_optim):
             raise Exception("Cannot have halved optimizers when only using one optimizer.")
         halves.append(optims[-1])
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner first optim{pp.COLOR.NORMAL} config: {self.cfg_inner_first_optim}")
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner second optim{pp.COLOR.NORMAL} config: {self.cfg_inner_second_optim}")
         return halves
             
 
@@ -432,6 +402,8 @@ class ClLatentDualHalved(ClLatentDual):
             optim_second_half = torch.optim.Adam(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
         else:
             optim_second_half = optim_2(self.model.model.second_half_params())
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner first optim{pp.COLOR.NORMAL} config: {self.cfg_inner_first_optim}")
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner second optim{pp.COLOR.NORMAL} config: {self.cfg_inner_second_optim}")
         return [optim_first_half, optim_second_half]
     
     def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
