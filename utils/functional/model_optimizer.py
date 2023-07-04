@@ -44,8 +44,8 @@ class ModelOptimizerManager():
     SCHEDULERS = {
         'NONE': none,
         'EXPONENTIAL-SCHED': exponential_scheduler,
-        'STEP_SCHED': step_scheduler,
-        'MULTISTEP_SCHED': mulitstep_scheduler,
+        'STEP-SCHED': step_scheduler,
+        'MULTISTEP-SCHED': mulitstep_scheduler,
     }
 
     RESER_OPTIM = {
@@ -65,6 +65,13 @@ class ModelOptimizerManager():
         self.optimizer_type = optimizer_type
         self.scheduler_type = scheduler_type
         self.reset_optim_type = reset_optim_type
+
+        if not (self.optimizer_type is None or isinstance(self.optimizer_type, str)):
+            raise Exception(f'Bad optimizer type: {type(self.optimizer_type)}')
+        if not (self.scheduler_type is None or isinstance(self.scheduler_type, str)):
+            raise Exception(f'Bad scheduler type: {type(self.scheduler_type)}')
+        if not (self.reset_optim_type is None or isinstance(self.reset_optim_type, str)):
+            raise Exception(f'Bad reset optimizer type: {type(self.reset_optim_type)}')
 
     def get_optimizer(self, **kwargs):
         if(self.optimizer_type is None or self.optimizer_type.upper() == 'NONE'):

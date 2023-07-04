@@ -60,8 +60,7 @@ class ClModel(cl_base.ClBase):
         if(loss_f is not None):
             self._setup_loss_f(loss_f)
 
-        self.save_hyperparameters(ignore=['model', '_loss_f', 'loss_f', 'optim_manager', 
-        'optimizer_construct_f', 'scheduler_construct_f', 'optimizer_restart_params_f', 'cfg_map'])
+        self.save_hyperparameters(ignore=['model', '_loss_f', 'loss_f', 'optim_manager', 'cfg_map'])
 
     def _setup_loss_f(self, loss_f):
         self._loss_f = DummyLoss(loss_f) if not isinstance(loss_f, BaseLoss) else loss_f

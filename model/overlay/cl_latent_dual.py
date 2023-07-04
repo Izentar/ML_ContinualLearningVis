@@ -70,8 +70,23 @@ class ClLatentDual(ClLatentChi):
             type: str = None
             reset_type: str = None
             kwargs: dict = None
+
+        @dataclass
+        class Scheduler():
+            type: str = None
+            kwargs: dict = None
+
+    def __after_init_sched__(source_sched, other_sched):
+        if source_sched.kwargs is not None:
+            for k, v in source_sched.kwargs.items():
+                if v is None:
+                    source_sched.kwargs[k] = other_sched.kwargs[k]
+        else:
+            source_sched.kwargs = copy(other_sched.kwargs)
+        if source_sched.type is None:
+            source_sched.type = other_sched.type
                 
-    def __after_init__(source_optim, other_optim):
+    def __after_init_optim__(source_optim, other_optim):
         if source_optim.kwargs is not None:
             for k, v in source_optim.kwargs.items():
                 if v is None:
@@ -88,10 +103,12 @@ class ClLatentDual(ClLatentChi):
         a.update({
             'cfg_loss_chi_dual': ClLatentDual.Loss.Chi.Dual,
             'cfg_outer_optim': ClLatentDual.Outer.Optimizer,
+            'cfg_outer_sched': ClLatentDual.Outer.Scheduler,
         })
         b.update({
             'loss.chi.dual': 'cfg_loss_chi_dual',
             'outer.optim': 'cfg_outer_optim',
+            'outer.sched': 'cfg_outer_sched',
         })
         return a, b
 
@@ -104,7 +121,8 @@ class ClLatentDual(ClLatentChi):
         num_classes = kwargs['args'].model.num_classes
         model = ModelSufix(model, num_classes)
         super().__init__(*args, model=model, **kwargs)
-        ClLatentDual.__after_init__(self.cfg_outer_optim, self.cfg_optim)
+        ClLatentDual.__after_init_optim__(self.cfg_outer_optim, self.cfg_optim)
+        ClLatentDual.__after_init_sched__(self.cfg_outer_sched, self.cfg_sched)
         self._outer_loss_f = DummyLoss(torch.nn.CrossEntropyLoss())
 
         self._hook_handle = model.model.get_objective_layer().register_forward_hook(self._hook)
@@ -114,11 +132,11 @@ class ClLatentDual(ClLatentChi):
         self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self._saved_loss = 0.0
 
-        outer_optim_manager = ModelOptimizerManager(
+        self.outer_optim_manager = ModelOptimizerManager(
             optimizer_type=self.cfg_outer_optim.type,
+            scheduler_type=self.cfg_outer_sched.type,
             reset_optim_type=self.cfg_outer_optim.reset_type,
         )
-        self.optimizer_construct_outer_f = outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
         
         if(self.cfg_loss_chi_dual.inner_scale == 0.):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
@@ -128,6 +146,7 @@ class ClLatentDual(ClLatentChi):
             raise Exception("Both losses (inner, outer) cannot be zero!")
 
         pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}outer optim{pp.COLOR.NORMAL} config: {self.cfg_outer_optim}")
+        pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}outer sched{pp.COLOR.NORMAL_2} config: {self.cfg_outer_sched}")
 
         # Not need here to enable this. Calculating double loss in this case does not
         # affect the result. It can only make training slower. Here I use optimizer_idx argument. 
@@ -161,8 +180,37 @@ class ClLatentDual(ClLatentChi):
         raise Exception("Both losses (inner, outer) cannot be zero!")
     
     def _create_optimizer(self) -> torch.optim.Optimizer:
-        optim2 = None
-        if(self.optimizer_construct_f is None):
+        optim2_params = None
+        optimizer_construct_f = self.optim_manager.get_optimizer(**self.cfg_optim.kwargs)
+        if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
+            optim_params = self.model.parameters()
+            self._dual_optim = False
+        else:
+            optim_params = self.model.model.parameters()
+            optim2_params = self.model.outer_params()
+            self._dual_optim = True  
+
+        if(optimizer_construct_f is None):
+            optim_construct_f = lambda params: torch.optim.Adam(params, lr=optim_Adam_config["lr"])
+        else:
+            optim_construct_f = lambda params: optimizer_construct_f(params) 
+
+        optimizer_construct_outer_f = self.outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
+        if(optimizer_construct_outer_f is None):
+            raise Exception("Internal error, optimizer_construct_outer_f cannot be None")
+        optim2_construct_f = lambda params: optimizer_construct_outer_f(params)  
+
+        optim = optim_construct_f(optim_params)
+        if(optim2_params is None):
+            return optim
+            
+        optim2 = optim2_construct_f(optim2_params)
+        return optim, optim2
+
+
+
+
+        if(optimizer_construct_f is None):
             if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
                 optim = torch.optim.Adam(self.model.parameters(), lr=optim_Adam_config["lr"])
                 self._dual_optim = False
@@ -170,18 +218,32 @@ class ClLatentDual(ClLatentChi):
                 optim = torch.optim.Adam(self.model.model.parameters(), lr=optim_Adam_config["lr"])
                 optim2 = torch.optim.Adam(self.model.outer_params(), lr=optim_Adam_config["lr"])
                 self._dual_optim = True  
+                self.schedulers_construct_f.append(self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs))
         else:
             if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
-                optim = self.optimizer_construct_f(self.model.parameters()) 
+                optim = optimizer_construct_f(self.model.parameters()) 
                 self._dual_optim = False
             else:
-                assert self.optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
-                optim = self.optimizer_construct_f(self.model.model.parameters())        
-                optim2 = self.optimizer_construct_outer_f(self.model.outer_params())      
+                optimizer_construct_outer_f = self.outer_optim_manager.get_optimizer(**self.cfg_outer_optim.kwargs)
+                assert optimizer_construct_outer_f is not None, "Internal error, optimizer_construct_outer_f cannot be None"
+                optim = optimizer_construct_f(self.model.model.parameters())        
+                optim2 = optimizer_construct_outer_f(self.model.outer_params())      
                 self._dual_optim = True 
+                self.schedulers_construct_f.append(self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs))
         if(optim2 is None):
             return optim
         return [optim, optim2]
+    
+    def get_scheduler_construct(self, idx):
+        match idx:
+            case 0:
+                return super().get_scheduler_construct(idx)
+            case 1:
+                pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}outer sched{pp.COLOR.NORMAL_2} config: {self.cfg_outer_sched}")
+                return self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs)
+            case _:
+                raise Exception(f"Expected at most 2 optimizers. Requested index: {idx}")
+
     
     def _validation_step_inner(self, y):
         if(not self._is_inner_enabled()):
@@ -272,50 +334,80 @@ class ClLatentDualHalved(ClLatentDual):
     @dataclass
     class Inner():
         @dataclass
-        class Optimizer():
+        class First():
             @dataclass
-            class First():        
+            class Optimizer():        
                 type: str = None
                 reset_type: str = None
                 kwargs: dict = None
 
             @dataclass
-            class Second():        
+            class Scheduler():
+                type: str = None
+                kwargs: dict = None
+
+        @dataclass
+        class Second():
+            @dataclass
+            class Optimizer():        
                 type: str = None
                 reset_type: str = None
+                kwargs: dict = None
+            
+            @dataclass
+            class Scheduler():
+                type: str = None
                 kwargs: dict = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.automatic_optimization = False
 
-        ClLatentDual.__after_init__(self.cfg_inner_optim_first, self.cfg_optim)
-        ClLatentDual.__after_init__(self.cfg_inner_optim_second, self.cfg_optim)
+        ClLatentDual.__after_init_optim__(self.cfg_inner_first_optim, self.cfg_optim)
+        ClLatentDual.__after_init_optim__(self.cfg_inner_second_optim, self.cfg_optim)
 
-        inner_first_half_optim_manager = ModelOptimizerManager(
-            optimizer_type=self.cfg_inner_optim_first.type,
+        ClLatentDual.__after_init_sched__(self.cfg_outer_sched, self.cfg_sched)
+        ClLatentDual.__after_init_sched__(self.cfg_outer_sched, self.cfg_sched)
+
+
+        self.inner_first_half_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_inner_first_optim.type,
+            scheduler_type=self.cfg_inner_first_sched.type,
         )
-        inner_second_half_optim_manager = ModelOptimizerManager(
-            optimizer_type=self.cfg_inner_optim_second.type,
+        self.inner_second_half_optim_manager = ModelOptimizerManager(
+            optimizer_type=self.cfg_inner_second_optim.type,
+            scheduler_type=self.cfg_inner_second_sched.type,
         )
-
-        self.optimizer_construct_first_half_f = inner_first_half_optim_manager.get_optimizer(**self.cfg_inner_optim_first.kwargs)
-        self.optimizer_construct_second_half_f = inner_second_half_optim_manager.get_optimizer(**self.cfg_inner_optim_second.kwargs)
-
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner first optim{pp.COLOR.NORMAL} config: {self.cfg_inner_optim_first}")
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner second optim{pp.COLOR.NORMAL} config: {self.cfg_inner_optim_second}")
 
     def _get_config_maps(self):
         a, b = super()._get_config_maps()
         a.update({
-            'cfg_inner_optim_first': ClLatentDualHalved.Inner.Optimizer.First,
-            'cfg_inner_optim_second': ClLatentDualHalved.Inner.Optimizer.Second,
+            'cfg_inner_first_optim': ClLatentDualHalved.Inner.First.Optimizer,
+            'cfg_inner_second_optim': ClLatentDualHalved.Inner.Second.Optimizer,
+            'cfg_inner_first_sched': ClLatentDualHalved.Inner.First.Scheduler,
+            'cfg_inner_second_sched': ClLatentDualHalved.Inner.Second.Scheduler,
         })
         b.update({
-            'inner.optim.first': 'cfg_inner_optim_first',
-            'inner.optim.second': 'cfg_inner_optim_second',
+            'inner.first.optim': 'cfg_inner_first_optim',
+            'inner.second.optim': 'cfg_inner_second_optim',
+            'inner.first.sched': 'cfg_inner_first_sched',
+            'inner.second.sched': 'cfg_inner_second_sched',
         })
         return a, b
+    
+    def get_scheduler_construct(self, idx):
+        match idx:
+            case 0:
+                pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}inner first sched{pp.COLOR.NORMAL_2} config: {self.cfg_inner_first_sched}")
+                return self.inner_first_half_optim_manager.get_scheduler(**self.cfg_inner_first_sched.kwargs)
+            case 1:
+                pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}inner second sched{pp.COLOR.NORMAL_2} config: {self.cfg_inner_second_sched}")
+                return self.inner_second_half_optim_manager.get_scheduler(**self.cfg_inner_second_sched.kwargs)
+            case 2:
+                pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}outer sched{pp.COLOR.NORMAL_2} config: {self.cfg_outer_sched}")
+                return self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs)
+            case _:
+                raise Exception(f"Expected at most 2 optimizers. Requested index: {idx}")
 
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optims = super()._create_optimizer()
@@ -323,16 +415,23 @@ class ClLatentDualHalved(ClLatentDual):
         if(not self._dual_optim):
             raise Exception("Cannot have halved optimizers when only using one optimizer.")
         halves.append(optims[-1])
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner first optim{pp.COLOR.NORMAL} config: {self.cfg_inner_first_optim}")
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Used {pp.COLOR.NORMAL_4}inner second optim{pp.COLOR.NORMAL} config: {self.cfg_inner_second_optim}")
         return halves
             
 
     def _create_optimizer_halves(self):
-        if(self.optimizer_construct_f is None):
+        optim_1 = self.inner_first_half_optim_manager.get_optimizer(**self.cfg_inner_first_optim.kwargs)
+        optim_2 = self.inner_second_half_optim_manager.get_optimizer(**self.cfg_inner_second_optim.kwargs)
+        if(optim_1 is None):
             optim_first_half = torch.optim.Adam(self.model.model.first_half_params(), lr=optim_Adam_config["lr"])
+        else:
+            optim_first_half = optim_1(self.model.model.first_half_params())
+
+        if(optim_2 is None):
             optim_second_half = torch.optim.Adam(self.model.model.second_half_params(), lr=optim_Adam_config["lr"])
-        else:  
-            optim_first_half = self.optimizer_construct_first_half_f(self.model.model.first_half_params())
-            optim_second_half = self.optimizer_construct_second_half_f(self.model.model.second_half_params())
+        else:
+            optim_second_half = optim_2(self.model.model.second_half_params())
         return [optim_first_half, optim_second_half]
     
     def training_step_acc(self, x, y, loss, latent, model_out_dict, optimizer_idx):
