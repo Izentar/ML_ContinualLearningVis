@@ -199,8 +199,11 @@ class ClBase(LightningModule):
     def configure_optimizers(self):
         optims = self._create_optimizer()
         self.schedulers = {}
-        for optim_idx, optim in enumerate(optims):
-            self._create_scheduler(optim, optim_idx=optim_idx)
+        if(not isinstance(optims, Sequence)):
+            self._create_scheduler(optims, optim_idx=0)
+        else:
+            for optim_idx, optim in enumerate(optims):
+                self._create_scheduler(optim, optim_idx=optim_idx)
         return optims
 
     # training_epoch_end
