@@ -306,6 +306,10 @@ class ClLatentDualHalved(ClLatentDual):
     @dataclass
     class Inner():
         @dataclass
+        class Config():
+            backward_chi_loss: bool = True
+
+        @dataclass
         class First():
             @dataclass
             class Optimizer():        
@@ -358,12 +362,14 @@ class ClLatentDualHalved(ClLatentDual):
             'cfg_inner_second_optim': ClLatentDualHalved.Inner.Second.Optimizer,
             'cfg_inner_first_sched': ClLatentDualHalved.Inner.First.Scheduler,
             'cfg_inner_second_sched': ClLatentDualHalved.Inner.Second.Scheduler,
+            'cfg_inner_cfg': ClLatentDualHalved.Inner.Config,
         })
         b.update({
             'inner.first.optim': 'cfg_inner_first_optim',
             'inner.second.optim': 'cfg_inner_second_optim',
             'inner.first.sched': 'cfg_inner_first_sched',
             'inner.second.sched': 'cfg_inner_second_sched',
+            'inner.cfg': 'cfg_inner_cfg',
         })
         return a, b
     
@@ -416,23 +422,41 @@ class ClLatentDualHalved(ClLatentDual):
         super(ClLatentDual, self).training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
         # do not return anything, only change optimizer_idx to None
 
-    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx):
+    def _process_losses_normal_full_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
+        loss_inner_item = 0.
+        loss_outer_item = 0.
+        sum_loss = None
+
+        if(self._is_outer_enabled()):
+            outer_optim.zero_grad()
+            loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
+            self.log(f"{log_label}/island_CROSS-E", loss_outer)
+            loss_outer_item = loss_outer.item()
+            sum_loss = loss_outer
+
+        if(self._is_inner_enabled()):
+            first_half_optim.zero_grad()
+            second_half_optim.zero_grad()
+            loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
+            self.log(f"{log_label}/island_CHI-K", loss_inner)
+            loss_inner_item = loss_inner.item()
+            if(sum_loss is None):
+                sum_loss = loss_inner_item
+            else:
+                sum_loss += loss_inner
+            self.manual_backward(sum_loss)
+            first_half_optim.step()
+            second_half_optim.step()
+            if(self._is_outer_enabled()):
+                outer_optim.step()
+        return loss_inner_item, loss_outer_item
+    
+    def _process_losses_normal_partial_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
         loss_inner_item = 0.
         loss_outer_item = 0.
         backward = False
-        optims = self.optimizers()
-        if(len(optims) == 2):
-            first_half_optim, second_half_optim = optims
-        elif(len(optims) == 3):
-            first_half_optim, second_half_optim, outer_optim = optims
-            outer_optim.zero_grad()
-        else:
-            raise Exception('Invalid internal state.')
-
-        first_half_optim.zero_grad()
-        second_half_optim.zero_grad()
-
         if(self._is_outer_enabled()):
+            outer_optim.zero_grad()
             loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
             self.log(f"{log_label}/island_CROSS-E", loss_outer)
             loss_outer_item = loss_outer.item()
@@ -442,6 +466,8 @@ class ClLatentDualHalved(ClLatentDual):
             outer_optim.step()
 
         if(self._is_inner_enabled()):
+            first_half_optim.zero_grad()
+            second_half_optim.zero_grad()
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             loss_inner_item = loss_inner.item()
@@ -450,8 +476,25 @@ class ClLatentDualHalved(ClLatentDual):
                 self.manual_backward(loss_inner)
             second_half_optim.step()
             first_half_optim.step()
-            
+
         return loss_inner_item, loss_outer_item
+
+    def process_losses_normal(self, x, y, latent, log_label, optimizer_idx):
+        optims = self.optimizers()
+        if(len(optims) == 2):
+            first_half_optim, second_half_optim = optims
+        elif(len(optims) == 3):
+            first_half_optim, second_half_optim, outer_optim = optims
+            outer_optim.zero_grad()
+        else:
+            raise Exception('Invalid internal state.')
+
+        if(self.cfg_inner_cfg.backward_chi_loss):
+            return self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label, 
+              first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+        
+        return self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label, 
+              first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
 
     def training_step_normal(self, batch, optimizer_idx):
         x, y = batch
