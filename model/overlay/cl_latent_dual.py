@@ -307,7 +307,7 @@ class ClLatentDualHalved(ClLatentDual):
     class Inner():
         @dataclass
         class Config():
-            backward_chi_loss: bool = True
+            only_backward_outer: bool = True
 
         @dataclass
         class First():
@@ -489,7 +489,7 @@ class ClLatentDualHalved(ClLatentDual):
         else:
             raise Exception('Invalid internal state.')
 
-        if(self.cfg_inner_cfg.backward_chi_loss):
+        if(not self.cfg_inner_cfg.only_backward_outer):
             return self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label, 
               first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
         
