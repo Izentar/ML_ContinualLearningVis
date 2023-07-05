@@ -209,6 +209,8 @@ class ClBase(LightningModule):
     # training_epoch_end
     def training_epoch_end(self, output):
         optims = self.optimizers()
+        if(not isinstance(optims, Sequence)):
+            optims = [optims]
         for optim_idx, opt in enumerate(optims):
             if(optim_idx not in self.schedulers):
                 continue
