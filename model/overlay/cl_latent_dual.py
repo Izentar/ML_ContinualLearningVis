@@ -153,13 +153,13 @@ class ClLatentDual(ClLatentChi):
         self._inner_output = output
 
     def _is_inner_turn(self, optimizer_idx=None):
-        return (not self._dual_optim or optimizer_idx is None) or (self._dual_optim and optimizer_idx == 0)
+        return (not self._outer_optim_disabled or optimizer_idx is None) or (self._outer_optim_disabled and optimizer_idx == 0)
 
     def _is_inner_enabled(self, optimizer_idx=None):
         return (self._is_inner_turn(optimizer_idx) and self.cfg_loss_chi_dual.inner_scale != 0.) or self.cfg_loss_chi_dual.outer_scale == 0.
 
     def _is_outer_turn(self, optimizer_idx=None):
-        return (not self._dual_optim or optimizer_idx is None) or (self._dual_optim and optimizer_idx == 1)
+        return (not self._outer_optim_disabled or optimizer_idx is None) or (self._outer_optim_disabled and optimizer_idx == 1)
 
     def _is_outer_enabled(self, optimizer_idx=None):
         return (self._is_outer_turn(optimizer_idx) and self.cfg_loss_chi_dual.outer_scale != 0)
@@ -180,12 +180,12 @@ class ClLatentDual(ClLatentChi):
         optim2_params = None
         optimizer_construct_f = self.optim_manager.get_optimizer(**self.cfg_optim.kwargs)
         if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
-            optim_params = self.model.parameters()
-            self._dual_optim = False
+            optim_params = self.model.model.parameters()
+            self._outer_optim_disabled = False
         else:
             optim_params = self.model.model.parameters()
             optim2_params = self.model.outer_params()
-            self._dual_optim = True  
+            self._outer_optim_disabled = True  
 
         if(optimizer_construct_f is None):
             optim_construct_f = lambda params: torch.optim.Adam(params, lr=optim_Adam_config["lr"])
@@ -384,8 +384,8 @@ class ClLatentDualHalved(ClLatentDual):
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optims = super()._create_optimizer()
         halves = self._create_optimizer_halves()
-        if(not self._dual_optim):
-            raise Exception("Cannot have halved optimizers when only using one optimizer.")
+        if(not self._outer_optim_disabled):
+            return halves
         halves.append(optims[-1])
         return halves
             
@@ -420,9 +420,15 @@ class ClLatentDualHalved(ClLatentDual):
         loss_inner_item = 0.
         loss_outer_item = 0.
         backward = False
-        first_half_optim, second_half_optim, outer_optim = self.optimizers()
+        optims = self.optimizers()
+        if(len(optims) == 2):
+            first_half_optim, second_half_optim = optims
+        elif(len(optims) == 3):
+            first_half_optim, second_half_optim, outer_optim = optims
+            outer_optim.zero_grad()
+        else:
+            raise Exception('Invalid internal state.')
 
-        outer_optim.zero_grad()
         first_half_optim.zero_grad()
         second_half_optim.zero_grad()
 
