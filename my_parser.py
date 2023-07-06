@@ -89,7 +89,7 @@ to choose epoch at which to call it.')
     parser.add_argument("--model.sched.steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
 at where to call scheduler, change learning rate. Use "model.scheduler.type" to enable scheduler.')
 
-    parser.add_argument("--model.outer.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.outer.optim.type", type=str, help='')
     parser.add_argument("--model.outer.optim.reset_type", type=str, default='default', help='')
     parser.add_argument("--model.outer.optim.kwargs.lr", type=float, help='')
     parser.add_argument("--model.outer.optim.kwargs.gamma", type=float, help='')
@@ -106,7 +106,7 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
 
     parser.add_argument("--model.inner.cfg.only_backward_outer", action="store_true", help='')
     parser.add_argument("--model.inner.cfg.visualize_type",type=str, default='outer', help='')
-    parser.add_argument("--model.inner.first.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.inner.first.optim.type", type=str, help='')
     parser.add_argument("--model.inner.first.optim.reset_type", type=str, default='default', help='')
     parser.add_argument("--model.inner.first.optim.kwargs.lr", type=float, help='')
     parser.add_argument("--model.inner.first.optim.kwargs.gamma", type=float, help='')
@@ -121,7 +121,7 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
     parser.add_argument("--model.inner.first.sched.kwargs.milestones", nargs='+', type=int)
     parser.add_argument("--model.inner.first.sched.steps", nargs='+', type=int, help='')
 
-    parser.add_argument("--model.inner.second.optim.type", type=str, default='adam', help='')
+    parser.add_argument("--model.inner.second.optim.type", type=str, help='')
     parser.add_argument("--model.inner.second.optim.reset_type", type=str, default='default', help='')
     parser.add_argument("--model.inner.second.optim.kwargs.lr", type=float, help='')
     parser.add_argument("--model.inner.second.optim.kwargs.gamma", type=float, help='')

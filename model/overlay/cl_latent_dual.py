@@ -370,8 +370,8 @@ class ClLatentDualHalved(ClLatentDual):
         ClLatentDual.__after_init_optim__(self.cfg_inner_first_optim, self.cfg_optim)
         ClLatentDual.__after_init_optim__(self.cfg_inner_second_optim, self.cfg_optim)
 
-        ClLatentDual.__after_init_sched__(self.cfg_outer_sched, self.cfg_sched)
-        ClLatentDual.__after_init_sched__(self.cfg_outer_sched, self.cfg_sched)
+        ClLatentDual.__after_init_sched__(self.cfg_inner_first_sched, self.cfg_sched)
+        ClLatentDual.__after_init_sched__(self.cfg_inner_second_sched, self.cfg_sched)
 
 
         self.inner_first_half_optim_manager = ModelOptimizerManager(
