@@ -216,6 +216,7 @@ class ClLatentDual(ClLatentChi):
             self._inner_optim_disabled = True
         else:
             self._inner_optim_disabled = False  
+            
         if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
             optim_params = self.model.parameters() # all params even if we will calc gradient for partial loss
         else:
@@ -432,7 +433,6 @@ class ClLatentDualHalved(ClLatentDual):
         halves.append(optims)
         return halves 
             
-
     def _create_optimizer_halves(self):
         optim_1 = self.inner_first_half_optim_manager.get_optimizer(**self.cfg_inner_first_optim.kwargs)
         optim_2 = self.inner_second_half_optim_manager.get_optimizer(**self.cfg_inner_second_optim.kwargs)
@@ -459,7 +459,7 @@ class ClLatentDualHalved(ClLatentDual):
         super(ClLatentDual, self).training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
         # do not return anything, only change optimizer_idx to None
 
-    def _process_losses_normal_full_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
+    def _process_losses_normal_full_backward(self, y, latent, log_label):
         loss_inner_item = 0.
         loss_outer_item = 0.
         sum_loss = None
@@ -483,7 +483,7 @@ class ClLatentDualHalved(ClLatentDual):
             
         return loss_inner_item, loss_outer_item
     
-    def _process_losses_normal_partial_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
+    def _process_losses_normal_partial_backward(self, y, latent, log_label):
         loss_inner_item = 0.
         loss_outer_item = 0.
         backward = False
@@ -521,11 +521,9 @@ class ClLatentDualHalved(ClLatentDual):
         second_half_optim.zero_grad()
 
         if(self.cfg_inner_cfg.partial_backward):
-            ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label, 
-              first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label)
         else:
-            ret = self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label, 
-                first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            ret = self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label)
             
         if(outer_optim is not None and self._is_outer_enabled()):
             outer_optim.step()
@@ -564,8 +562,7 @@ class ClLatentDualHalved(ClLatentDual):
         loss_inner_item, loss_outer_item = self.process_losses_normal(
             x=x, 
             y=y, 
-            latent=latent, 
-            model_out_dict=model_out_dict, 
+            latent=latent,  
             log_label=log_label,
             optimizer_idx=optimizer_idx,
         )
