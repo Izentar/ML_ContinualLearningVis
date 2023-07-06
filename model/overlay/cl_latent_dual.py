@@ -10,6 +10,7 @@ from copy import copy
 from dataclasses import dataclass
 from model.overlay.cl_latent_chi import ClLatentChi
 from utils.functional.model_optimizer import ModelOptimizerManager
+from collections.abc import Sequence
 
 class ModelSufix(torch.nn.Module):
     def __init__(self, model, num_classes) -> None:
@@ -181,13 +182,13 @@ class ClLatentDual(ClLatentChi):
         self._inner_output = output
 
     def _is_inner_turn(self, optimizer_idx=None):
-        return (not self._outer_optim_disabled or optimizer_idx is None) or (self._outer_optim_disabled and optimizer_idx == 0)
+        return (self._outer_optim_disabled or optimizer_idx is None) or (not self._inner_optim_disabled and optimizer_idx == 0)
 
     def _is_inner_enabled(self, optimizer_idx=None):
         return (self._is_inner_turn(optimizer_idx) and self.cfg_loss_chi_dual.inner_scale != 0.) or self.cfg_loss_chi_dual.outer_scale == 0.
 
     def _is_outer_turn(self, optimizer_idx=None):
-        return (not self._outer_optim_disabled or optimizer_idx is None) or (self._outer_optim_disabled and optimizer_idx == 1)
+        return optimizer_idx is None or (not self._outer_optim_disabled and optimizer_idx == 1)
 
     def _is_outer_enabled(self, optimizer_idx=None):
         return (self._is_outer_turn(optimizer_idx) and self.cfg_loss_chi_dual.outer_scale != 0)
@@ -207,13 +208,19 @@ class ClLatentDual(ClLatentChi):
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optim2_params = None
         optimizer_construct_f = self.optim_manager.get_optimizer(**self.cfg_optim.kwargs)
+        if(self.cfg_loss_chi_dual.outer_scale == 0.):
+            self._outer_optim_disabled = True
+        else:
+            self._outer_optim_disabled = False  
+        if(self.cfg_loss_chi_dual.inner_scale == 0.):
+            self._inner_optim_disabled = True
+        else:
+            self._inner_optim_disabled = False  
         if(self.cfg_loss_chi_dual.inner_scale == 0. or self.cfg_loss_chi_dual.outer_scale == 0.):
-            optim_params = self.model.model.parameters()
-            self._outer_optim_disabled = False
+            optim_params = self.model.parameters() # all params even if we will calc gradient for partial loss
         else:
             optim_params = self.model.model.parameters()
             optim2_params = self.model.outer_params()
-            self._outer_optim_disabled = True  
 
         if(optimizer_construct_f is None):
             optim_construct_f = lambda params: torch.optim.Adam(params, lr=optim_Adam_config["lr"])
@@ -243,7 +250,6 @@ class ClLatentDual(ClLatentChi):
                 return self.outer_optim_manager.get_scheduler(**self.cfg_outer_sched.kwargs)
             case _:
                 raise Exception(f"Expected at most 2 optimizers. Requested index: {idx}")
-
     
     def _validation_step_inner(self, y):
         if(not self._is_inner_enabled()):
@@ -335,7 +341,7 @@ class ClLatentDualHalved(ClLatentDual):
     class Inner():
         @dataclass
         class Config(ClLatentDual.Inner.Config):
-            only_backward_outer: bool = True
+            partial_backward: bool = True
 
         @dataclass
         class First():
@@ -418,10 +424,13 @@ class ClLatentDualHalved(ClLatentDual):
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optims = super()._create_optimizer()
         halves = self._create_optimizer_halves()
-        if(not self._outer_optim_disabled):
+        if(self._outer_optim_disabled):
             return halves
-        halves.append(optims[-1])
-        return halves
+        if(isinstance(optims, Sequence)):
+            halves.append(optims[-1])
+            return halves
+        halves.append(optims)
+        return halves 
             
 
     def _create_optimizer_halves(self):
@@ -456,15 +465,12 @@ class ClLatentDualHalved(ClLatentDual):
         sum_loss = None
 
         if(self._is_outer_enabled()):
-            outer_optim.zero_grad()
             loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
             self.log(f"{log_label}/island_CROSS-E", loss_outer)
             loss_outer_item = loss_outer.item()
             sum_loss = loss_outer
 
         if(self._is_inner_enabled()):
-            first_half_optim.zero_grad()
-            second_half_optim.zero_grad()
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             loss_inner_item = loss_inner.item()
@@ -472,42 +478,36 @@ class ClLatentDualHalved(ClLatentDual):
                 sum_loss = loss_inner
             else:
                 sum_loss += loss_inner
+        if(sum_loss is not None):
             self.manual_backward(sum_loss)
-            first_half_optim.step()
-            second_half_optim.step()
-        if(self._is_outer_enabled()):
-            outer_optim.step()
+            
         return loss_inner_item, loss_outer_item
     
     def _process_losses_normal_partial_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
         loss_inner_item = 0.
         loss_outer_item = 0.
         backward = False
+
         if(self._is_outer_enabled()):
-            outer_optim.zero_grad()
             loss_outer = self._outer_loss_f(latent, y) * self.cfg_loss_chi_dual.outer_scale
             self.log(f"{log_label}/island_CROSS-E", loss_outer)
             loss_outer_item = loss_outer.item()
 
             self.manual_backward(loss_outer)
             backward = True # backward only once from this point
-            outer_optim.step()
 
         if(self._is_inner_enabled()):
-            first_half_optim.zero_grad()
-            second_half_optim.zero_grad()
             loss_inner = self._loss_f(self._inner_output, y) * self.cfg_loss_chi_dual.inner_scale
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             loss_inner_item = loss_inner.item()
 
             if not backward:
                 self.manual_backward(loss_inner)
-            second_half_optim.step()
-            first_half_optim.step()
 
         return loss_inner_item, loss_outer_item
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx):
+        outer_optim = None
         optims = self.optimizers()
         if(len(optims) == 2):
             first_half_optim, second_half_optim = optims
@@ -516,13 +516,24 @@ class ClLatentDualHalved(ClLatentDual):
             outer_optim.zero_grad()
         else:
             raise Exception('Invalid internal state.')
-
-        if(not self.cfg_inner_cfg.only_backward_outer):
-            return self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label, 
-              first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
         
-        return self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label, 
+        first_half_optim.zero_grad()
+        second_half_optim.zero_grad()
+
+        if(self.cfg_inner_cfg.partial_backward):
+            ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label, 
               first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+        else:
+            ret = self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label, 
+                first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            
+        if(outer_optim is not None and self._is_outer_enabled()):
+            outer_optim.step()
+        second_half_optim.step()
+        first_half_optim.step()
+        return ret
+        
+        
 
     def training_step_normal(self, batch, optimizer_idx):
         x, y = batch
