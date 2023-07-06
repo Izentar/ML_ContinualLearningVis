@@ -16,6 +16,7 @@ class ModelSufix(torch.nn.Module):
         super().__init__()
         self.model = model
         self.num_classes = num_classes
+        self.vis_inner = False
 
         self.ln = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
         self.ln2 = torch.nn.Linear(self.model.get_objective_layer().out_features, self.model.get_objective_layer().out_features)
@@ -27,17 +28,28 @@ class ModelSufix(torch.nn.Module):
         xe = relu(self.ln2(xe))
         xe = self.ln3(xe)
         return xe
+    
+    def set_visualization_type(self, vis_inner):
+        self.vis_inner = vis_inner
 
     def get_objective_layer_name(self):
+        if(self.vis_inner):
+            return self.model.get_objective_layer_name()
         return "ln3"
 
     def get_root_name(self):
+        if(self.vis_inner):
+            return "model."
         return ""
 
     def get_objective_layer(self):
+        if(self.vis_inner):
+            return self.model.get_objective_layer()
         return self.ln3
 
     def get_objective_layer_output_shape(self):
+        if(self.vis_inner):
+            return self.model.get_objective_layer_output_shape()
         return (self.ln3.out_features,)
     
     def outer_params(self):
@@ -76,6 +88,12 @@ class ClLatentDual(ClLatentChi):
             type: str = None
             kwargs: dict = None
 
+    @dataclass
+    class Inner():
+        @dataclass
+        class Config():
+            visualize_type: str = 'outer'
+
     def __after_init_sched__(source_sched, other_sched):
         if source_sched.kwargs is not None:
             for k, v in source_sched.kwargs.items():
@@ -104,11 +122,13 @@ class ClLatentDual(ClLatentChi):
             'cfg_loss_chi_dual': ClLatentDual.Loss.Chi.Dual,
             'cfg_outer_optim': ClLatentDual.Outer.Optimizer,
             'cfg_outer_sched': ClLatentDual.Outer.Scheduler,
+            'cfg_inner_cfg': ClLatentDual.Inner.Config,
         })
         b.update({
             'loss.chi.dual': 'cfg_loss_chi_dual',
             'outer.optim': 'cfg_outer_optim',
             'outer.sched': 'cfg_outer_sched',
+            'inner.cfg': 'cfg_inner_cfg',
         })
         return a, b
 
@@ -131,12 +151,20 @@ class ClLatentDual(ClLatentChi):
         self.test_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self.train_acc_inner = torchmetrics.Accuracy(task='multiclass', num_classes=self.cfg.num_classes)
         self._saved_loss = 0.0
+        
 
         self.outer_optim_manager = ModelOptimizerManager(
             optimizer_type=self.cfg_outer_optim.type,
             scheduler_type=self.cfg_outer_sched.type,
             reset_optim_type=self.cfg_outer_optim.reset_type,
         )
+
+        if(self.cfg_inner_cfg.visualize_type == 'inner'):
+            model.set_visualization_type(True)
+        elif(self.cfg_inner_cfg.visualize_type == 'outer'):
+            model.set_visualization_type(False)  
+        else:
+            raise Exception(f"Bad value: {self.cfg_inner_cfg.visualize_type}")
         
         if(self.cfg_loss_chi_dual.inner_scale == 0.):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
@@ -306,7 +334,7 @@ class ClLatentDualHalved(ClLatentDual):
     @dataclass
     class Inner():
         @dataclass
-        class Config():
+        class Config(ClLatentDual.Inner.Config):
             only_backward_outer: bool = True
 
         @dataclass

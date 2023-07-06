@@ -105,6 +105,7 @@ at where to call scheduler, change learning rate. Use "model.scheduler.type" to 
     parser.add_argument("--model.outer.sched.steps", nargs='+', type=int, help='')
 
     parser.add_argument("--model.inner.cfg.only_backward_outer", action="store_true", help='')
+    parser.add_argument("--model.inner.cfg.visualize_type",type=str, default='outer', help='')
     parser.add_argument("--model.inner.first.optim.type", type=str, default='adam', help='')
     parser.add_argument("--model.inner.first.optim.reset_type", type=str, default='default', help='')
     parser.add_argument("--model.inner.first.optim.kwargs.lr", type=float, help='')
