@@ -34,12 +34,12 @@ class ModelSufix(torch.nn.Module):
 
     def get_objective_layer_name(self):
         if(self.vis_inner):
-            return self.model.get_objective_layer_name()
+            return "model." + self.model.get_objective_layer_name()
         return "ln3"
 
     def get_root_name(self):
         if(self.vis_inner):
-            return "model."
+            return "model." + self.model.get_root_name()
         return ""
 
     def get_objective_layer(self):
