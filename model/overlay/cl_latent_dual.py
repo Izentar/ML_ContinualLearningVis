@@ -441,7 +441,7 @@ class ClLatentDualHalved(ClLatentDual):
             self.log(f"{log_label}/island_CHI-K", loss_inner)
             loss_inner_item = loss_inner.item()
             if(sum_loss is None):
-                sum_loss = loss_inner_item
+                sum_loss = loss_inner
             else:
                 sum_loss += loss_inner
             self.manual_backward(sum_loss)
