@@ -447,8 +447,8 @@ class ClLatentDualHalved(ClLatentDual):
             self.manual_backward(sum_loss)
             first_half_optim.step()
             second_half_optim.step()
-            if(self._is_outer_enabled()):
-                outer_optim.step()
+        if(self._is_outer_enabled()):
+            outer_optim.step()
         return loss_inner_item, loss_outer_item
     
     def _process_losses_normal_partial_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
