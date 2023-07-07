@@ -441,9 +441,6 @@ class ClLatentDualHalved(ClLatentDual):
         # do not return anything, only change optimizer_idx to None
 
     def custom_backward(self, loss, outer_optim, second_half_optim, first_half_optim, **backward_kwargs):
-        outer_optim.zero_grad()
-        first_half_optim.zero_grad()
-        second_half_optim.zero_grad()
         self.manual_backward(loss, **backward_kwargs)
 
         outer_optim.step()
@@ -501,6 +498,9 @@ class ClLatentDualHalved(ClLatentDual):
         outer_optim = None
         optims = self.optimizers()
         first_half_optim, second_half_optim, outer_optim = optims
+        outer_optim.zero_grad()
+        first_half_optim.zero_grad()
+        second_half_optim.zero_grad()
 
         if(self.cfg_inner_cfg.partial_backward):
             ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label,
