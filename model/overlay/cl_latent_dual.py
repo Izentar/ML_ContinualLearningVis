@@ -10,7 +10,6 @@ from copy import copy
 from dataclasses import dataclass
 from model.overlay.cl_latent_chi import ClLatentChi
 from utils.functional.model_optimizer import ModelOptimizerManager
-from collections.abc import Sequence
 
 class ModelSufix(torch.nn.Module):
     def __init__(self, model, num_classes) -> None:
@@ -334,7 +333,7 @@ class ClLatentDualHalved(ClLatentDual):
     class Inner():
         @dataclass
         class Config(ClLatentDual.Inner.Config):
-            partial_backward: bool = True
+            partial_backward: bool = False
 
         @dataclass
         class First():
@@ -441,8 +440,15 @@ class ClLatentDualHalved(ClLatentDual):
         super(ClLatentDual, self).training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
         # do not return anything, only change optimizer_idx to None
 
-    def custom_backward(self, loss, **kwargs):
-        self.manual_backward(loss, **kwargs)
+    def custom_backward(self, loss, outer_optim, second_half_optim, first_half_optim, **backward_kwargs):
+        outer_optim.zero_grad()
+        first_half_optim.zero_grad()
+        second_half_optim.zero_grad()
+        self.manual_backward(loss, **backward_kwargs)
+
+        outer_optim.step()
+        second_half_optim.step()
+        first_half_optim.step()
 
     def _process_losses_normal_full_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
         loss_inner_item = 0.
@@ -464,7 +470,7 @@ class ClLatentDualHalved(ClLatentDual):
             else:
                 sum_loss += loss_inner
         if(sum_loss is not None):
-            self.custom_backward(loss_outer)
+            self.custom_backward(sum_loss, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
             
         return loss_inner_item, loss_outer_item
     
@@ -478,7 +484,7 @@ class ClLatentDualHalved(ClLatentDual):
             self.log(f"{log_label}/island_CROSS-E", loss_outer)
             loss_outer_item = loss_outer.item()
 
-            self.custom_backward(loss_outer)
+            self.custom_backward(loss_outer, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
             backward = True # backward only once from this point
 
         if(self._is_inner_enabled()):
@@ -487,7 +493,7 @@ class ClLatentDualHalved(ClLatentDual):
             loss_inner_item = loss_inner.item()
 
             if not backward:
-                self.custom_backward(loss_inner)
+                self.custom_backward(loss_inner, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
 
         return loss_inner_item, loss_outer_item
 
@@ -496,10 +502,6 @@ class ClLatentDualHalved(ClLatentDual):
         optims = self.optimizers()
         first_half_optim, second_half_optim, outer_optim = optims
 
-        outer_optim.zero_grad()
-        first_half_optim.zero_grad()
-        second_half_optim.zero_grad()
-
         if(self.cfg_inner_cfg.partial_backward):
             ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label,
                 first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
@@ -507,10 +509,6 @@ class ClLatentDualHalved(ClLatentDual):
             ret = self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label,
                 first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
             
-        if(self._is_outer_enabled()):
-            outer_optim.step()
-        second_half_optim.step()
-        first_half_optim.step()
         return ret
         
     def training_step_normal(self, batch, optimizer_idx):
