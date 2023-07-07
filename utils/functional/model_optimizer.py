@@ -1,5 +1,15 @@
+from typing import Any
 import torch
 from utils.utils import search_kwargs
+
+class Container():
+    def __init__(self, kwargs, obj, acceptable_kwargs: list) -> None:
+        self.kwargs = search_kwargs(kwargs, acceptable_kwargs)
+        self.obj = obj
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        kwds.update(self.kwargs)
+        return self.obj(*args, **kwds)
 
 def default_reset_optim(lr, **kwargs):
     def inner_default_reset_optim(optim, optim_idx, sched=None):
@@ -8,31 +18,25 @@ def default_reset_optim(lr, **kwargs):
     return inner_default_reset_optim
 
 def exponential_scheduler(**kwargs):
-    new_kwargs = search_kwargs(kwargs, ['gamma', 'last_epoch'])
-    return lambda optim: torch.optim.lr_scheduler.ExponentialLR(optim, **new_kwargs)
+    return Container(kwargs, torch.optim.lr_scheduler.ExponentialLR, acceptable_kwargs=['gamma', 'last_epoch'])
 
 def none(**kwargs):
     return None
 
 def adam(**kwargs):
-    new_kwargs = search_kwargs(kwargs, ['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
-    return lambda param: torch.optim.Adam(param, **new_kwargs)
+    return Container(kwargs, torch.optim.Adam, acceptable_kwargs=['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
 
 def adamw(**kwargs):
-    new_kwargs = search_kwargs(kwargs, ['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
-    return lambda param: torch.optim.AdamW(param, **new_kwargs)
+    return Container(kwargs, torch.optim.AdamW, acceptable_kwargs=['lr', 'betas', 'eps', 'weight_decay', 'amsgrad'])
 
 def sgd(**kwargs):
-    new_kwargs = search_kwargs(kwargs, ['lr', 'momentum', 'dampening', 'weight_decay'])
-    return lambda param: torch.optim.SGD(param, **new_kwargs)
+    return Container(kwargs, torch.optim.SGD, acceptable_kwargs=['lr', 'momentum', 'dampening', 'weight_decay'])
 
 def step_scheduler(**kwargs):
-    new_kwargs = search_kwargs(kwargs, ['step_size', 'gamma', 'last_epoch'])
-    return lambda optim: torch.optim.lr_scheduler.StepLR(optim, **new_kwargs)
+    return Container(kwargs, torch.optim.lr_scheduler.StepLR, acceptable_kwargs=['step_size', 'gamma', 'last_epoch'])
 
 def mulitstep_scheduler(**kwargs):
-    new_kwargs = search_kwargs(kwargs, ['milestones', 'gamma', 'last_epoch'])
-    return lambda optim: torch.optim.lr_scheduler.MultiStepLR(optim, **new_kwargs)
+    return Container(kwargs, torch.optim.lr_scheduler.MultiStepLR, acceptable_kwargs=['milestones', 'gamma', 'last_epoch'])
 
 class ModelOptimizerManager():
     OPTIMIZERS = {

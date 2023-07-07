@@ -177,7 +177,6 @@ class ClBase(LightningModule):
         schedulers_construct_f = self.optim_manager.get_scheduler(**self.cfg_sched.kwargs)
         if(idx != 0):
             raise Exception("Only one optimizer is present.")
-        pp.sprint(f"{pp.COLOR.NORMAL_2}INFO: Used {pp.COLOR.NORMAL_4}sched{pp.COLOR.NORMAL_2} config: {self.cfg_sched}")
         return schedulers_construct_f
 
     def _create_scheduler(self, optim, optim_idx):
@@ -185,6 +184,7 @@ class ClBase(LightningModule):
         if(scheduler_construct_f is None):
             return 
         self.schedulers[optim_idx] = scheduler_construct_f(optim)
+        self.print_sched_info(optim_idx, self.schedulers[optim_idx], scheduler_construct_f.kwargs)
 
     def _create_optimizer(self) -> torch.optim.Optimizer:
         optimizer_construct_f = self.optim_manager.get_optimizer(**self.cfg_optim.kwargs)
@@ -193,16 +193,17 @@ class ClBase(LightningModule):
             optim = torch.optim.Adam(self.parameters(), lr=optim_Adam_config["lr"])
         else:
             optim = optimizer_construct_f(self.parameters())     
-        pp.sprint(f"{pp.COLOR.NORMAL}INFO: {pp.COLOR.NORMAL_4}Default optim{pp.COLOR.NORMAL} config: {self.cfg_optim}")   
         return optim
 
     def configure_optimizers(self):
         optims = self._create_optimizer()
         self.schedulers = {}
         if(not isinstance(optims, Sequence)):
+            self.print_optim_info(0, optims)
             self._create_scheduler(optims, optim_idx=0)
         else:
             for optim_idx, optim in enumerate(optims):
+                self.print_optim_info(optim_idx, optim)
                 self._create_scheduler(optim, optim_idx=optim_idx)
         return optims
 
@@ -222,9 +223,8 @@ class ClBase(LightningModule):
     def _training_epoch_end_last_epoch(self, opt, optim_idx):
         # invoke after the last epoch in training, when you switch to another task
         self.optim_manager.get_reset_optimizer_f(**self.cfg_optim.kwargs)(opt, optim_idx=optim_idx)
-        self._create_scheduler(opt, optim_idx=optim_idx)
-
         pp.sprint(f'{pp.COLOR.NORMAL}Scheduler restarted at epoch {self.current_epoch} end. Learning rate: {self.schedulers[optim_idx].get_last_lr()}')
+        self._create_scheduler(opt, optim_idx=optim_idx)
 
     def _training_epoch_end_call_sched(self, opt, optim_idx):
         # if it is not the last epoch, call scheduler
@@ -232,3 +232,9 @@ class ClBase(LightningModule):
         self.schedulers[optim_idx].step()
         if(last_lr != self.schedulers[optim_idx].get_last_lr()):
             pp.sprint(f"{pp.COLOR.NORMAL}Changed learning rate from: '{last_lr}' to: '{self.schedulers[optim_idx]._last_lr}' for optimizer index: {optim_idx}")
+
+    def print_optim_info(self, idx, optim):
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Created {pp.COLOR.NORMAL_4}{idx}{pp.COLOR.NORMAL} optim config: {pp.COLOR.NORMAL_3}{optim}")
+
+    def print_sched_info(self, idx, sched_class, sched_info):
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: Created {pp.COLOR.NORMAL_4}{idx}{pp.COLOR.NORMAL} sched config: {pp.COLOR.NORMAL_3}{type(sched_class).__name__}\n{sched_info}")
