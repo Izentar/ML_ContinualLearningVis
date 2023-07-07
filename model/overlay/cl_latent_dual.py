@@ -466,6 +466,9 @@ class ClLatentDualHalved(ClLatentDual):
                 sum_loss = loss_inner
             else:
                 sum_loss += loss_inner
+        else:
+            # to save statistics in cyclic buffer and use them in visualization
+            self._loss_f.cloud_data.push_target(self._inner_output, y) 
         if(sum_loss is not None):
             self.custom_backward(sum_loss, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
             
@@ -491,7 +494,9 @@ class ClLatentDualHalved(ClLatentDual):
 
             if not backward:
                 self.custom_backward(loss_inner, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
-
+        else:
+            # to save statistics in cyclic buffer and use them in visualization
+            self._loss_f.cloud_data.push_target(self._inner_output, y)
         return loss_inner_item, loss_outer_item
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx):
