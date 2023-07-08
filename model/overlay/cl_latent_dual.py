@@ -74,6 +74,8 @@ class ClLatentDual(ClLatentChi):
                         raise Exception(f"Inner scale param can be only in range of [0, 1]")
                     if not (0. <= self.outer_scale and self.outer_scale <= 1.):
                         raise Exception(f"Outer scale param can be only in range of [0, 1]")
+                    if(self.inner_scale == 0. and self.outer_scale == 0.):
+                        raise Exception("Both losses (inner, outer) cannot be zero!")
 
     @dataclass
     class Outer():
@@ -170,8 +172,6 @@ class ClLatentDual(ClLatentChi):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} inner scale set to zero.")
         if(self.cfg_loss_chi_dual.outer_scale == 0.):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: {self.name} outer scale set to zero.")
-        if(self.cfg_loss_chi_dual.inner_scale == 0. and self.cfg_loss_chi_dual.outer_scale == 0.):
-            raise Exception("Both losses (inner, outer) cannot be zero!")
 
         # Not need here to enable this. Calculating double loss in this case does not
         # affect the result. It can only make training slower. Here I use optimizer_idx argument. 
@@ -440,14 +440,20 @@ class ClLatentDualHalved(ClLatentDual):
         super(ClLatentDual, self).training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=None)
         # do not return anything, only change optimizer_idx to None
 
-    def custom_backward(self, loss, outer_optim, second_half_optim, first_half_optim, **backward_kwargs):
+    def custom_backward(self, loss, **backward_kwargs):
+        optims = self.optimizers()
+        first_half_optim, second_half_optim, outer_optim = optims
+        outer_optim.zero_grad()
+        first_half_optim.zero_grad()
+        second_half_optim.zero_grad()
+
         self.manual_backward(loss, **backward_kwargs)
 
         outer_optim.step()
         second_half_optim.step()
         first_half_optim.step()
 
-    def _process_losses_normal_full_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
+    def _process_losses_normal_full_backward(self, y, latent, log_label):
         loss_inner_item = 0.
         loss_outer_item = 0.
         sum_loss = None
@@ -470,11 +476,11 @@ class ClLatentDualHalved(ClLatentDual):
             # to save statistics in cyclic buffer and use them in visualization
             self._loss_f.cloud_data.push_target(self._inner_output, y) 
         if(sum_loss is not None):
-            self.custom_backward(sum_loss, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            self.custom_backward(sum_loss)
             
         return loss_inner_item, loss_outer_item
     
-    def _process_losses_normal_partial_backward(self, y, latent, log_label, first_half_optim, second_half_optim, outer_optim):
+    def _process_losses_normal_partial_backward(self, y, latent, log_label):
         loss_inner_item = 0.
         loss_outer_item = 0.
         backward = False
@@ -484,7 +490,7 @@ class ClLatentDualHalved(ClLatentDual):
             self.log(f"{log_label}/island_CROSS-E", loss_outer)
             loss_outer_item = loss_outer.item()
 
-            self.custom_backward(loss_outer, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            self.custom_backward(loss_outer)
             backward = True # backward only once from this point
 
         if(self._is_inner_enabled()):
@@ -493,7 +499,7 @@ class ClLatentDualHalved(ClLatentDual):
             loss_inner_item = loss_inner.item()
 
             if not backward:
-                self.custom_backward(loss_inner, first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+                self.custom_backward(loss_inner)
         else:
             # to save statistics in cyclic buffer and use them in visualization
             self._loss_f.cloud_data.push_target(self._inner_output, y)
@@ -501,18 +507,11 @@ class ClLatentDualHalved(ClLatentDual):
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx):
         outer_optim = None
-        optims = self.optimizers()
-        first_half_optim, second_half_optim, outer_optim = optims
-        outer_optim.zero_grad()
-        first_half_optim.zero_grad()
-        second_half_optim.zero_grad()
 
         if(self.cfg_inner_cfg.partial_backward):
-            ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label,
-                first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            ret = self._process_losses_normal_partial_backward(y=y, latent=latent, log_label=log_label)
         else:
-            ret = self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label,
-                first_half_optim=first_half_optim, second_half_optim=second_half_optim, outer_optim=outer_optim)
+            ret = self._process_losses_normal_full_backward(y=y, latent=latent, log_label=log_label)
             
         return ret
         

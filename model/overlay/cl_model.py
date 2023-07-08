@@ -126,8 +126,6 @@ class ClModel(cl_base.ClBase):
             model_out = self(x)
         latent, model_out_dict = self.get_model_out_data(model_out)
         
-        #a = torch.abs(latent.detach()).sum().cpu().item()
-        #self.log("train_loss/latent_model_abs_sum", a)
         for k, v in self._loss_f.to_log.items():
             self.log(k, v)
 
