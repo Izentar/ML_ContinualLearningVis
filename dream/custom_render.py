@@ -273,12 +273,12 @@ class RenderVisState():
     def optimizer(self, value):
         self._initval_optimizer = value
         self._set_optimizer(value=value)
+        pp.sprint(f"{pp.COLOR.NORMAL}VIS: Optimizer set during visualization config: {pp.COLOR.NORMAL_3}{self._optimizer}")
     def _set_optimizer(self, value):
         if(value is None):
             self._optimizer = torch.optim.Adam(self._optim_vals, lr=1e-3)
         else:
             self._optimizer = value(self._optim_vals)
-        pp.sprint(f"{pp.COLOR.NORMAL}VIS: Optimizer set during visualization config: {pp.COLOR.NORMAL_3}{self._optimizer}")
 
 
     @property
