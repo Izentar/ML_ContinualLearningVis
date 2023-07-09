@@ -2,20 +2,41 @@ import torch
 from  model.statistics.base import ModuleStatData, get_hash
 from collections.abc import Sequence
 import json
+from utils import pretty_print as pp
 
 class LayerBase():
     def __init__(self, scale_file:dict|str=None, scale:float=1.) -> None:
         self.new_cl = False
         self.loss_dict = {}
         self.scales = {}
+        self.file_name = None
+        self.from_dict = None
         if(isinstance(scale_file, str)):
             self.scales = json.load(open(scale_file))
             self.default_scale = scale
+            self.file_name = scale_file
         elif(isinstance(scale_file, dict)):
             self.scales = scale_file
             self.default_scale = scale
+            self.from_dict = True
         else:
             self.default_scale = scale
+
+        self._print_scale_file()
+
+
+    def _print_scale_file(self):
+        s = f"{pp.COLOR.NORMAL}INFO: For layerloss {type(self).__name__} used "
+        if(self.file_name is not None):
+            s += f"file {self.file_name} "
+        elif(self.from_dict is not None):
+            s += f"dict "
+
+        s += f"with default value: {pp.COLOR.NORMAL_2}'{self.default_scale}'{pp.COLOR.NORMAL} "
+        if(len(self.scales) != 0):
+            s += f"and with values:\n{pp.COLOR.NORMAL_2}{self.scales}"
+            
+        pp.sprint(s)
 
     def set_current_class(self, cl:torch.Tensor|int|Sequence):
         if(isinstance(cl, torch.TensorType)):
@@ -134,9 +155,8 @@ class DeepInversionFeatureLoss(LayerBase):
         Implementation of the forward hook to track feature statistics and compute a loss on them.
         Will compute mean and variance, and will use l2 as a loss
     '''
-    def __init__(self, scale, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.scale = scale
 
     def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, full_name:str):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
@@ -151,7 +171,7 @@ class DeepInversionFeatureLoss(LayerBase):
             r_feature = torch.norm(module.running_var.data.type(var.type()) - var, 2) + torch.norm(
                 module.running_mean.data.type(var.type()) - mean, 2)
 
-            self._register_loss(full_name, output, self.scale * r_feature)
+            self._register_loss(full_name, output, r_feature)
             # must have no output
         self.register_scale(full_name)
         return module.register_forward_hook(inner)
