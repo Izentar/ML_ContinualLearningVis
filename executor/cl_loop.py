@@ -108,6 +108,7 @@ class CLLoop(Loop):
             class DeepInversion():
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
                 scale: float = 1e2
+                scale_file: str = None
                 hook_to: list[str] = None
 
                 def __post_init__(self):
@@ -404,7 +405,7 @@ class CLLoop(Loop):
 
             if(utils.check_python_index(self.cfg_deep_inversion.use_at, self.cfg.num_loops, self.current_loop)):
                 self._try_generate_dream_print_msg("DEEP INVERSION")
-                tmp = layerloss.DeepInversionFeatureLoss(scale=self.cfg_deep_inversion.scale)
+                tmp = layerloss.DeepInversionFeatureLoss(scale_file=self.cfg_deep_inversion.scale_file, scale=self.cfg_deep_inversion.scale)
                 self.layerloss_deep_inversion = True
                 layerloss_hook_obj.append(tmp)
                 layer_handles.append(utils.hook_model(

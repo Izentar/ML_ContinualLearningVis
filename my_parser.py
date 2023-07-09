@@ -202,6 +202,7 @@ should be appart from each other. Should be greather than model.loss.chi.sigma. 
 
     parser.add_argument("--loop.vis.layerloss.deep_inversion.use_at", type=str, nargs='+', help='Regularization variance of the input dream image.')
     parser.add_argument("--loop.vis.layerloss.deep_inversion.scale", type=float, default=1., help='')
+    parser.add_argument("--loop.vis.layerloss.deep_inversion.scale_file", type=str, help='')
     parser.add_argument("--loop.vis.layerloss.deep_inversion.hook_to", nargs='+', type=str, help='')
 
     parser.add_argument("--loop.vis.layerloss.deep_inversion_target.use_at", type=str, nargs='+', help='')

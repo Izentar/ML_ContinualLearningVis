@@ -1,12 +1,22 @@
 import torch
 from  model.statistics.base import ModuleStatData, get_hash
 from collections.abc import Sequence
+import json
 
 class LayerBase():
-    def __init__(self) -> None:
+    def __init__(self, scale_file:dict|str=None, scale:float=1.) -> None:
         self.new_cl = False
         self.loss_dict = {}
-        
+        self.scales = {}
+        if(isinstance(scale_file, str)):
+            self.scales = json.load(open(scale_file))
+            self.default_scale = scale
+        elif(isinstance(scale_file, dict)):
+            self.scales = scale_file
+            self.default_scale = scale
+        else:
+            self.default_scale = scale
+
     def set_current_class(self, cl:torch.Tensor|int|Sequence):
         if(isinstance(cl, torch.TensorType)):
             self.current_cl = cl.item()
@@ -18,7 +28,7 @@ class LayerBase():
         name = (full_name, output.shape[1:])
         if(name in self.loss_dict):
             raise Exception(f'Loss for "{name}" was not processed. Tried to override loss.')
-        self.loss_dict[name] = value
+        self.loss_dict[name] = value * self.scales[full_name]
 
     def _gather_loss(self, loss) -> torch.Tensor:
         if(len(self.loss_dict) == 0):
@@ -26,10 +36,15 @@ class LayerBase():
         sum_loss = torch.sum(torch.stack(list(self.loss_dict.values())))
         self.loss_dict = {}
         return loss + sum_loss
+    
+    def register_scale(self, full_name):
+        # backup if no particular scale is registered
+        if(self.scales.get(full_name) is None):
+            self.scales[full_name] = self.default_scale
 
 class DeepInversionTarget(LayerBase):
-    def __init__(self, scale, multitarget=False) -> None:
-        super().__init__()
+    def __init__(self, scale, multitarget=False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.scale = scale   
         self.multitarget = multitarget
 
@@ -74,6 +89,7 @@ class DeepInversionTarget(LayerBase):
             loss = torch.sum(torch.stack(loss))
             self._register_loss(full_name, output, self.scale * loss)
 
+        self.register_scale(full_name)
         if(self.multitarget):
             return module.register_forward_hook(inner_multi_target)
         return module.register_forward_hook(inner_single_target)
@@ -82,8 +98,8 @@ class DeepInversionTarget(LayerBase):
         return self._gather_loss(loss)
 
 class MeanNorm(LayerBase):
-    def __init__(self, device, del_cov_after=False, scale=0.01) -> None:
-        super().__init__()
+    def __init__(self, device, del_cov_after=False, scale=0.01, **kwargs) -> None:
+        super().__init__(**kwargs)
 
         self.device = device
         self.scale = scale
@@ -107,6 +123,7 @@ class MeanNorm(LayerBase):
             ).to(input[0].device)
             self._register_loss(full_name, output, val)
 
+        self.register_scale(full_name)
         return module.register_forward_hook(inner)
         
     def gather_loss(self, loss) -> torch.Tensor:
@@ -117,8 +134,8 @@ class DeepInversionFeatureLoss(LayerBase):
         Implementation of the forward hook to track feature statistics and compute a loss on them.
         Will compute mean and variance, and will use l2 as a loss
     '''
-    def __init__(self, scale) -> None:
-        super().__init__()
+    def __init__(self, scale, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.scale = scale
 
     def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, full_name:str):
@@ -136,14 +153,15 @@ class DeepInversionFeatureLoss(LayerBase):
 
             self._register_loss(full_name, output, self.scale * r_feature)
             # must have no output
+        self.register_scale(full_name)
         return module.register_forward_hook(inner)
 
     def gather_loss(self, loss) -> torch.Tensor:
         return self._gather_loss(loss)
 
 class LayerGradPruning(LayerBase):
-    def __init__(self, device, percent) -> None:
-        super().__init__()
+    def __init__(self, device, percent, **kwargs) -> None:
+        super().__init__(**kwargs)
         
         self.device = device
         self.percent = percent
@@ -169,12 +187,13 @@ class LayerGradPruning(LayerBase):
             # Since backprop works in reverse, grad_output is what got propagated 
             # from the next layer while grad_input is what will be sent to the previous one.
             return (grad_input, )
-
+        
+        self.register_scale(full_name)
         return module.register_full_backward_hook(inner)
 
 class LayerGradActivationPruning(LayerBase):
-    def __init__(self, percent) -> None:
-        super().__init__()
+    def __init__(self, percent, **kwargs) -> None:
+        super().__init__(**kwargs)
         
         self.percent = percent
         self.by_class  = dict()
@@ -196,4 +215,5 @@ class LayerGradActivationPruning(LayerBase):
             grad_input_view[i0, i1_1] = 0.0
             return (grad_input, )
 
+        self.register_scale(full_name)
         return module.register_full_backward_hook(inner)
