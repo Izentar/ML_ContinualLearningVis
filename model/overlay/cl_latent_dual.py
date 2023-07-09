@@ -244,8 +244,6 @@ class ClLatentDual(ClLatentChi):
                 raise Exception(f"Expected at most 2 optimizers. Requested index: {idx}")
     
     def _validation_step_inner(self, y):
-        if(not self._is_inner_enabled()):
-            return
         val_loss_inner = self._loss_f(self._inner_output, y, train=False)
         self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
 
@@ -253,8 +251,6 @@ class ClLatentDual(ClLatentChi):
         self.log("valid_acc_inner", self.valid_acc_inner.compute())
 
     def _validation_step_outer(self, latent, y, dataloader_idx):
-        if(not self._is_outer_enabled()):
-            return
         val_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("val_last_step_loss_outer", val_loss_outer, on_epoch=True)
         
@@ -266,12 +262,12 @@ class ClLatentDual(ClLatentChi):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        self._validation_step_inner(y=y)
-        self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
+        if(self._is_inner_enabled()):
+            self._validation_step_inner(y=y)
+        if(self._is_outer_enabled()):
+            self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
 
     def _test_step_inner(self, y): 
-        if(not self._is_inner_enabled()):
-            return
         test_loss_inner = self._loss_f(self._inner_output, y, train=False)
         self.log("test_loss_inner", test_loss_inner)
 
@@ -280,8 +276,6 @@ class ClLatentDual(ClLatentChi):
         self.log("test_acc_inner", self.test_acc_inner)
 
     def _test_step_outer(self, latent, y):
-        if(not self._is_outer_enabled()):
-            return
         test_loss_outer = self._outer_loss_f(latent, y, train=False)
         self.log("test_loss_outer", test_loss_outer)
 
@@ -292,8 +286,11 @@ class ClLatentDual(ClLatentChi):
         x, y = batch
         model_out = self(x)
         latent, _ = self.get_model_out_data(model_out)
-        self._test_step_inner(y)
-        self._test_step_outer(latent=latent, y=y)
+
+        if(self._is_inner_enabled()):
+            self._test_step_inner(y)
+        if(self._is_outer_enabled()):
+            self._test_step_outer(latent=latent, y=y)
 
         self._test_step_log_data()
 
@@ -530,10 +527,8 @@ class ClLatentDualHalved(ClLatentDual):
         
         self.log(f"{log_label}/total", loss_inner_item + loss_outer_item)
 
-        if(self._is_inner_enabled()):
-            self.training_step_acc_inner(x=x, y=y, latent=latent)
-        if(self._is_outer_enabled()):
-            self.training_step_acc_outer(x=x, y=y, latent=latent)
+        self.training_step_acc_inner(x=x, y=y, latent=latent)
+        self.training_step_acc_outer(x=x, y=y, latent=latent)
         return 0.0
     
     def training_step_dream(self, batch, optimizer_idx):
@@ -553,3 +548,22 @@ class ClLatentDualHalved(ClLatentDual):
         self.log(f"{log_label}train_step_acc_dream", self.train_acc_dream, on_step=False, on_epoch=True)
 
         return 0.0
+    
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        model_out = self(x)
+        latent, _ = self.get_model_out_data(model_out)
+
+        self._test_step_inner(y)
+        if(self._is_outer_enabled()):
+            self._test_step_outer(latent=latent, y=y)
+
+        self._test_step_log_data()
+
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        x, y = batch
+        model_out = self(x)
+        latent, _ = self.get_model_out_data(model_out)
+        self._validation_step_inner(y=y)
+        if(self._is_outer_enabled()):
+            self._validation_step_outer(latent=latent, y=y, dataloader_idx=dataloader_idx)
