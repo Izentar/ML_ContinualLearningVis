@@ -424,7 +424,7 @@ def wandb_run_name(args, id):
     if(args.loop.vis.layerloss.grad_activ_pruning.use_at is not None and args.loop.vis.layerloss.grad_activ_pruning.use_at != False):
         text = f"{text}gap{args.loop.vis.layerloss.grad_activ_pruning.percent}_"
     
-    return f"{id}_{text}{np.random.randint(0, 5000)}"
+    return f"{id}_{text}"
 
 def load_config(args: Namespace, parser: ArgumentParser, filepath:str=None) -> Namespace:
     """
