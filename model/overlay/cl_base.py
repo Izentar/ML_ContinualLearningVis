@@ -231,7 +231,7 @@ class ClBase(LightningModule):
         last_lr = self.schedulers[optim_idx].get_last_lr()
         self.schedulers[optim_idx].step()
         if(last_lr != self.schedulers[optim_idx].get_last_lr()):
-            pp.sprint(f"{pp.COLOR.NORMAL}Changed learning rate from: '{last_lr}' to: '{self.schedulers[optim_idx]._last_lr}' for optimizer index: {optim_idx}")
+            pp.sprint(f"{pp.COLOR.NORMAL}Changed learning rate from: '{last_lr}' to: '{self.schedulers[optim_idx]._last_lr}' for optimizer index: {optim_idx} at epoch: {self.current_epoch}")
 
     def print_optim_info(self, idx, optim):
         pp.sprint(f"{pp.COLOR.NORMAL}INFO: Created {pp.COLOR.NORMAL_4}{idx}{pp.COLOR.NORMAL} optim config: {pp.COLOR.NORMAL_3}{optim}")
