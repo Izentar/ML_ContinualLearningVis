@@ -112,11 +112,13 @@ class RenderVisState():
         input_image_train_after_hook:list|None=None,
         scheduler=None,
         optim_vals=None,
+        autocast_enable=False,
     ) -> None:
         self.preprocess = preprocess
         self.standard_image_size = standard_image_size
         self.display_additional_info = display_additional_info
         self.enable_transforms = enable_transforms
+        self.autocast_enable = autocast_enable
         self._set_thresholds(thresholds)
         self._set_custom_f_steps(custom_f_steps)
         self.input_image_train_after_hook = input_image_train_after_hook
@@ -174,6 +176,11 @@ class RenderVisState():
             self._device = 'cpu'
         else:
             self._device = value
+            # remove digit from cuda if exist
+            if 'cuda' in str(self._device):
+                self._device = 'cuda'
+            else:
+                self._device = 'cpu'
         if(hasattr(self, '_model')):
             self._model = self._model.to(self._device)
         if(hasattr(self, '_optim_image')):
@@ -181,6 +188,7 @@ class RenderVisState():
         if(hasattr(self, '_optimizer')):
             self._set_optimizer(self._initval_optimizer)
 
+        
 
     @property
     def optim_image(self):
@@ -369,55 +377,33 @@ class RenderVisState():
                 pp.sprint(f"{pp.COLOR.WARNING}VIS: DISABLE ANY DREAM TRANSFORMS")
             self._transform_f = lambda x: x
 
-def render_vis(
-    render_dataclass,
-    verbose=False,
-    show_image=False,
-    save_image=False,
-    image_name=None,
-    show_inline=False,
-    progress_bar=None,
-    refresh_fequency=50,
-    autocast_enable=False,
-    return_tensor=True,
-):
-    """
-        standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
-    """
-    rd:RenderVisState = render_dataclass
-    rd.reinit_optim_image()
+def normal_step(rd):
+    rd.optimizer.zero_grad()
+    image = rd.transform_f(rd.optim_image.image())
 
-    if verbose:
-        rd.model(rd.transform_f(rd.optim_image.image()))
-        pp.sprint(f"{pp.COLOR.NORMAL_2}Initial loss: {rd.objective_f(rd.hook.get_output):.3f}")    
-    
+    with autocast(device_type=rd.device, dtype=torch.float16, enabled=rd.autocast_enable):
+        rd.model(image)
+        rd.input_image_train_after_hook(image)
+
+        loss = rd.objective_f(rd.hook.get_output)
+        loss = rd.forward_loss_hook(loss)
+        loss.backward()
+        rd.optimizer.step()
+
+def render_vis_loop(
+        rd, 
+        step_f,
+        iterations, 
+        verbose=False,
+        show_inline=False,
+        progress_bar=None,
+        refresh_fequency=50,
+        return_tensor=True,
+    ):
     images = []
-    iterations = max(rd.thresholds)
-    if(progress_bar is not None):
-        progress_bar.setup_progress_bar('vis_iter', "[bright_red]Iteration:\n", iterations=iterations)
 
-    model_mode = rd.model.training # from torch.nn.Module
-    if model_mode:
-        rd.model.eval()
-
-    device = 'cuda' if 'cuda' in str(rd.device) else 'cpu'
-        
     for i in range(1, iterations + 1):
-        def closure():
-            rd.optimizer.zero_grad()
-            rd.model.zero_grad()
-            image = rd.transform_f(rd.optim_image.image())
-
-            with autocast(device_type=device, dtype=torch.float16, enabled=autocast_enable):
-                rd.model(image)
-                rd.input_image_train_after_hook(image)
-
-                loss = rd.objective_f(rd.hook.get_output)
-                loss = rd.forward_loss_hook(loss)
-                loss.backward()
-            return loss
-            
-        rd.optimizer.step(closure)
+        step_f(rd=rd)
         if i in rd.custom_f_steps:
             rd.advance_end_hook()
         if(rd.scheduler is not None):
@@ -438,7 +424,52 @@ def render_vis(
             progress_bar.update('vis_iter')
             if i % refresh_fequency == 0:
                 progress_bar.refresh()
+    return images
 
+def render_vis(
+    render_dataclass,
+    step_f=None,
+    verbose=False,
+    show_image=False,
+    save_image=False,
+    image_name=None,
+    show_inline=False,
+    progress_bar=None,
+    refresh_fequency=50,
+    return_tensor=True,
+):
+    """
+        standard_image_size - what image size should be after applying transforms. Upscale / downscale to desired image size.
+    """
+    rd:RenderVisState = render_dataclass
+    rd.reinit_optim_image()
+
+    if verbose:
+        rd.model(rd.transform_f(rd.optim_image.image()))
+        pp.sprint(f"{pp.COLOR.NORMAL_2}Initial loss: {rd.objective_f(rd.hook.get_output):.3f}")    
+    
+    iterations = max(rd.thresholds)
+    if(progress_bar is not None):
+        progress_bar.setup_progress_bar('vis_iter', "[bright_red]Iteration:\n", iterations=iterations)
+
+    model_mode = rd.model.training # from torch.nn.Module
+    if model_mode:
+        rd.model.eval()
+
+    if(step_f is None):
+        step_f = normal_step
+
+    images = render_vis_loop(
+        rd=rd,
+        step_f=step_f,
+        iterations=iterations,
+        verbose=verbose,
+        show_inline=show_inline,
+        progress_bar=progress_bar,
+        refresh_fequency=refresh_fequency,
+        return_tensor=return_tensor,
+    )
+        
     if save_image:
         export(rd.optim_image.image(), image_name)
     if show_inline:
