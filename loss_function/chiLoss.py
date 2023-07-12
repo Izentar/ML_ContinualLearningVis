@@ -226,8 +226,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         batch_size = input.size(dim=0)
 
         target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float()
-        negative_mask = (target_stacked != target_stacked.T).float()
+        positive_mask = (target_stacked == target_stacked.T).float().fill_diagonal_(0.)
+        negative_mask = (target_stacked != target_stacked.T).float().fill_diagonal_(0.)
 
         means = self._calc_mean_dist(input, target) #/ 2# np.sqrt(2)
 
@@ -240,11 +240,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         first_part_negative = -(k / 2 - 1) * torch.log(z_negative / k + self.eps)
         second_part_negative = z_negative / (2 * k)
 
-        positive_loss = (first_part_positive + second_part_positive) * positive_mask
-        negative_loss = (first_part_negative + second_part_negative) * negative_mask     
-
-        positive_loss = self.remove_diagonal(matrix=positive_loss, batch_size=batch_size).sum()
-        negative_loss = self.remove_diagonal(matrix=negative_loss, batch_size=batch_size).sum()
+        positive_loss = ((first_part_positive + second_part_positive) * positive_mask).mean()
+        negative_loss = ((first_part_negative + second_part_negative) * negative_mask).mean()
 
         negative_loss = (negative_loss * (self.rho/self.sigma)**2)
 
