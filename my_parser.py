@@ -192,8 +192,10 @@ Checks if the output image has the provided shape. Do not include batch here. De
     parser.add_argument("--loop.vis.clear_dataset_at", type=str, nargs='+', help='If the dreams at the beginning of the advance loop should be cleared.')
     parser.add_argument("--datamodule.vis.decorrelate", action="store_true", help='If the dreams should be decorrelated.')
     
-    parser.add_argument("--model.loss.chi.sigma", type=float, default=0.01, help='How close points from latent space inside \
-current batch should be close to each other. Should be lesser than model.loss.chi.rho. The smaller the less scattered points of the same class.')
+    parser.add_argument("--model.loss.chi.sigma", type=float, default=0.4, help='How close points from latent space inside \
+current batch should be close to each other. Should be lesser than model.loss.chi.rho. The smaller the less scattered points of the same class. \
+It is important to know that sigma with rho directly affect convergence. The bigger the difference between sigma and rho the lesser must be the learing rate \
+at least in case of SGD or there will be exploding gradient.')
     parser.add_argument("--model.loss.chi.rho", type=float, default=1., help='How far means from different targets \
 should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
     
