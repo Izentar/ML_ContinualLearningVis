@@ -192,13 +192,20 @@ Checks if the output image has the provided shape. Do not include batch here. De
     parser.add_argument("--loop.vis.clear_dataset_at", type=str, nargs='+', help='If the dreams at the beginning of the advance loop should be cleared.')
     parser.add_argument("--datamodule.vis.decorrelate", action="store_true", help='If the dreams should be decorrelated.')
     
-    parser.add_argument("--model.loss.chi.sigma", type=float, default=0.4, help='How close points from latent space inside \
-current batch should be close to each other. Should be lesser than model.loss.chi.rho. The smaller the less scattered points of the same class. \
-It is important to know that sigma with rho directly affect convergence. The bigger the difference between sigma and rho the lesser must be the learing rate \
-at least in case of SGD or there will be exploding gradient.')
-    parser.add_argument("--model.loss.chi.rho", type=float, default=1., help='How far means from different targets \
-should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
+    #    parser.add_argument("--model.loss.chi.sigma", type=float, default=0.4, help='How close points from latent space inside \
+    #current batch should be close to each other. Should be lesser than model.loss.chi.rho. The smaller the less scattered points of the same class. \
+    #It is important to know that sigma with rho directly affect convergence. The bigger the difference between sigma and rho the lesser must be the learing rate \
+    #at least in case of SGD or there will be exploding gradient.')
+    #    parser.add_argument("--model.loss.chi.rho", type=float, default=1., help='How far means from different targets \
+    #should be appart from each other. Should be greather than model.loss.chi.sigma. The larger it is, the more scattered the points of different classes.')
     
+    parser.add_argument("--model.loss.chi.ratio", type=float, default=0.4, help="The ratio of rho/sigma in loss function. It should be bigger than \
+1. to be able to learn. The greater the absolute value, the clearer the divisions between points from the same class and points \
+from different classes become. If the value is greater than 1, points from the same classes start to approach each other and \
+points from different classes start to move away. For a value less than 1 the reverse relationship occurs.")
+    parser.add_argument("--model.loss.chi.scale", type=float, default=0.4, help="The greater the scale the flatter curve of loss function. \
+Increasing its value can help to eliminate exploding gradient problem while having high enough learning rate.")
+
     parser.add_argument("--model.loss.chi.dual.inner_scale", type=float, default=1., help="For use chi loss.")
     parser.add_argument("--model.loss.chi.dual.outer_scale", type=float, default=1., help="For use only cross entropy.")
 

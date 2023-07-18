@@ -179,19 +179,21 @@ class ChiLossFunctional(torch.nn.Module):
         return new_dist
 
 class ChiLoss(ChiLossBase, ChiLossFunctional):
-    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1., eps=1e-5, start_mean_buff_at=500, log_np_loss=True):
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, ratio=2.5, scale=10.,  eps=1e-5, 
+                 start_mean_buff_at=500, log_np_loss=True):
         super(ChiLoss, self).__init__(cyclic_latent_buffer=cyclic_latent_buffer)
         
-        self.sigma = sigma
-        self.rho = rho
+        self.sigma = scale
+        self.rho = ratio * scale
         self.loss_means_from_buff = loss_means_from_buff
         self.start_mean_buff_at = start_mean_buff_at
         self.log_np_loss = self._log_np_loss_f if log_np_loss else lambda x, y: None
 
-        #if(sigma >= rho):
-        #    raise Exception(f"Sigma cannot be bigger or equal than rho - sigma: {sigma}; rho: {tho}")
-
-        # if the loss is nan, change to bigger value
+        # can be translated to:
+        #(2 * sigma**2) <=> (2 * scale**2)
+        #(2 * rho**2) <=> (2 * ratio*scale**2)
+        #(rho/sigma)**2) <=> (ratio**2)
+        
         self.eps = eps  # to not have log(0) problem  
         self.call_idx = 0
         self.pdist = torch.nn.PairwiseDistance(p=2)
@@ -223,11 +225,10 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         super().__call__(input, target, train=train)
 
         k = input.size(dim=1)
-        batch_size = input.size(dim=0)
 
         target_stacked = target.repeat((len(target), 1))
-        positive_mask = (target_stacked == target_stacked.T).float().fill_diagonal_(0.)
-        negative_mask = (target_stacked != target_stacked.T).float().fill_diagonal_(0.)
+        positive_mask = (target_stacked == target_stacked.T).fill_diagonal_(0).float()
+        negative_mask = (target_stacked != target_stacked.T).fill_diagonal_(0).float()
 
         means = self._calc_mean_dist(input, target) #/ 2# np.sqrt(2)
 
@@ -250,8 +251,9 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         return loss
         
 class ChiLossInputFromMeans(ChiLoss):
-    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1, eps=0.00001, start_mean_buff_at=500):
-        super().__init__(cyclic_latent_buffer, loss_means_from_buff, sigma, rho, eps, start_mean_buff_at)
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, ratio=2.5, scale=10., eps=0.00001, start_mean_buff_at=500):
+        super().__init__(cyclic_latent_buffer=cyclic_latent_buffer, loss_means_from_buff=loss_means_from_buff, 
+                         ratio=ratio, scale=scale, eps=eps, start_mean_buff_at=start_mean_buff_at)
 
     def __str__(self) -> str:
         return 'CHI_LOSS_INPUT_FROM_MEANS'
@@ -290,8 +292,9 @@ class ChiLossInputFromMeans(ChiLoss):
         return loss
 
 class ChiLossSimple(ChiLoss):
-    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1, eps=0.00001, start_mean_buff_at=500):
-        super().__init__(cyclic_latent_buffer, loss_means_from_buff, sigma, rho, eps, start_mean_buff_at)
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, ratio=2.5, scale=10., eps=0.00001, start_mean_buff_at=500):
+        super().__init__(cyclic_latent_buffer=cyclic_latent_buffer, loss_means_from_buff=loss_means_from_buff, 
+                         ratio=ratio, scale=scale, eps=eps, start_mean_buff_at=start_mean_buff_at)
     
     def __str__(self) -> str:
         return 'CHI_LOSS_SIMPLE'
@@ -330,8 +333,9 @@ class ChiLossSimple(ChiLoss):
         return loss
 
 class ChiLossBatched(ChiLoss):
-    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, sigma=0.2, rho=1, eps=0.00001, start_mean_buff_at=500):
-        super().__init__(cyclic_latent_buffer, loss_means_from_buff, sigma, rho, eps, start_mean_buff_at)
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, ratio=2.5, scale=10., eps=0.00001, start_mean_buff_at=500):
+        super().__init__(cyclic_latent_buffer=cyclic_latent_buffer, loss_means_from_buff=loss_means_from_buff, 
+                         ratio=ratio, scale=scale, eps=eps, start_mean_buff_at=start_mean_buff_at)
 
         self.last_means_from_batch = {}
         self.forget_after = 10e+8

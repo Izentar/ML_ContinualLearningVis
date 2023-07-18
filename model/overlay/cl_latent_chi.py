@@ -20,8 +20,8 @@ class ClLatentChi(ClLatent):
     class Loss():
         @dataclass
         class Chi():
-            sigma: float = 0.2
-            rho: float = 0.2
+            ratio: float = 2.5
+            scale: float = 5
 
     def __init__(
             self, 
@@ -32,7 +32,7 @@ class ClLatentChi(ClLatent):
         kwargs.pop('loss_f', None)
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
-        loss_f = ChiLoss(sigma=self.cfg_loss_chi.sigma, rho=self.cfg_loss_chi.rho, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
+        loss_f = ChiLoss(ratio=self.cfg_loss_chi.ratio, scale=self.cfg_loss_chi.scale, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
         self._setup_loss_f(loss_f)
 
 
