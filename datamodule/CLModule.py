@@ -62,7 +62,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         train_tasks_split: list
         dataset_labels: dict = None
         custom_f_steps: list = (0,)
-        richbar_refresh_fequency: int = 50
+        richbar_refresh_fequency: int = 5
 
     @dataclass
     class Visualization():
@@ -268,7 +268,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
     def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None, input_image_train_after_obj:list=None) -> None:
         """Generate new dreams."""
-        targets = self.select_dream_tasks_f(self.cfg.train_tasks_split, task_index)
+        target = self.select_dream_tasks_f(self.cfg.train_tasks_split, task_index)
 
         layer_hook_obj = layer_hook_obj if layer_hook_obj is not None else ()
         input_image_train_after_obj = input_image_train_after_obj if input_image_train_after_obj is not None else []
@@ -276,11 +276,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
         rendervis_state = self.get_rendervis(model=model, custom_loss_gather_f=custom_loss_gather_f, input_image_train_after_hook=input_image_train_after_obj)
         
         iterations = ceil(self.cfg_vis.per_target / self.cfg_vis.batch_size)
-        image_log_idx = CounterKeys(keys=list(targets))
+        image_log_idx = CounterKeys(keys=list(target))
+        pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Number of images to visualize: {self.cfg_vis.per_target * len(target)}; batch size: {self.cfg_vis.batch_size}; batches to be generated: {iterations * len(target)}")
 
         new_dreams, new_targets = self._generate_dreams(
             model=model,
-            targets=targets, 
+            target=target, 
             iterations=iterations,
             layer_hook_obj=layer_hook_obj,
             rendervis_state=rendervis_state,
@@ -298,12 +299,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def load_dream_dataset(self, location):
         self.dreams_dataset.load(location)
 
-    def _generate_dreams(self, model, targets, iterations, layer_hook_obj:list, rendervis_state, run_name:list[str], image_log_idx):
+    def _generate_dreams(self, model, target, iterations, layer_hook_obj:list, rendervis_state, run_name:list[str], image_log_idx):
         if(self.cfg_vis_multitarget.enable):
             pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Using multitarget visualization")
-            new_images, new_targets = self._generate_dream_multi_target_iter(
+            new_images, new_targets = self._generate_dream_multitarget_iter(
                 model=model, 
-                target=targets, 
+                target=target, 
                 iterations=iterations, 
                 layer_hook_obj=layer_hook_obj,
                 rendervis_state=rendervis_state,
@@ -314,7 +315,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Using singletarget visualization")
             new_images, new_targets = self._generate_dream_target_iter(
                 model=model, 
-                target=targets, 
+                target=target, 
                 iterations=iterations, 
                 layer_hook_obj=layer_hook_obj,
                 rendervis_state=rendervis_state,
@@ -335,7 +336,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             for l in layer_hook_obj:
                 l.set_current_class(batch_target)
 
-    def _generate_dream_multi_target_iter(
+    def _generate_dream_multitarget_iter(
             self, model:torch.nn.Module, target:set, iterations:int, 
             layer_hook_obj:list, rendervis_state, run_name:list[str], image_log_idx
         ):

@@ -397,7 +397,7 @@ def render_vis_loop(
         verbose=False,
         show_inline=False,
         progress_bar=None,
-        refresh_fequency=50,
+        refresh_fequency=5,
         return_tensor=True,
     ):
     images = []
@@ -435,7 +435,7 @@ def render_vis(
     image_name=None,
     show_inline=False,
     progress_bar=None,
-    refresh_fequency=50,
+    refresh_fequency=5,
     return_tensor=True,
 ):
     """
