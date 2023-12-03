@@ -1,6 +1,6 @@
 from typing import Any, Dict
 import torch
-from loss_function.chiLoss import ChiLoss, l2_latent_norm
+from loss_function.chiLoss import ChiLossV2, l2_latent_norm
 from utils.cyclic_buffer import CyclicBufferByClass
 import wandb
 import pandas as pd
@@ -22,6 +22,7 @@ class ClLatentChi(ClLatent):
         class Chi():
             ratio: float = 2.5
             scale: float = 5
+            sigma: float = 0.1
 
     def __init__(
             self, 
@@ -32,7 +33,8 @@ class ClLatentChi(ClLatent):
         kwargs.pop('loss_f', None)
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
-        loss_f = ChiLoss(ratio=self.cfg_loss_chi.ratio, scale=self.cfg_loss_chi.scale, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
+        #loss_f = ChiLoss(ratio=self.cfg_loss_chi.ratio, scale=self.cfg_loss_chi.scale, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
+        loss_f = ChiLossV2(classes=self.cfg.num_classes, latent_size=self.cfg_latent.size, sigma=self.cfg_loss_chi.sigma, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
         self._setup_loss_f(loss_f)
 
 
