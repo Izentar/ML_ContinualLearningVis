@@ -22,7 +22,7 @@ class L2Regularization():
         self.loss = None
 
     def __call__(self, images):
-        self.loss = self.coefficient * torch.norm(images, 2)
+        self.loss = self.coefficient * torch.linalg.norm(images, 2)**2
 
     def gather_loss(self, loss):
         return loss + self.loss
