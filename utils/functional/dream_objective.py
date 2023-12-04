@@ -262,6 +262,7 @@ def diversity(layer):
         z_norm = torch.linalg.norm(flat_batch, dim=1, keepdim=True)
         b_norm = torch.linalg.norm(flat_batch_T, dim=0, keepdim=True)
         cosine_similarity = ((flat_batch @ flat_batch_T) / (z_norm @ b_norm)).T
+        # remove diagonal
         cosine_similarity = - cosine_similarity.flatten()[1:].view(batch-1, batch+1)[:,:-1].sum() / batch
 
         ## too slow !!!

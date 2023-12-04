@@ -12,6 +12,9 @@ from model.overlay.cl_latent_chi import ClLatentChi
 from utils.functional.model_optimizer import ModelOptimizerManager
 
 class ModelSufix(torch.nn.Module):
+    """
+        Adds additional linear layers at the end of the model. It is mainly used to change model from regression task to classification task.
+    """
     def __init__(self, model, num_classes) -> None:
         super().__init__()
         self.model = model
@@ -60,13 +63,25 @@ class ModelSufix(torch.nn.Module):
         return self.model.name
 
 class ClLatentDual(ClLatentChi):
+    """
+        Overlay that uses chi-square loss with two optimizers and schedulers with a model that implements ModelSufix.
+        ModelSufix is added during __init__ of this class. First optimizer is used for main part of the model.
+        Second optimizer is used only for ModelSufix tensors. During training both losses can be used at the same time. 
+        It can train using chi-loss without ModelSufix or cross-entropy with ModelSufix at the same time.
+    """
     @dataclass
     class Loss():
         @dataclass
         class Chi():
             @dataclass
             class Dual():
+                """
+                    Scale of the chi-square loss. Typical values are 0, 1.
+                """
                 inner_scale: float = 1.
+                """
+                    Scale of the cross-entropy loss. Typical values are 0, 1.
+                """
                 outer_scale: float = 1.
 
                 def __post_init__(self):
@@ -325,7 +340,9 @@ class ClLatentDual(ClLatentChi):
         return 'ClLatentDual_' + super().get_obj_str_type()
         
 class ClLatentDualHalved(ClLatentDual):
-
+    """
+        Overlay that uses chi-square loss with two optimizers and schedulers. That is why it is called halved.
+    """
     @dataclass
     class Inner():
         @dataclass
