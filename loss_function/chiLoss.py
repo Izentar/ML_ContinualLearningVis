@@ -250,7 +250,7 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         return loss
         
 class ChiLossV2(ChiLossBase, ChiLossFunctional):
-    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, classes, latent_size, sigma=0.01, eps=1e-5, 
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, classes, latent_size, sigma=0.01, eps=1e-5, l2=0.001,
                  start_mean_buff_at=500):
         super(ChiLossV2, self).__init__(cyclic_latent_buffer=cyclic_latent_buffer)
         
@@ -264,14 +264,16 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
 
         self.classes = classes
         self.latent_size = latent_size
+        self.l2 = l2
         self._init_mean_shift()
 
     def _init_mean_shift(self):
-        self.mean_shift = torch.zeros((self.classes, self.latent_size), requires_grad=False)
+        self.mean_shift = torch.ones((self.classes, self.latent_size), requires_grad=False)
         self.mean_shift.normal_()
         self.mean_shift.requires_grad_(True)
+        self.mean_shift = torch.nn.parameter.Parameter(self.mean_shift, requires_grad=True)
 
-    def _add_mean_shift(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def _add_mean_shift(self, input: torch.Tensor, target: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         tmp_matrix = [None] * input.size(0)
 
         for idx, t in enumerate(target):
@@ -279,7 +281,7 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
             
         # cannot add average over batch because it will change position of the points in unpredictable way
         tmp_matrix = torch.stack(tmp_matrix)
-        return input + tmp_matrix
+        return torch.add(input, tmp_matrix), tmp_matrix
         
     def __str__(self) -> str:
         return 'CHI_LOSS_V2'
@@ -299,17 +301,16 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
             Distance of input from each other and means form each other
         """
         super().__call__(input, target, train=train)
-        self.mean_shift = self.mean_shift.to(input.device)
 
         k = input.size(dim=1)
 
-        input = self._add_mean_shift(input=input, target=target)
-        distance = torch.cdist(input, input, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2)   
+        input_2, weight_matrix = self._add_mean_shift(input=input, target=target)
+        distance = torch.cdist(input_2, input_2, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2)   
 
         first_part = -(k / 2 - 1) * torch.log(distance / k + self.eps)
         second_part = distance / (2 * k)
 
-        loss_sum = (first_part + second_part).mean()
+        loss_sum = (first_part + second_part).mean() + (self.l2 * torch.linalg.norm(weight_matrix)**2)
         return loss_sum
     
     def clear(self, classes=None, latent_size=None):

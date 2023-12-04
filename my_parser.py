@@ -234,6 +234,7 @@ Reloading means any weights that model had before training will be reloaded. Rel
 Model will have newly initialized weights after each main loop. Reinit is done AFTER dream generation if turned on.') ##**
 
     parser.add_argument("--loop.weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
+    parser.add_argument("--model.train_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
 
 
 

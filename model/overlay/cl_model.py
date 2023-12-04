@@ -1,3 +1,4 @@
+import torch
 from typing import Any, Dict
 from model.overlay import cl_base
 from torch import nn
@@ -11,6 +12,10 @@ from config.default import datasets, datasets_map
 from dataclasses import dataclass
 
 class ClModel(cl_base.ClBase):
+    @dataclass
+    class Config(cl_base.ClBase.Config):
+        train_sanity_check: bool = False
+
     @dataclass
     class Robust():
         dataset_name: str = None
@@ -72,6 +77,7 @@ class ClModel(cl_base.ClBase):
             'cfg_robust': ClModel.Robust,
             'cfg_robust_kwargs': ClModel.Robust.Kwargs,
             'cfg_layer_replace': ClModel.LayerReplace,
+            'cfg': ClModel.Config,
         })
 
         b.update({
@@ -117,6 +123,22 @@ class ClModel(cl_base.ClBase):
     def call_loss(self, input, target, train, **kwargs):
         return self._loss_f(input, target, train)
     
+    def _weight_train_sanity_check(self):
+        if(self.cfg.train_sanity_check):
+            if(not hasattr(self, "_saved_tensor_sanity_check")):
+                self._saved_tensor_sanity_check = self.model.get_objective_layer().weight.detach().cpu()
+                self._sanity_check_counter = 0
+            else:
+                self._sanity_check_counter += 1
+            if(self._sanity_check_counter == 1):
+                test_sanity_val = self.model.get_objective_layer().weight.detach().cpu()
+                if not torch.allclose(self._saved_tensor_sanity_check, test_sanity_val):
+                    pp.sprint(f"{pp.COLOR.WARNING}DEBUG: SANITY CHECK: Model training success")
+                    return
+                pp.sprint(f'{pp.COLOR.WARNING}DEBUG: SANITY CHECK: FAIL: Model training fail sanity check. No weights update')
+                pp.sprint(f"{pp.COLOR.WARNING}", self._saved_tensor_sanity_check)
+                pp.sprint(f"{pp.COLOR.WARNING}", test_sanity_val)
+
     def training_step_normal_setup(self, x, y):
         if(self.cfg_robust.enable):
             model_out = self(
@@ -134,6 +156,8 @@ class ClModel(cl_base.ClBase):
     def training_step_normal(self, batch, optimizer_idx):
         x, y = batch
         latent, model_out_dict = self.training_step_normal_setup(x=x, y=y)
+
+        self._weight_train_sanity_check()
 
         loss = self.process_losses_normal(
             x=x, 
