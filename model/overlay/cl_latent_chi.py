@@ -23,6 +23,7 @@ class ClLatentChi(ClLatent):
             ratio: float = 2.5
             scale: float = 5
             sigma: float = 0.1
+            l2: float = 1e-3
 
     def __init__(
             self, 
@@ -34,7 +35,8 @@ class ClLatentChi(ClLatent):
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
         #loss_f = ChiLoss(ratio=self.cfg_loss_chi.ratio, scale=self.cfg_loss_chi.scale, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
-        loss_f = ChiLossV2(classes=self.cfg.num_classes, latent_size=self.cfg_latent.size, sigma=self.cfg_loss_chi.sigma, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
+        loss_f = ChiLossV2(classes=self.cfg.num_classes, latent_size=self.cfg_latent.size, 
+            sigma=self.cfg_loss_chi.sigma, l2=self.cfg_loss_chi.l2, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
         self._setup_loss_f(loss_f)
 
 
@@ -155,4 +157,3 @@ class ClLatentChi(ClLatent):
 
     def get_obj_str_type(self) -> str:
         return 'ClLatentChi_' + super().get_obj_str_type()
-        

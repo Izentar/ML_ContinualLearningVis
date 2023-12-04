@@ -205,6 +205,7 @@ from different classes become. If the value is greater than 1, points from the s
 points from different classes start to move away. For a value less than 1 the reverse relationship occurs.")
     parser.add_argument("--model.loss.chi.scale", type=float, default=2, help="The greater the scale the flatter curve of loss function. \
 Increasing its value can help to eliminate exploding gradient problem while having high enough learning rate.")
+    parser.add_argument("--model.loss.chi.l2", type=float, default=1e-3, help="L2 regularization for ChiLossV2 weights of points means normalization.")
 
     parser.add_argument("--model.loss.chi.dual.inner_scale", type=float, default=1., help="For use chi loss.")
     parser.add_argument("--model.loss.chi.dual.outer_scale", type=float, default=1., help="For use only cross entropy.")
