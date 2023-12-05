@@ -1,6 +1,6 @@
 from typing import Any, Dict
 import torch
-from loss_function.chiLoss import ChiLossV2, l2_latent_norm
+from loss_function.chiLoss import ChiLossV2, ChiLoss, l2_latent_norm
 from utils.cyclic_buffer import CyclicBufferByClass
 import wandb
 import pandas as pd
@@ -110,11 +110,13 @@ class ClLatentChi(ClLatent):
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         super().load_checkpoint(checkpoint)
         if(loss_f := checkpoint.get('loss_f')):
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: model loss function loaded.")
             self._loss_f = loss_f
         else:
             pp.sprint(f"{pp.COLOR.WARNING}WARNING: model loss function not loaded. Using default constructor.")
         if(buffer := checkpoint.get('buffer')):
             self.cyclic_latent_buffer = buffer
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: model latent buffer loaded.")
         else:
             pp.sprint(f"{pp.COLOR.WARNING}WARNING: model latent buffer not loaded. Using default constructor.")
     

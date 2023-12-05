@@ -337,7 +337,7 @@ class CLLoop(Loop):
         self._try_load_dreams()
 
     def _gather_model_layer_stats_advance_f(self):
-        pp.sprint(f"{pp.COLOR.NORMAL}hooking to model - {pp.COLOR.DETAIL}GATHER STATS{pp.COLOR.NORMAL} - task: {self.current_task}, loop {self.current_loop}")
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: hooking to model - {pp.COLOR.DETAIL}GATHER STATS{pp.COLOR.NORMAL} - task: {self.current_task}, loop {self.current_loop}")
 
         train_dataloader = self.data_module.train_dataloader()
         if(isinstance(train_dataloader, CombinedLoader)):
@@ -505,8 +505,8 @@ class CLLoop(Loop):
             fit_loop=FitLoop(max_epochs=self.epoch_num)
         )
         if(utils.check_python_index(self.cfg_layer_stats.use_at, self.cfg.num_loops, self.current_loop)):
-            pp.sprint(f"{pp.COLOR.NORMAL}INFO: HOOKING UP LOOP TO GATHER STATISTICS")
-            self.custom_advance_f = self._gather_model_layer_stats_advance_f # run custon data gathering loop
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: HOOKING UP CUSTOM LOOP TO GATHER STATISTICS")
+            self.custom_advance_f = self._gather_model_layer_stats_advance_f # run custom data gathering loop
             self.layer_stats_use_at = True
         elif(utils.check_python_index(self.cfg.train_at, self.cfg.num_loops, self.current_loop)):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: HOOKING UP NORMAL LOOP")
@@ -735,8 +735,8 @@ class CLLoop(Loop):
             path = self._generate_load_path('trained_model')
             checkpoint = torch.load(path)
             if("state_dict" in checkpoint): # pytorch save was used
-                self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
                 self.trainer.lightning_module.load_checkpoint(checkpoint)
+                self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
             else:
                 checkpoint = self._try_load_model_if_checkpoint_smaller(checkpoint)
                 checkpoint = self._try_load_model_if_checkpoint_bigger(checkpoint)

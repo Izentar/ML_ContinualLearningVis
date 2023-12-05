@@ -158,8 +158,8 @@ class ModuleStatData(torch.nn.Module):
         self._mean:LazyDiskDict|dict|None = None
         self._old_mean:LazyDiskDict|dict|None = None
 
-        self._M2n_channel:LazyDiskDict|dict|None = None
-        self._mean_channel:LazyDiskDict|dict|None = None
+        self._M2n_channel:LazyDiskDict|dict|None = None # for variance and std. Channel means classes
+        self._mean_channel:LazyDiskDict|dict|None = None # # for variance and std. Channel means classes
         self._old_mean_channel:LazyDiskDict|dict|None = None
 
         self._counter_update = 0
@@ -361,7 +361,9 @@ class ModuleStat():
         output = output.detach().to(self.device)
         values = self._split_by_target(output)
         for k, val in values.items():
+            # iterate over classes
             for v in val:
+                # iterate over values one by one
                 self.data._counter_update += 1
                 self._update_call_mean(k, v)
                 self._update_call_std(k, v)
@@ -372,13 +374,23 @@ class ModuleStat():
         self._flush_to_file_caller()
 
     def push(self, output):
+        """
+            Push data that will be used to gather stats.
+        """
         self._update(output=output)
         #self.output_list.append(output)
 
     def register_batched_class_list(self, target_list:torch.Tensor):
+        """
+            Used to pass targets to this class.
+        """
         self.shared_ref['target'] = target_list.to(self.device) # pass by reference
 
     def _split_by_target(self, torch_data) -> dict:
+        """
+            Split by target using shared_ref to 'indices_by_target' where dict[class idx, indices from target].
+            Returns dict[class idx, selected data]
+        """
         ret = dict()
         indices = self.shared_ref['indices_by_target']
         if(len(indices) == 0):
@@ -600,6 +612,8 @@ class ModelLayerStatistics(torch.nn.Module):
         self.flush_to_disk = flush_to_disk
         self.type = type
 
+        # hook to given layerss fun which creates ModuleStat and hook that pushes values
+        # at some layers to this ModuleStat
         f = lambda layer, name, tree_name, full_name: layer.register_forward_hook(
             self._set_statistics_f(layer=layer, name=name, tree_name=tree_name, full_name=full_name)
         )
@@ -645,6 +659,10 @@ class ModelLayerStatistics(torch.nn.Module):
         return ret
 
     def register_batched_class_list(self, target_list):
+        """
+            Used to pass targets to this class.
+            It also creates dict[given target class, indices of given class in target_list]
+        """
         self.shared_ref['target'] = target_list.to(self.device) # pass by reference
         self.shared_ref['indices_by_target'] = self._indices_by_target()
 
@@ -715,11 +733,21 @@ def collect_model_layer_stats(
     stats_type:list[str]=None,
 ) -> dict|torch.Tensor:
     """
+        Run a single evaluation loop with given single_dataloader. 
         Collect model stats and return tuple 
-            - model layer stats
-            - target tensor
-        If there is little to no memory, try to push model into the device where the results are storen. For example if mean is stored on cpu,
+            - model layer stats - dictionary of all collected statistics (stats_type)
+            - target tensor - all targets given by single_dataloader in order of appearing. 
+        If there is little to no memory, try to push model into the device where the results are stored. For example if mean is stored on cpu,
         then model should be on cpu too to minimize memory footprint. 
+
+        hook_to - list of all layers where it should collect statistics. The names should have a structure of a tree with '.' separator.
+        
+        stats_type:
+            - if None - collect only 'mean' and 'std'.
+            - 'mean', 'std' - collect mean and std for given layers.
+            - 'cov' - collect covariance matrix.
+            - 'mean_channel', 'std_channel' - collect mean and std for given layers with additional grouping by channel. 
+                There will be additional indexing where you can choose channel.
     """
     model_layer_stats_obj = ModelLayerStatistics(model=model, device=device, hook_verbose=hook_verbose, flush_to_disk=flush_to_disk, 
                                                  hook_to=hook_to, type=stats_type)

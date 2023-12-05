@@ -86,16 +86,16 @@ class ChiLossBase(torch.nn.Module, BaseLoss):
     def train(self, flag:bool) -> None:
         self._train = flag
 
-    def _get_means_with_target(self, example:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _get_means_with_target(self, device) -> tuple[torch.Tensor, torch.Tensor]:
         """
-            example - tensor example. How the new tensor means and target should be created.
+            Returns all means and its target tensor converted to given device.
         """
         means = []
         target = []
         cloud_centers = self._cloud_data.mean()
         for key, val in cloud_centers.items():
-            means.append(val.to(example.device))
-            target.append(torch.tensor(key, dtype=torch.int8, device=example.device))
+            means.append(val.to(device))
+            target.append(torch.tensor(key, dtype=torch.int8, device=device))
         assert len(means) != 0
         #if(len(means) == 0):
         #    return torch.zeros_like(example, dtype=torch.float32), torch.zeros((len(example[0]),), dtype=torch.int8, device=example.device)
@@ -106,9 +106,15 @@ class ChiLossBase(torch.nn.Module, BaseLoss):
             Return only a vector of classes that will be compared to real batch target
         """ 
         input = input.detach()
-        means, target = self._get_means_with_target(example=input)
+        means, target = self._get_means_with_target(device=input.device)
+        # creates something like 
+        # 0 1 2 3
+        # 0 1 2 3
+        # matrix B x latent_size
         target = target.repeat((len(input), 1))
+        # distance between two matrixes
         matrix = torch.cdist(input, means)
+        # select indices of the input that have minimal distance 
         idxs = torch.argmin(matrix, dim=1, keepdim=True)
         classes = torch.gather(target, 1, idxs).squeeze_()
         assert len(classes.shape) != 0
@@ -269,9 +275,9 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
 
     def _init_mean_shift(self):
         self.mean_shift = torch.ones((self.classes, self.latent_size), requires_grad=False)
-        self.mean_shift.normal_()
-        self.mean_shift.requires_grad_(True)
-        self.mean_shift = torch.nn.parameter.Parameter(self.mean_shift, requires_grad=True)
+        self.mean_shift.normal_(std=10)
+        #self.mean_shift.requires_grad_(True)
+        #self.mean_shift = torch.nn.parameter.Parameter(self.mean_shift, requires_grad=True)
 
     def _add_mean_shift(self, input: torch.Tensor, target: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         tmp_matrix = [None] * input.size(0)
@@ -301,6 +307,7 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
             Distance of input from each other and means form each other
         """
         super().__call__(input, target, train=train)
+        self.mean_shift = self.mean_shift.to(input.device)
 
         k = input.size(dim=1)
 
@@ -310,7 +317,7 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
         first_part = -(k / 2 - 1) * torch.log(distance / k + self.eps)
         second_part = distance / (2 * k)
 
-        loss_sum = (first_part + second_part).mean() + (self.l2 * torch.linalg.norm(weight_matrix)**2)
+        loss_sum = (first_part + second_part).mean() #+ (self.l2 * torch.linalg.norm(weight_matrix)**2)
         return loss_sum
     
     def clear(self, classes=None, latent_size=None):

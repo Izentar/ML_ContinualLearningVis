@@ -299,7 +299,7 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
     parser.add_argument("--loop.layer_stats.device", type=str, default='cuda', help='')
     parser.add_argument("--loop.layer_stats.flush_to_disk", action="store_true", help='')
-    parser.add_argument("--loop.layer_stats.type", nargs='+', type=str, help="Possible types: 'mean', 'std', 'cov'")
+    parser.add_argument("--loop.layer_stats.type", nargs='+', type=str, help="Possible types: 'mean', 'std', 'cov'. Default ()'mean, 'std')")
 
 
 

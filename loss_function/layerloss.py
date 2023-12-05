@@ -3,6 +3,7 @@ from  model.statistics.base import ModuleStatData, get_hash
 from collections.abc import Sequence
 import json
 from utils import pretty_print as pp
+import pandas as pd
 
 class LayerBase():
     def __init__(self, scale_file:dict|str=None, scale:float=1.) -> None:
@@ -23,7 +24,6 @@ class LayerBase():
             self.default_scale = scale
 
         self._print_scale_file()
-
 
     def _print_scale_file(self):
         s = f"{pp.COLOR.NORMAL}INFO: For layerloss {type(self).__name__} used "
@@ -46,12 +46,26 @@ class LayerBase():
         self.new_cl = True
 
     def _register_loss(self, full_name, output, value):
+        """
+            Register loss for given layer full name. Name typically is set as variable full tree name from modules
+            but it can happend that module has two children with the same name. To prevent that the output is used to
+            generate key name.
+        """
         name = (full_name, output.shape[1:])
         if(name in self.loss_dict):
             raise Exception(f'Loss for "{name}" was not processed. Tried to override loss.')
         self.loss_dict[name] = value * self.scales[full_name]
 
     def _gather_loss(self, loss) -> torch.Tensor:
+        """
+            Function used to gather all the losses from all layers where it was hooked to.
+            Framework will check for functions with name "gather_loss(self, loss) -> torch.Tensor:".
+            To implement gathering of losses across all layers just implement given function and inside it call this function
+            just like that:
+            
+            def gather_loss(self, loss) -> torch.Tensor:
+                return self._gather_loss(loss)
+        """
         if(len(self.loss_dict) == 0):
             raise Exception("Loss dict is empty. Maybe tried to hook to the nonexistent layer?")
         sum_loss = torch.sum(torch.stack(list(self.loss_dict.values())))
@@ -59,14 +73,26 @@ class LayerBase():
         return loss + sum_loss
     
     def register_scale(self, full_name):
+        """
+            Used to register scale name and set the corresponding scale. Hook does not return any values
+            because they are stored inside this class and later gathered.
+            No need to call if "gather_loss(self, loss) -> torch.Tensor:" is not implemented.
+            In that case implemented hook should return variables.
+        """
         # backup if no particular scale is registered
         if(self.scales.get(full_name) is None):
             self.scales[full_name] = self.default_scale
+        else:
+            self.scales[full_name] = self.scales.get(full_name)
 
 class DeepInversionTarget(LayerBase):
+    """
+        Special version of deep inversion that uses ModuleStatData, collect_model_layer_stats() and ModelLayerStatistics
+        to gather statistics of mean and variance by each class at given layer. It uses set_current_class() to set class
+        and use it to choose corresponding channel.
+    """
     def __init__(self, scale, multitarget=False, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.scale = scale   
+        super().__init__(scale=scale, **kwargs)
         self.multitarget = multitarget
 
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
@@ -85,7 +111,7 @@ class DeepInversionTarget(LayerBase):
             var = input[0].permute(1, 0, 2, 3).contiguous().view([input[0].shape[1], -1]).var(1, correction=0)
 
             val = torch.norm(layer_var_channel - var, 2) + torch.norm(layer_mean_channel - mean, 2)
-            self._register_loss(full_name, output, self.scale * val)
+            self._register_loss(full_name, output, val)
 
         def inner_multi_target(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
             data:ModuleStatData = layer_stat_data
@@ -120,12 +146,10 @@ class DeepInversionTarget(LayerBase):
 
 class MeanNorm(LayerBase):
     def __init__(self, device, del_cov_after=False, scale=0.01, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__(scale, **kwargs)
 
         self.device = device
-        self.scale = scale
-        self.del_cov_after = del_cov_after
-        print(f'LAYERLOSS::MEAN_NORM: Scaling {self.scale}')    
+        self.del_cov_after = del_cov_after 
     
     def hook_fun(self, module:torch.nn.Module, full_name:str, layer_stat_data):
         def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
@@ -139,7 +163,7 @@ class MeanNorm(LayerBase):
             output = output.view(output.shape[0], -1).to(self.device)
 
             mean_diff = output - mean
-            val = self.scale * torch.sum(
+            val =  torch.sum(
                 torch.diag(torch.linalg.multi_dot((mean_diff, cov_inverse, mean_diff.T)))
             ).to(input[0].device)
             self._register_loss(full_name, output, val)
@@ -150,10 +174,46 @@ class MeanNorm(LayerBase):
     def gather_loss(self, loss) -> torch.Tensor:
         return self._gather_loss(loss)
 
+class DeepInversionProfiler(LayerBase):
+    """
+        Not implemented
+    """
+    def __init__(self, output_file, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.output_file_name = output_file
+        self.table = pd.DataFrame()
+        self.file = open(output_file, 'w')
+        
+        self._header_write = False
+        self.header_dict = {}
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def hook_fun(self, module:torch.nn.Module, name:str, tree_name:str, full_name:str):
+        def inner(module:torch.nn.Module, input:torch.Tensor, output:torch.Tensor):
+            # hook co compute deepinversion's feature distribution regularization
+            nch = input[0].shape[1]
+
+            mean = input[0].mean([0, 2, 3])
+            var = input[0].permute(1, 0, 2, 3).contiguous().view([nch, -1]).var(1, unbiased=False)
+            
+            if(not self._header_write):
+                self._create_writer()
+                self._header_write = True
+
+            self.writer.writerow()
+            # must have no output
+        self.writer.writerow()
+        return module.register_forward_hook(inner)
+    
+    def __del__(self):
+        self.file.close()
+
 class DeepInversionFeatureLoss(LayerBase):
     '''
         Implementation of the forward hook to track feature statistics and compute a loss on them.
-        Will compute mean and variance, and will use l2 as a loss
+        Will compute mean and variance, and will use l2 as a loss.
     '''
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -208,7 +268,6 @@ class LayerGradPruning(LayerBase):
             # from the next layer while grad_input is what will be sent to the previous one.
             return (grad_input, )
         
-        self.register_scale(full_name)
         return module.register_full_backward_hook(inner)
 
 class LayerGradActivationPruning(LayerBase):
@@ -235,5 +294,4 @@ class LayerGradActivationPruning(LayerBase):
             grad_input_view[i0, i1_1] = 0.0
             return (grad_input, )
 
-        self.register_scale(full_name)
         return module.register_full_backward_hook(inner)
