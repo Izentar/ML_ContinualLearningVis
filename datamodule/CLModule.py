@@ -461,7 +461,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
             if(self.progress_bar is not None):
                 self.progress_bar.update('target_vis') # if key not found, ignore
         new_images = torch.cat(new_images)
-        self._log_images(new_images, batch_target, image_log_idx)
+        self._log_images(new_images, new_targets, image_log_idx)
         return new_images, new_targets
 
     def generate_dreams_for_target(self, model, target, iterations, rendervis_state, image_log_idx=None):
