@@ -160,6 +160,7 @@ default_export_path = './model_save/'
 model_to_save_file_type = 775
 tmp_stat_folder = 'tmp/stats/'
 
+# len(colors_list) and len(markers_list) are prime numbers to have len(colors_list) * len(markers_list) combinations
 colors_list = ('r', 'g', 'b', 'c', 'k', 'm', 'y', 'indianred', 'salmon', 'darkkhaki', 'violet')
 markers_list = ('>', '+', '.', 'o', '*')
 markers = itertools.cycle(markers_list)

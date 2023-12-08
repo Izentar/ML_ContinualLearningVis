@@ -43,6 +43,17 @@ def set_legend(label_plot: dict, ax):
 
     ax.legend()
 
+def classes_to_int(classes):
+    if classes is not None:
+        return [int(i) for i in classes]
+    return classes
+
+def class_not_present(classes, x):
+    if not (classes is None or len(classes) == 0):
+        if (isinstance(x, torch.Tensor) and x.item() not in classes) or (isinstance(x, int) and x not in classes):
+            return True
+    return False
+
 class ServePlot():
     def __init__(self, **kwargs):
         self.create_new_subplot = True
@@ -108,6 +119,7 @@ class Statistics():
 
     def collect(self, model, dataloader, num_of_points, to_invoke, logger=None):
         '''
+            Collect given num_of_points to use them on calculating stats and to plot. 
             to_invoke: function to invoke that returns points to collect
         '''
         buffer = []
@@ -511,16 +523,23 @@ class PointPlot():
         plot_type, 
         with_batch=True, 
         with_target=True, 
-        symetric=True, 
+        symetric=True,
+        to_wandb=True, 
+        classes=None,
         name='point-plot', 
         show=False, 
         markersize=1, 
         ftype='png',
     ):
         '''
+            Iterate over vector, choose 2 of them and plot them. Do it for 
+            all combinations of the scalars inside vector.
+            plot_type - show all plots on one figure or multiple figures as multiple files.
+
+            Depends on the flags with_batch and with_target
             buffer[0] - list of batches of points
             buffer[1] - list of points
-            buffer[2:] -  points
+            buffer[2, :] -  points
         '''
         if not (plot_type in ['singular', 'multi']):
             raise Exception(f"Unknown plot type: {plot_type}")
@@ -529,12 +548,13 @@ class PointPlot():
 
         target = None
         if(with_batch and with_target):
-            target = [torch.tensor(x[1]) for x in buffer]
+            target = [x[1].clone().detach() for x in buffer]
             buffer = [x[0] for x in buffer]
             buffer = torch.cat(buffer, dim=0)
             target = torch.cat(target, dim=0).tolist()
         elif(with_batch):
-            buffer = torch.cat(buffer, dim=0)
+            if(isinstance(buffer, list)):
+                buffer = torch.cat(buffer, dim=0)
         elif(with_target):
             target = buffer[1].tolist()
             buffer = buffer[0]
@@ -549,6 +569,7 @@ class PointPlot():
         data_x_target, data_y_target, data_dims = self.create_buffers(target_set)
         stash = []
 
+        # iterate over x and y of the plot
         for dim_x in range(dims):
             if(symetric):
                 start = 0
@@ -568,37 +589,41 @@ class PointPlot():
                     stash.append((data_x_target, data_y_target, data_dims))
                     data_x_target, data_y_target, data_dims = self.create_buffers(target_set)  
 
-        def plot_loop(data_x_target, data_y_target, data_dims, markersize):
+        def plot_loop(data_x_target, data_y_target, data_dims, markersize, classes):
             fig, ax = plt.subplots()
+            classes = classes_to_int(classes)
             for (kx, vx), (ky, vy), (kt, vt) in zip(data_x_target.items(), data_y_target.items(), data_dims.items()):
-                ax.plot(
+                if(class_not_present(classes, kx)):
+                    continue
+                ax.scatter(
                     vx,
                     vy,
-                    'o', 
                     marker=next(markers),
                     color=next(colors),
                     label=f"Target: {kx}",
-                    markersize=markersize,
+                    s=markersize,
                 )
             return fig, ax
 
         if(plot_type == 'singular'):
             for idx, (data_x_target, data_y_target, data_dims) in enumerate(stash):
-                fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize)
-                self.flush(fig, ax, name, show, idx=idx, ftype=ftype)
+                fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize, classes=classes)
+                self.flush(fig, ax, name, show, idx=idx, ftype=ftype, to_wandb=to_wandb)
         elif(plot_type == 'multi'):
-            fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize)
-            self.flush(fig, ax, name, show, ftype=ftype)
+            fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize, classes=classes)
+            self.flush(fig, ax, name, show, ftype=ftype, to_wandb=to_wandb)
 
     def plot_3d(
         self, 
         buffer,
         std_mean_dict,
         name='point-plot-3d', 
-        show=False,
+        show=True,
+        to_wandb=True,
+        classes=None,
         ftype='png',
         alpha=0.3,
-        space=1,
+        space=30,
     ):
         last_dim = np.shape(buffer[0][0].numpy())[-1]
         if last_dim != 3:
@@ -618,7 +643,10 @@ class PointPlot():
 
         unique_target, unique_count = torch.unique(target, return_counts=True)
 
+        classes = classes_to_int(classes)
         for cl, count in zip(unique_target, unique_count):
+            if(class_not_present(classes, cl)):
+                continue
             #mean = std_mean_dict[cl]['mean']
 
             indices = select_class_indices_tensor(cl, target)
@@ -626,9 +654,9 @@ class PointPlot():
 
             swap_points = torch.swapaxes(current_points_class, 1, 0)
             #print(swap_points.size())
-            ax.scatter(swap_points[0], swap_points[1], swap_points[2], color=next(colors), label=f'Class {cl}', alpha=alpha, s=space)
+            ax.scatter(swap_points[0], swap_points[1], swap_points[2], color=next(colors), marker=next(markers), label=f'Class {cl}', alpha=alpha, s=space)
 
-        self.flush(fig, ax, name, show, ftype=ftype)
+        self.flush(fig, ax, name, show, ftype=ftype, to_wandb=to_wandb)
 
     def plot_mean_dist_matrix(
         self, 

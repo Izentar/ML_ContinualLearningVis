@@ -389,7 +389,7 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
         collect_stats(model=model, dataset=dataset,
             collect_numb_of_points=collect_numb_of_points, 
             collector_batch_sampler=collector_batch_sampler,
-            nrows=nrows, ncols=ncols, 
+            nrows=nrows, ncols=ncols, plot_classes=args.stat.plot_classes,
             logger=logger, attack_kwargs=attack_kwargs, path=custom_loop.save_folder)
     if(args.stat.compare_latent and not args.fast_dev_run.enable):
         pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Compare latent')
@@ -501,7 +501,7 @@ def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     except Exception as std_stat_exception:
         pp.sprint(f'{pp.COLOR.WARNING}WARNING: std stat graph plot failed. Exception:\n{std_stat_exception}')
 
-def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, path, nrows=1, ncols=1, logger=None):
+def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, path, plot_classes=None, nrows=1, ncols=1, logger=None):
     stats = Statistics()
     dataloader = DataLoader(dataset, 
         num_workers=4, 
@@ -532,7 +532,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     if(isinstance(path, str)):
         path = Path(path)
 
-    #plotter.plot(buffer, plot_type='singular', name='plots/singular', show=False, symetric=False, markersize=3, ftype='png')
+    plotter.plot(buffer, plot_type='singular', name=path / 'plots/singular', show=False, symetric=False, classes=plot_classes, markersize=3, ftype='png')
     #std_mean_dict = Statistics.by_class_operation(Statistics.f_mean_std, buffer, 'saves/mean_std.txt')
     std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, path / 'saves/distance.txt')
     std_mean_distance_dict = Statistics.by_class_operation(
@@ -542,7 +542,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
         output=std_mean_distance_dict
     )
     Statistics.mean_distance(std_mean_distance_dict)
-    plotter.plot_3d(buffer, std_mean_distance_dict, name=path / 'plots/point-plot-3d')
+    plotter.plot_3d(buffer, std_mean_distance_dict, classes=plot_classes, name=path / 'plots/point-plot-3d')
     plotter.plot_std_mean(std_mean_distance_dict, name=path / 'plots/std-mean', show=False, ftype='png')
     plotter.plot_distance(std_mean_distance_dict, nrows=nrows, ncols=ncols, name=path / 'plots/distance_class', show=False, ftype='png', markersize=3)
     plotter.plot_mean_distance(std_mean_distance_dict, name=path / 'plots/mean_distance', show=False, ftype='png', markersize=4)

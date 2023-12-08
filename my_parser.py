@@ -313,6 +313,8 @@ thrown, list of avaliable layers will be displayed.') ##**
     parser.add_argument("--stat.compare_latent", action="store_true", help='')
     parser.add_argument("--stat.disorder_dream", action="store_true", help='')
     parser.add_argument("--stat.collect_stats", action="store_true", help='')
+    parser.add_argument("--stat.plot_classes", nargs='+', type=str, help='Classes to plot in 2d plot. \
+For multi dims they will be plotted in paris for all combinations of dims.')
     parser.add_argument("--stat.disorder.sigma", type=float, default=0.0, help='')
     parser.add_argument("--stat.disorder.start_img_val", type=float, help='Default None')
     parser.add_argument("--loop.save.ignore_config", action="store_true", help='')

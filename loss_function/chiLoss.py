@@ -68,8 +68,8 @@ class ChiLossBase(torch.nn.Module, BaseLoss):
         self.to_log = {}
         self._train = True
 
-        if(self._cloud_data.dimensions <= 2):
-            raise Exception(f"Current Chiloss implementation requires latent size greater than 2. Currently {self._cloud_data.dimensions}")
+        #if(self._cloud_data.dimensions <= 2):
+        #    raise Exception(f"Current Chiloss implementation requires latent size greater than 2. Currently {self._cloud_data.dimensions}")
 
     @property
     def cloud_data(self):
@@ -326,6 +326,86 @@ class ChiLossV2(ChiLossBase, ChiLossFunctional):
         self._init_mean_shift()
         if(self.cyclic_latent_buffer):
             self.cyclic_latent_buffer.clear()
+
+class ChiLossV2Approx(ChiLossBase, ChiLossFunctional):
+    def __init__(self, cyclic_latent_buffer, loss_means_from_buff, classes, latent_size, sigma=0.01, eps=1e-5, l2=0.001,
+                 start_mean_buff_at=500):
+        super(ChiLossV2Approx, self).__init__(cyclic_latent_buffer=cyclic_latent_buffer)
+        
+        self.sigma = sigma
+        self.loss_means_from_buff = loss_means_from_buff
+        self.start_mean_buff_at = start_mean_buff_at
+        
+        self.eps = eps  # to not have log(0) problem  
+        self.call_idx = 0
+        self.pdist = torch.nn.PairwiseDistance(p=2)
+
+        self.classes = classes
+        self.latent_size = latent_size
+        self.l2 = l2
+        self._init_mean_shift()
+
+    def _approx_loss(self, k):
+        return 1/4
+    
+    def _no_approx_loss(self, k):
+        return (k / 2 - 1)
+
+    def _init_mean_shift(self):
+        self.mean_shift = torch.ones((self.classes, self.latent_size), requires_grad=False)
+        self.mean_shift.normal_(std=10)
+        #self.mean_shift.requires_grad_(True)
+        #self.mean_shift = torch.nn.parameter.Parameter(self.mean_shift, requires_grad=True)
+
+    def _add_mean_shift(self, input: torch.Tensor, target: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+        tmp_matrix = [None] * input.size(0)
+
+        for idx, t in enumerate(target):
+            tmp_matrix[idx] = self.mean_shift[t]
+            
+        # cannot add average over batch because it will change position of the points in unpredictable way
+        tmp_matrix = torch.stack(tmp_matrix)
+        return torch.add(input, tmp_matrix), tmp_matrix
+        
+    def __str__(self) -> str:
+        return 'CHI_LOSS_V2_APPROX'
+
+    def _calc_mean_dist(self, input:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
+        if(self.loss_means_from_buff):
+            self.call_idx += 1
+            if(self.call_idx > self.start_mean_buff_at):
+                cloud_means:dict = self._cloud_data.mean()
+                means:torch.Tensor = self._swap_target_to_means(target, cloud_means)
+                return means.to(target.device)
+        
+        return self._calculate_batch_mean(input, target)
+
+    def __call__(self, input, target, train=True) -> torch.Tensor:
+        """
+            Distance of input from each other and means form each other
+        """
+        super().__call__(input, target, train=train)
+        self.mean_shift = self.mean_shift.to(input.device)
+
+        k = input.size(dim=1)
+        call_approx_loss = self._approx_loss if k == 2 else self._no_approx_loss
+
+        input_2, _ = self._add_mean_shift(input=input, target=target)
+        distance = torch.cdist(input_2, input_2, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (2 * self.sigma**2)   
+
+        first_part = - call_approx_loss(k) * torch.log(distance / k + self.eps)
+        second_part = distance / (2 * k)
+
+        loss_sum = (first_part + second_part).mean()
+        return loss_sum
+    
+    def clear(self, classes=None, latent_size=None):
+        self.classes = classes if classes else self.classes
+        self.latent_size = latent_size if latent_size else self.latent_size
+        self._init_mean_shift()
+        if(self.cyclic_latent_buffer):
+            self.cyclic_latent_buffer.clear()
+
 
 class ChiLossInputFromMeans(ChiLoss):
     def __init__(self, cyclic_latent_buffer, loss_means_from_buff, ratio=2.5, scale=10., eps=0.00001, start_mean_buff_at=500):
