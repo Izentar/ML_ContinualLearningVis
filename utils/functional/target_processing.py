@@ -34,6 +34,21 @@ def target_processing_latent_sample_normal_std_multitarget(target, model):
         sum_std.append(std)
     return torch.normal(torch.stack(sum_mean), torch.stack(sum_std)).to(model.device)
 
+def target_processing_latent_sample_normal_minimal_std_multitarget(target, model):
+    """
+        Sample from normal distribution but instead of calculating covariance matrix 
+        calculate std and find minimal value in std vector. It narrows distribution but 
+        prevents sampling from undefinced part of the hyperspace.
+    """
+    sum_mean = []
+    sum_std = []
+    for t in target:
+        std, mean = model.loss_f.cloud_data.std_mean_target(t)
+        assert torch.all(std >= 0.0), f"Bad value mean/std \n{mean} \n{std} \n{t}"
+        sum_mean.append(mean)
+        sum_std.append(torch.ones_like(std) * torch.min(std))
+    return torch.normal(torch.stack(sum_mean), torch.stack(sum_std)).to(model.device)
+
 def target_processing_latent_sample_normal_std_multitarget_func(target, model):
     def inner():
         sum_mean = []
@@ -109,6 +124,7 @@ class TargetProcessingManager():
         'TARGET-LATENT-DECODE': target_processing_latent_decode,
         'TARGET-LATENT-SAMPLE-NORMAL-STD': target_processing_latent_sample_normal_std,
         'TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET': target_processing_latent_sample_normal_std_multitarget,
+        'TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET': target_processing_latent_sample_normal_minimal_std_multitarget,
         'TARGET-LATENT-SAMPLE-NORMAL-STD-MULTITARGET-FUNC': target_processing_latent_sample_normal_std_multitarget_func,
         'TARGET-LATENT-SAMPLE-NORMAL-MEAN-STD-FULL-TARGETS': target_processing_latent_sample_normal_mean_std_full_targets,
         'TARGET-LATENT-SAMPLE-MULTIVARIATE': target_processing_latent_sample_multivariate,

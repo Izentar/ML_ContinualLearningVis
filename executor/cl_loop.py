@@ -735,8 +735,8 @@ class CLLoop(Loop):
             path = self._generate_load_path('trained_model')
             checkpoint = torch.load(path)
             if("state_dict" in checkpoint): # pytorch save was used
-                self.trainer.lightning_module.load_checkpoint(checkpoint)
                 self.trainer.lightning_module.load_state_dict(checkpoint["state_dict"])
+                self.trainer.lightning_module.load_checkpoint(checkpoint)
             else:
                 checkpoint = self._try_load_model_if_checkpoint_smaller(checkpoint)
                 checkpoint = self._try_load_model_if_checkpoint_bigger(checkpoint)
