@@ -1,15 +1,16 @@
 from typing import Any, Dict
 import torch
-from loss_function.chiLoss import ChiLossV2, ChiLoss, ChiLossV2Approx, l2_latent_norm
+from loss_function.chiLoss import ChiLoss, l2_latent_norm
 from utils.cyclic_buffer import CyclicBufferByClass
 import wandb
 import pandas as pd
 from utils import pretty_print as pp
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from model.overlay.cl_latent import ClLatent
 from model.overlay.cl_model import ClModel
+from utils.hyperparam_scheduler import HyperparameterSchedulerFloat
 
 class ClLatentChi(ClLatent):
     @dataclass
@@ -20,10 +21,16 @@ class ClLatentChi(ClLatent):
     class Loss():
         @dataclass
         class Chi():
+            shift_min_distance: float
+            shift_std_of_mean: float
             ratio: float = 2.5
+            ratio_gamma: float = 1.
+            ratio_milestones: list[float] = field(default_factory=list)
             scale: float = 5
+            scale_gamma: float = 1.
+            scale_milestones: list[float] = field(default_factory=list)
             sigma: float = 0.1
-            l2: float = 1e-3
+            l2: float = 1e-3            
 
     def __init__(
             self, 
@@ -34,9 +41,15 @@ class ClLatentChi(ClLatent):
         kwargs.pop('loss_f', None)
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
-        #loss_f = ChiLoss(ratio=self.cfg_loss_chi.ratio, scale=self.cfg_loss_chi.scale, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
-        loss_f = ChiLossV2Approx(classes=self.cfg.num_classes, latent_size=self.cfg_latent.size, 
-            sigma=self.cfg_loss_chi.sigma, l2=self.cfg_loss_chi.l2, cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
+        
+        self.ratio_sched = HyperparameterSchedulerFloat(param=self.cfg_loss_chi.ratio, gamma=self.cfg_loss_chi.ratio_gamma, milestones=self.cfg_loss_chi.ratio_milestones)
+        self.scale_sched = HyperparameterSchedulerFloat(param=self.cfg_loss_chi.scale, gamma=self.cfg_loss_chi.scale_gamma, milestones=self.cfg_loss_chi.scale_milestones)
+
+        loss_f = ChiLoss(
+            ratio=self.ratio_sched, scale=self.scale_sched,
+            classes=self.cfg.num_classes, latent_size=self.cfg_latent.size, 
+            shift_min_distance=self.cfg_loss_chi.shift_min_distance, shift_std_of_mean=self.cfg_loss_chi.shift_std_of_mean,
+            cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
         
         self._setup_loss_f(loss_f)
 
@@ -61,6 +74,8 @@ class ClLatentChi(ClLatent):
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         loss = self._loss_f(latent, y)
+        self.ratio_sched.step()
+        self.scale_sched.step()
         self.log(f"{log_label}/island", loss)
 
         return loss
@@ -112,7 +127,7 @@ class ClLatentChi(ClLatent):
         super().load_checkpoint(checkpoint)
         if(loss_f := checkpoint.get('loss_f')):
             pp.sprint(f"{pp.COLOR.NORMAL}INFO: model loss function loaded.")
-            self._loss_f = loss_f
+            self._loss_f.__dict__.update(loss_f.__dict__)
         else:
             pp.sprint(f"{pp.COLOR.WARNING}WARNING: model loss function not loaded. Using default constructor.")
         if(buffer := checkpoint.get('buffer')):
