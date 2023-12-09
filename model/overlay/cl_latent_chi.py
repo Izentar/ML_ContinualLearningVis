@@ -42,8 +42,10 @@ class ClLatentChi(ClLatent):
         super().__init__(*args, **kwargs)
         self.cyclic_latent_buffer = CyclicBufferByClass(num_classes=self.cfg.num_classes, dimensions=self.cfg_latent.size, size_per_class=self.cfg_latent_buffer.size_per_class)
         
-        self.ratio_sched = HyperparameterSchedulerFloat(param=self.cfg_loss_chi.ratio, gamma=self.cfg_loss_chi.ratio_gamma, milestones=self.cfg_loss_chi.ratio_milestones)
-        self.scale_sched = HyperparameterSchedulerFloat(param=self.cfg_loss_chi.scale, gamma=self.cfg_loss_chi.scale_gamma, milestones=self.cfg_loss_chi.scale_milestones)
+        self.ratio_sched = HyperparameterSchedulerFloat(param=self.cfg_loss_chi.ratio, name='ChiLoss ratio',
+            gamma=self.cfg_loss_chi.ratio_gamma, milestones=self.cfg_loss_chi.ratio_milestones)
+        self.scale_sched = HyperparameterSchedulerFloat(param=self.cfg_loss_chi.scale, name='ChiLoss scale',
+            gamma=self.cfg_loss_chi.scale_gamma, milestones=self.cfg_loss_chi.scale_milestones)
 
         loss_f = ChiLoss(
             ratio=self.ratio_sched, scale=self.scale_sched,
@@ -52,8 +54,6 @@ class ClLatentChi(ClLatent):
             cyclic_latent_buffer=self.cyclic_latent_buffer, loss_means_from_buff=False)
         
         self._setup_loss_f(loss_f)
-
-
         self.norm = l2_latent_norm
         self.buff_on_same_device = buff_on_same_device
 
@@ -74,8 +74,6 @@ class ClLatentChi(ClLatent):
 
     def process_losses_normal(self, x, y, latent, log_label, optimizer_idx, model_out_dict=None):
         loss = self._loss_f(latent, y)
-        self.ratio_sched.step()
-        self.scale_sched.step()
         self.log(f"{log_label}/island", loss)
 
         return loss
@@ -175,3 +173,8 @@ class ClLatentChi(ClLatent):
 
     def get_obj_str_type(self) -> str:
         return 'ClLatentChi_' + super().get_obj_str_type()
+
+    def training_epoch_end(self, output):
+        super().training_epoch_end(output)
+        self.ratio_sched.step()
+        self.scale_sched.step()

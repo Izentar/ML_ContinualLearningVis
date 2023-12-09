@@ -190,8 +190,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
                  start_mean_buff_at=500, log_np_loss=True):
         super(ChiLoss, self).__init__(cyclic_latent_buffer=cyclic_latent_buffer)
         
-        self.sigma = scale
-        self.rho = ratio * scale
+        self.scale = scale
+        self.ratio = ratio
         self.loss_means_from_buff = loss_means_from_buff
         self.start_mean_buff_at = start_mean_buff_at
         self.log_np_loss = self._log_np_loss_f if log_np_loss else lambda x, y: None
@@ -204,8 +204,6 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         self.eps = eps  # to not have log(0) problem  
         self.call_idx = 0
         self.pdist = torch.nn.PairwiseDistance(p=2)
-
-        self.to_log['rho_sigma'] = (self.rho/self.sigma)**2
 
         self.classes = classes
         self.latent_size = latent_size
@@ -264,6 +262,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         d.pop('sigma', '')
         d.pop('eps', '')
         d.pop('rho', '')
+        d.pop('scale', '')
+        d.pop('ratio', '')
         d.pop('start_mean_buff_at', '')
     
     def __getstate__(self):
@@ -289,6 +289,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         """
             Distance of input from each other and means form each other
         """
+        sigma = self.scale
+        rho = self.ratio * self.scale
         super().__call__(input, target, train=train)
 
         k = input.size(dim=1)
@@ -301,8 +303,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
 
         means = self._calc_mean_dist(input_2, target) #/ 2# np.sqrt(2)
 
-        z_positive = torch.cdist(input_2, input_2, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (self.sigma**2) 
-        z_negative = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (self.rho**2)    
+        z_positive = torch.cdist(input_2, input_2, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (sigma**2) 
+        z_negative = torch.cdist(means, means, p=2, compute_mode='donot_use_mm_for_euclid_dist') ** 2 / (rho**2)    
 
         first_part_positive = -(k / 2 - 1) * torch.log(z_positive + self.eps)
         second_part_positive = z_positive / 2
@@ -313,10 +315,15 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         positive_loss = ((first_part_positive + second_part_positive) * positive_mask).mean()
         negative_loss = ((first_part_negative + second_part_negative) * negative_mask).mean()
 
-        negative_loss = (negative_loss * (self.rho/self.sigma)**2)
+        negative_loss = (negative_loss * (rho/sigma)**2)
 
         self.log_np_loss(positive_loss=positive_loss, negative_loss=negative_loss)
         loss = positive_loss + negative_loss
+
+        self.to_log['rho_sigma'] = (rho/sigma)**2
+        self.to_log['scale'] = self.scale
+        self.to_log['ratio'] = self.ratio
+
         return loss
         
 class ChiLossShiftMean(ChiLossBase, ChiLossFunctional):
