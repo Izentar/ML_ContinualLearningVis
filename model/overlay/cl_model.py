@@ -177,6 +177,9 @@ class ClModel(cl_base.ClBase):
             model_out_dict=model_out_dict, optimizer_idx=optimizer_idx
         )
         return loss
+    
+    def classify(self, predictions):
+        return self._loss_f.classify(predictions)
 
     def training_step_acc_normal(self, x, y, loss, latent, model_out_dict, optimizer_idx):
         self.log("train_loss/total", loss)
@@ -274,6 +277,9 @@ class ClModel(cl_base.ClBase):
         return "model." + self.model.get_root_name()
 
     def loss_to(self, device):
+        """
+            Cast loss class (all of their tensors) to given device.
+        """
         self._loss_f.to(device)
 
     def get_obj_str_type(self) -> str:

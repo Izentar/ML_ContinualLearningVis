@@ -339,7 +339,6 @@ def logic(args, log_args_to_wandb=True):
         attack_kwargs=args.model.robust, 
         dataset_class=dataset_class, 
         train_tasks_split=train_tasks_split, 
-        collect_main_split=collect_main_split, 
         logger=logger, 
         dreams_transforms=dreams_transforms, 
         set_manager=set_manager,
@@ -349,11 +348,14 @@ def logic(args, log_args_to_wandb=True):
         try_except=False,
         multitarget=args.datamodule.vis.multitarget.enable,
         num_classes=args.model.num_classes,
+        main_split=collect_main_split,
+        collector_batch_size=args.datamodule.batch_size,
+        transform=test_transforms
     )
 
-def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, 
-                              collect_main_split, logger, dreams_transforms, set_manager, custom_loop,
-                              sigma_disorder, start_img_value, num_classes,
+def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, transform,
+                              logger, dreams_transforms, set_manager, custom_loop, collector_batch_size,
+                              sigma_disorder, start_img_value, num_classes, main_split,
                               try_except=True, multitarget=False):
     collect_numb_of_points = 2500
     nrows = 4
@@ -369,25 +371,21 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
         else:
             f()
 
-    transform = transforms.Compose([transforms.ToTensor()])
     if(args.stat.collect_stats and not args.fast_dev_run.enable):
         pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Collecting model stats')
         dataset = dataset_class(root="./data", train=False, transform=transform)
-        dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
-        targets = None
-        if isinstance(dataset, torch.utils.data.Subset):
-            targets = np.take(dataset.dataset.targets, dataset.indices).tolist()
-        else:
-            targets = dataset.targets
-        collector_batch_sampler = PairingBatchSamplerV2(
-                    dataset=dataset,
-                    batch_size=args.datamodule.batch_size,
-                    shuffle=True,
-                    classes=np.unique(targets),
-                    main_class_split=collect_main_split,
-                )
-        collect_stats(model=model, dataset=dataset,
-            collect_numb_of_points=collect_numb_of_points, 
+        collector_batch_sampler = select_datasampler(dtype=args.config.datasampler_type, main_split=main_split)
+        if(collector_batch_sampler is not None):
+            # when use non default datasampler
+            dataset = CLDataModule._split_dataset(dataset, [np.concatenate(train_tasks_split, axis=0)])[0]
+            targets = None
+            if isinstance(dataset, torch.utils.data.Subset):
+                targets = np.take(dataset.dataset.targets, dataset.indices).tolist()
+            else:
+                targets = dataset.targets
+            collector_batch_sampler = collector_batch_sampler(dataset=dataset, batch_size=args.datamodule.batch_size, shuffle=True, classes=np.unique(targets))
+        collect_stats(model=model, dataset=dataset, num_classes=num_classes,
+            collect_numb_of_points=collect_numb_of_points, collector_batch_size=collector_batch_size,
             collector_batch_sampler=collector_batch_sampler,
             nrows=nrows, ncols=ncols, plot_classes=args.stat.plot_classes,
             logger=logger, attack_kwargs=attack_kwargs, path=custom_loop.save_folder)
@@ -501,12 +499,15 @@ def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     except Exception as std_stat_exception:
         pp.sprint(f'{pp.COLOR.WARNING}WARNING: std stat graph plot failed. Exception:\n{std_stat_exception}')
 
-def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, attack_kwargs, path, plot_classes=None, nrows=1, ncols=1, logger=None):
+def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, collector_batch_size,
+                  attack_kwargs, path, num_classes, plot_classes=None, nrows=1, ncols=1, logger=None):
     stats = Statistics()
-    dataloader = DataLoader(dataset, 
-        num_workers=4, 
+    dataloader = DataLoader(
+        dataset, 
+        num_workers=1, 
         pin_memory=False,
-        batch_sampler=collector_batch_sampler
+        batch_sampler=collector_batch_sampler,
+        batch_size=collector_batch_size,
     )
 
     if(attack_kwargs.enable):
@@ -525,7 +526,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
                 xe = xe[0]
             return xe
         
-    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_numb_of_points, to_invoke=invoker,
+    buffer = stats.collect(model=model, dataloader=dataloader, num_of_points=collect_numb_of_points, num_classes=num_classes, to_invoke=invoker,
         logger=logger)
     plotter = PointPlot()
 

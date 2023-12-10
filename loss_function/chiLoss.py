@@ -117,7 +117,7 @@ class ChiLossBase(torch.nn.Module, BaseLoss):
         # select indices of the input that have minimal distance 
         idxs = torch.argmin(matrix, dim=1, keepdim=True)
         classes = torch.gather(target, 1, idxs).squeeze_()
-        assert len(classes.shape) != 0
+        #assert len(classes.shape) != 0
         #if (len(classes.shape) == 0):
         #    classes = classes.unsqueeze(0)
         return classes

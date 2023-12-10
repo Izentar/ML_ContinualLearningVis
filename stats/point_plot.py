@@ -11,6 +11,7 @@ from pathlib import Path
 import sys
 from config.default import markers, colors, colors_list
 from utils.data_manipulation import select_class_indices_tensor
+import torchmetrics
 
 import wandb
 
@@ -117,7 +118,7 @@ class Statistics():
     def __init__(self):
         pass
 
-    def collect(self, model, dataloader, num_of_points, to_invoke, logger=None):
+    def collect(self, model, dataloader, num_of_points, to_invoke, num_classes, logger=None):
         '''
             Collect given num_of_points to use them on calculating stats and to plot. 
             to_invoke: function to invoke that returns points to collect
@@ -131,8 +132,11 @@ class Statistics():
         if logger is not None:
             model.loss_to(input_device)
 
+        accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes)
+
         with torch.no_grad():
             for epoch in range(epoch_size):
+                # iterate over dataset points one at the time 
                 for idx, (input, target) in enumerate(dataloader):
                     input = input.to(model.device)
                     target = target.to(model.device)
@@ -143,6 +147,11 @@ class Statistics():
                     if logger is not None:
                         loss = model.call_loss(out, target, train=False)
                         logger.log_metrics({f'stats/collect_loss': loss}, counter)
+
+                        predictions: torch.Tensor = model.classify(out)
+                        accuracy(predictions, target)
+                        logger.log_metrics({f'stats/collect_accuracy': accuracy.compute().item()}, counter)
+
 
                     buffer.append((out.detach().to('cpu'), target.detach().to('cpu')))
                     counter += batch_size
@@ -589,28 +598,40 @@ class PointPlot():
                     stash.append((data_x_target, data_y_target, data_dims))
                     data_x_target, data_y_target, data_dims = self.create_buffers(target_set)  
 
-        def plot_loop(data_x_target, data_y_target, data_dims, markersize, classes):
+        def select_marker_color(data_x_target):
+            class_marker_color = {}
+            ret = []
+            keys = np.unique(list(data_x_target.keys()))
+            for k in keys:
+                class_marker_color[k] = (next(markers), next(colors))
+
+            for k, v in data_x_target.items():
+                ret.append(class_marker_color[k])
+            return ret
+
+        def plot_loop(data_x_target, data_y_target, data_dims, markers_colors, markersize, classes):
             fig, ax = plt.subplots()
             classes = classes_to_int(classes)
-            for (kx, vx), (ky, vy), (kt, vt) in zip(data_x_target.items(), data_y_target.items(), data_dims.items()):
+            for (kx, vx), (ky, vy), (kt, vt), (marker, color) in zip(data_x_target.items(), data_y_target.items(), data_dims.items(), markers_colors):
                 if(class_not_present(classes, kx)):
                     continue
                 ax.scatter(
                     vx,
                     vy,
-                    marker=next(markers),
-                    color=next(colors),
+                    marker=marker,
+                    color=color,
                     label=f"Target: {kx}",
                     s=markersize,
                 )
             return fig, ax
 
+        markers_colors = select_marker_color(data_x_target=data_x_target)
         if(plot_type == 'singular'):
             for idx, (data_x_target, data_y_target, data_dims) in enumerate(stash):
-                fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize, classes=classes)
+                fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markers_colors=markers_colors, markersize=markersize, classes=classes)
                 self.flush(fig, ax, name, show, idx=idx, ftype=ftype, to_wandb=to_wandb)
         elif(plot_type == 'multi'):
-            fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markersize, classes=classes)
+            fig, ax = plot_loop(data_x_target, data_y_target, data_dims, markers_colors=markers_colors, markersize=markersize, classes=classes)
             self.flush(fig, ax, name, show, ftype=ftype, to_wandb=to_wandb)
 
     def plot_3d(
