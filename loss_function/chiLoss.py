@@ -209,6 +209,9 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         self.latent_size = latent_size
         self._init_mean_shift(shift_min_distance, shift_std_of_mean)
 
+        self.to_log['scale'] = self.scale
+        self.to_log['ratio'] = self.ratio
+
     def _is_distance_minimal(self, selected_points: list[torch.Tensor], x: torch.Tensor, shift_min_distance):
         for p in selected_points:
             if(torch.linalg.norm(p - x) <= shift_min_distance):
@@ -321,8 +324,6 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         loss = positive_loss + negative_loss
 
         self.to_log['rho_sigma'] = (rho/sigma)**2
-        self.to_log['scale'] = self.scale
-        self.to_log['ratio'] = self.ratio
 
         return loss
         

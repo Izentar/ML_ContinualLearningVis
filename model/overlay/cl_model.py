@@ -10,6 +10,7 @@ from utils import pretty_print as pp
 
 from config.default import datasets, datasets_map
 from dataclasses import dataclass
+from numbers import Number
 
 class ClModel(cl_base.ClBase):
     @dataclass
@@ -149,7 +150,10 @@ class ClModel(cl_base.ClBase):
         latent, model_out_dict = self.get_model_out_data(model_out)
         
         for k, v in self._loss_f.to_log.items():
-            self.log(k, v)
+            if(isinstance(v, Number)):
+                self.log(k, float(v))
+            else:
+                self.log(k, v)
 
         return latent, model_out_dict
 

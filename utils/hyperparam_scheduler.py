@@ -2,15 +2,13 @@ from utils import pretty_print as pp
 import sys
 from typing import overload
 from typing_extensions import SupportsIndex
+from numbers import Number
 
 
-class HyperparameterSchedulerFloat(float):
+class HyperparameterSchedulerFloat(Number):
     """
         Class used to schedule change of hyperparameters. For now it is used for float type hyperparameters.
     """
-    def __new__(cls, param, gamma, milestones, name:str):
-        return super().__new__(cls, param)
-
     def __init__(self, param, gamma:float, milestones: list, name:str) -> None:
         self.param = param
         self.current_float: float = param
