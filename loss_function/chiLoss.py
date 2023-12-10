@@ -209,9 +209,6 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         self.latent_size = latent_size
         self._init_mean_shift(shift_min_distance, shift_std_of_mean)
 
-        self.to_log['scale'] = self.scale
-        self.to_log['ratio'] = self.ratio
-
     def _is_distance_minimal(self, selected_points: list[torch.Tensor], x: torch.Tensor, shift_min_distance):
         for p in selected_points:
             if(torch.linalg.norm(p - x) <= shift_min_distance):
@@ -223,22 +220,28 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
             Generate mean shifts that are apart enough from each other to not have interference between point clouds.
         """
         pp.sprint(f'{pp.COLOR.NORMAL}INFO: Generating means shifts')
-        if(shift_min_distance >= 0.9 * shift_std_of_mean):
-            raise Exception(f'Bad value: shift_min_distance {shift_min_distance} and shift_std_of_mean {shift_std_of_mean} ' +
-                            'must be in relation shift_min_distance < 0.9 * shift_std_of_mean')
-        #self.mean_shift = torch.ones((self.classes, self.latent_size), requires_grad=False)
-        selected_points = []
-        std_tensor = torch.ones((self.latent_size, )) * shift_std_of_mean
-        counter = 0
-        while(True):
-            p = torch.normal(torch.zeros(self.latent_size), std=std_tensor)
-            if(self._is_distance_minimal(selected_points, p, shift_min_distance)):
-                selected_points.append(p)
-                counter += 1 
-                if(counter == self.classes):
-                    break
-        torch.stack(selected_points)
-        self.mean_shift = torch.stack(selected_points).detach()
+
+        if(shift_min_distance == 0. or shift_std_of_mean == 0.):
+            pp.sprint(f"{pp.COLOR.NORMAL}INFO: shift_min_distance '{shift_min_distance}' or " +
+                      f"shift_std_of_mean '{shift_std_of_mean}' iss zero. Generating matrix of zeros.")
+            self.mean_shift = torch.zeros((self.classes, self.latent_size), )
+        else:
+            if(shift_min_distance >= 0.9 * shift_std_of_mean):
+                raise Exception(f'Bad value: shift_min_distance {shift_min_distance} and shift_std_of_mean {shift_std_of_mean} ' +
+                                'must be in relation shift_min_distance < 0.9 * shift_std_of_mean')
+            #self.mean_shift = torch.ones((self.classes, self.latent_size), requires_grad=False)
+            selected_points = []
+            std_tensor = torch.ones((self.latent_size, )) * shift_std_of_mean
+            counter = 0
+            while(True):
+                p = torch.normal(torch.zeros(self.latent_size), std=std_tensor)
+                if(self._is_distance_minimal(selected_points, p, shift_min_distance)):
+                    selected_points.append(p)
+                    counter += 1 
+                    if(counter == self.classes):
+                        break
+            torch.stack(selected_points)
+            self.mean_shift = torch.stack(selected_points).detach()
         pp.sprint(f'{pp.COLOR.NORMAL}INFO: Generated:\n{self.mean_shift}')
 
         #self.mean_shift.requires_grad_(True)
@@ -324,6 +327,8 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         loss = positive_loss + negative_loss
 
         self.to_log['rho_sigma'] = (rho/sigma)**2
+        self.to_log['scale'] = self.scale
+        self.to_log['ratio'] = self.ratio
 
         return loss
         
