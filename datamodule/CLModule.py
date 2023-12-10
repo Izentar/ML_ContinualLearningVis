@@ -400,22 +400,21 @@ class DreamDataModule(BaseCLDataModule, ABC):
 
         return all_images, all_targets
     
-    def _log_images(self, new_images, target, image_log_idx):
+    def _log_images(self, new_images, target, image_log_idx: CounterKeys):
         if not self.fast_dev_run and self.logger is not None:
             if(isinstance(target, Sequence)): # it target is batched
-                for idx, (image, t) in enumerate(zip(new_images, target)):
-                    new_idx = idx + image_log_idx[t]
-                    self._log_image_to_table(new_idx, image, t)
+                for image, t in zip(new_images, target):
+                    self._log_image_to_table(image_log_idx.up(t), image, t)
             else:
                 if(self.cfg_vis.max_logged_image_per_target <= image_log_idx[target]):
                     return
-                for idx, image in enumerate(new_images, image_log_idx[target]):
-                    self._log_image_to_table(idx, image, target)
+                for image in new_images:
+                    self._log_image_to_table(image_log_idx.up(target), image, target)
             if(self.cfg_vis.flush):
                 self.flush_wandb()
 
     def _log_image_to_table(self, idx, image, target):
-        if(self.cfg_vis.max_logged_image_per_target <= idx):
+        if(self.cfg_vis.max_logged_image_per_target < idx):
             return
         img = wandb.Image(
             image,

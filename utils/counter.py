@@ -65,6 +65,7 @@ class CounterKeys(CounterKeysBase):
     def up(self, key):
         self._create_exist(key)
         self.values[key] += 1
+        return self.values[key]
 
     def get(self, key):
         self._create_exist(key)
