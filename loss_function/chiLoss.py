@@ -326,7 +326,7 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         self.log_np_loss(positive_loss=positive_loss, negative_loss=negative_loss)
         loss = positive_loss + negative_loss
 
-        self.to_log['rho_sigma'] = (rho/sigma)**2
+        self.to_log['rho_sigma_2'] = (rho/sigma)**2
         self.to_log['scale'] = self.scale
         self.to_log['ratio'] = self.ratio
 
