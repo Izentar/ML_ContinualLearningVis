@@ -428,7 +428,7 @@ class CLLoop(Loop):
 
             if(utils.check_python_index(self.cfg_vis_regularization_var.use_at, self.cfg.num_loops, self.current_loop)):
                 self._try_generate_dream_print_msg("VARIATION IMAGE REGULARIZATION")
-                tmp = image_regularization.VariationRegularization(scale=self.cfg_vis_regularization_var.scale)
+                tmp = image_regularization.TotalVariationRegularization(scale=self.cfg_vis_regularization_var.scale)
                 input_image_train_after_obj.append(tmp)
                 self.vis_regularization_var = True
 
