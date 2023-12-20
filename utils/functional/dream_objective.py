@@ -97,27 +97,27 @@ def multitarget_crossentropy(layer, n_channel, batch=None):
 # =====================================================
 
 def dream_objective_SAE_standalone_diversity(model, **kwargs):
-    return - objectives.diversity(
+    return - diversity(
         "model_conv2"
     )
 
 def dream_objective_SAE_diversity(model, **kwargs):
-    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'conv_enc2')
+    return - 1e2 * diversity(model.get_root_objective_target() + '.conv_enc2')
 
 def dream_objective_DLA_diversity_1(model, **kwargs):
-    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer4_left_node_conv2')
+    return - 1e2 * diversity(model.get_root_objective_target() + '.layer4.left_node.conv2')
 
 def dream_objective_DLA_diversity_2(model, **kwargs):
-    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer5_prev_root_conv2')
+    return - 1e2 * diversity(model.get_root_objective_target() + '.layer5.prev_root.conv2')
 
 def dream_objective_DLA_diversity_3(model, **kwargs):
-    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer6_right_node_conv2')
+    return - 1e2 * diversity(model.get_root_objective_target() + '.layer6.right_node.conv2')
 
 def dream_objective_resnet18_diversity_1(model, **kwargs):
-    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer1_1_conv2')
+    return - 1e2 * diversity(model.get_root_objective_target() + '.layer1.1.conv2')
 
 def dream_objective_resnet18_diversity_2(model, **kwargs):
-    return - 1e2 * objectives.diversity(model.get_root_objective_target() + 'layer4_0_conv2')
+    return - 1e2 * diversity(model.get_root_objective_target() + '.layer4.0.conv2')
 
 def dream_objective_latent_channel(model, **kwargs):
     return inner_obj_latent_channel(model.get_objective_target_name())
@@ -134,7 +134,10 @@ def dream_objective_channel(target_point: torch.Tensor, model, **kwargs):
     #)
 
 def dream_objective_RESNET20_C100_diversity(model, **kwargs):
-    return - 4 * objectives.diversity(model.get_root_objective_target() + "features_final_pool")
+    return - 4 * diversity(model.get_root_objective_target() + ".features_final_pool")
+
+def dream_objective_CUSTOM_RESNET34_C10_diversity(model, **kwargs):
+    return - 4 * diversity(model.get_root_objective_target() + ".layer4.2.conv2")
 
 def dream_objective_RESNET20_C100_channel(target_point, model, **kwargs):
     return objectives.channel(model.get_objective_target_name(), target_point.long())
@@ -225,7 +228,7 @@ def dream_objective_latent_neuron_direction(target_point, model, **kwargs):
     return objectives.direction_neuron(model.get_objective_target_name(), target_point.to(model.device))
 
 def test(target, model, source_dataset_obj):
-    return objectives.channel(model.get_objective_target_name(), target.long()) - objectives.diversity(
+    return objectives.channel(model.get_objective_target_name(), target.long()) - diversity(
         "vgg_features_10"
     )
 
@@ -296,6 +299,7 @@ class DreamObjectiveManager():
         'OBJECTIVE-SAE-STANDALONE-DIVERSITY': dream_objective_SAE_standalone_diversity,
         'OBJECTIVE-SAE-DIVERSITY': dream_objective_SAE_diversity_cosine,
         'OBJECTIVE-RESNET20-C100-DIVERSITY': dream_objective_RESNET20_C100_diversity,
+        'OBJECTIVE-CUSTOM-RESNET34-C10-DIVERSITY': dream_objective_CUSTOM_RESNET34_C10_diversity,
         'OBJECTIVE-LATENT-STEP-SAMPLE-NORMAL-CREATOR': dream_objective_latent_step_sample_normal_creator,
         'OBJECTIVE-LATENT-LOSSF-COMPARE-CREATOR': dream_objective_latent_lossf_compare_creator,
         'OBJECTIVE-DLA-DIVERSITY-1': dream_objective_DLA_diversity_1,
