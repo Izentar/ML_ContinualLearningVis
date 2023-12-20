@@ -274,7 +274,7 @@ def logic(args, log_args_to_wandb=True):
         fast_dev_run=args.fast_dev_run.enable,
         fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_sets.DreamDataset(transform=test_transforms),
+        empty_dream_dataset=dream_sets.DreamDataset(transform=None),
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
         logger=logger,

@@ -18,8 +18,8 @@ class DreamDataset(Dataset):
 
     def __getitem__(self, idx):
         dream = self.dreams[idx]
-        if self.transform:
-            dream = self.transform(dream)
+        #if self.transform:
+        #    dream = self.transform(dream)
         return dream, self.targets[idx]
 
     def extend(self, new_dreams: torch.Tensor, new_targets: torch.Tensor, model: torch.nn.Module=None):
@@ -31,8 +31,9 @@ class DreamDataset(Dataset):
                 dream = dream.detach().cpu()
                 self._generate_additional_data(dream, target, model)
                 self.targets.append(target)
-                if self.transform:
-                    dream = to_pil_image(dream)
+                #if self.transform:
+                    #dream = to_pil_image(dream)
+                #    dream = dream
                 self.dreams.append(dream)
 
     def clear(self, instant=False):
