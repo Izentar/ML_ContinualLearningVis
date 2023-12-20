@@ -154,12 +154,12 @@ def logic(args, log_args_to_wandb=True):
     #    dream_tr.jitter(int(JITTER))
     #]
 
-    render_transforms = [
-        dream_tr.pad(2*JITTER),
-        dream_tr.jitter(JITTER),
-        dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
-        dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
-    ]
+    #render_transforms = [
+    #    dream_tr.pad(2*JITTER),
+    #    dream_tr.jitter(JITTER),
+    #    dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
+    #    dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
+    #]
 
     data_passer = {}
 
