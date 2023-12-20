@@ -264,6 +264,8 @@ def logic(args, log_args_to_wandb=True):
         ]
     )
 
+    dream_dataset = dream_sets.DreamDataset(transform=None)
+
     cl_data_module = CLDataModule(
         data_transform=data_transform(),
         test_transform=test_transforms,
@@ -274,7 +276,7 @@ def logic(args, log_args_to_wandb=True):
         fast_dev_run=args.fast_dev_run.enable,
         fast_dev_run_dream_threshold=args.fast_dev_run.vis_threshold,
         dream_objective_f=objective_f,
-        empty_dream_dataset=dream_sets.DreamDataset(transform=None),
+        empty_dream_dataset=dream_dataset,
         progress_bar=progress_bar,
         target_processing_f=target_processing_f,
         logger=logger,
@@ -333,11 +335,19 @@ def logic(args, log_args_to_wandb=True):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
         plot_std_stats_graph(model_stats=custom_loop.model_stats, model=model, filepath=custom_loop.save_folder)
 
+    dataset = dataset_class(root="./data", train=False, transform=test_transforms)
+
+    if(args.stat.collect_stats.use_dream_dataset):
+        collect_model_information_dataset = dream_dataset
+    else:
+        collect_model_information_dataset = dataset
+        
+
     collect_model_information(
         args=args,
         model=model, 
         attack_kwargs=args.model.robust, 
-        dataset_class=dataset_class, 
+        dataset=collect_model_information_dataset, 
         train_tasks_split=train_tasks_split, 
         logger=logger, 
         dreams_transforms=dreams_transforms, 
@@ -350,10 +360,9 @@ def logic(args, log_args_to_wandb=True):
         num_classes=args.model.num_classes,
         main_split=collect_main_split,
         collector_batch_size=args.datamodule.batch_size,
-        transform=test_transforms
     )
 
-def collect_model_information(args, model, attack_kwargs, dataset_class, train_tasks_split, transform,
+def collect_model_information(args, model, attack_kwargs, train_tasks_split, dataset,
                               logger, dreams_transforms, set_manager, custom_loop, collector_batch_size,
                               sigma_disorder, start_img_value, num_classes, main_split,
                               try_except=True, multitarget=False):
@@ -371,9 +380,8 @@ def collect_model_information(args, model, attack_kwargs, dataset_class, train_t
         else:
             f()
 
-    if(args.stat.collect_stats and not args.fast_dev_run.enable):
+    if(args.stat.collect_stats.enable and not args.fast_dev_run.enable):
         pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Collecting model stats')
-        dataset = dataset_class(root="./data", train=False, transform=transform)
         collector_batch_sampler = select_datasampler(dtype=args.config.datasampler_type, main_split=main_split)
         if(collector_batch_sampler is not None):
             # when use non default datasampler
