@@ -342,6 +342,7 @@ class RenderVisState():
         self._set_transform_f(value=value)
     def _set_transform_f(self, value):
         if value is None:
+            # TODO może nie dawdać domyślnych transforms, bo to sprzeczne z wartością value?
             value = transform.standard_transforms
         if(not isinstance(value, list)):
             value = [value]
@@ -367,6 +368,9 @@ class RenderVisState():
             value.append(
                 torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
             )
+            tmp = transform.compose(value)
+            if(self.display_additional_info and self.enable_transforms):
+                pp.sprint(f"{pp.COLOR.WARNING}VIS: Image size after (up/down)sample - {tmp(self.optim_image.image()).shape}")
 
         if(self.enable_transforms):
             if(self.display_additional_info):
