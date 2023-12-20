@@ -339,8 +339,10 @@ def logic(args, log_args_to_wandb=True):
 
     if(args.stat.collect_stats.use_dream_dataset):
         collect_model_information_dataset = dream_dataset
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: COLLECT STATS: Selected dream dataset.")
     else:
         collect_model_information_dataset = dataset
+        pp.sprint(f"{pp.COLOR.NORMAL}INFO: COLLECT STATS: Selected normal dataset.")
         
 
     collect_model_information(
