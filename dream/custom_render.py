@@ -320,7 +320,7 @@ class RenderVisState():
         return self._advance_end_hook
     @advance_end_hook.setter
     def advance_end_hook(self, value):
-        self._set_objective_f(value=value)
+        self._set_advance_end_hook(value=value)
     def _set_advance_end_hook(self, value):
         self._advance_end_hook = empty_f if value is None else value
 
