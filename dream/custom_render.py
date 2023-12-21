@@ -307,7 +307,13 @@ class RenderVisState():
             for h in value:
                 image = h(image)
             return image
-        self._input_image_train_after_hooks = inner if value is not None else lambda x: x
+        if(value is None or (isinstance(value, list) and len(value) == 0)):
+            pp.sprint(f"{pp.COLOR.NORMAL}VIS: No hook to image after forward and backward pass.")
+            self._input_image_train_after_hooks = lambda x: x
+        else:
+            pp.sprint(f"{pp.COLOR.NORMAL}VIS: Added hook to image after forward and backward pass.")
+            self._input_image_train_after_hooks = inner 
+            
 
     @property
     def advance_end_hook(self):
@@ -364,13 +370,13 @@ class RenderVisState():
             _, w, h = parse_image_size(new_size)
             tmp = transform.compose(value)
             if(self.display_additional_info and self.enable_transforms):
-                pp.sprint(f"{pp.COLOR.WARNING}VIS: Image size before (up/down)sample - {tmp(self.optim_image.image()).shape}")
+                pp.sprint(f"{pp.COLOR.NORMAL_3}VIS: Image size before (up/down)sample - {tmp(self.optim_image.image()).shape}")
             value.append(
                 torch.nn.Upsample(size=(w, h), mode="bilinear", align_corners=True)
             )
             tmp = transform.compose(value)
             if(self.display_additional_info and self.enable_transforms):
-                pp.sprint(f"{pp.COLOR.WARNING}VIS: Image size after (up/down)sample - {tmp(self.optim_image.image()).shape}")
+                pp.sprint(f"{pp.COLOR.NORMAL_3}VIS: Image size after (up/down)sample - {tmp(self.optim_image.image()).shape}")
 
         if(self.enable_transforms):
             if(self.display_additional_info):
@@ -378,8 +384,9 @@ class RenderVisState():
             self._transform_f = transform.compose(value)
         else:
             if(self.display_additional_info):
-                pp.sprint(f"{pp.COLOR.WARNING}VIS: DISABLE ANY DREAM TRANSFORMS")
+                pp.sprint(f"{pp.COLOR.NORMAL_3}VIS: DISABLE ANY DREAM TRANSFORMS")
             self._transform_f = lambda x: x
+        pp.sprint(f"{pp.COLOR.NORMAL_3}VIS: Current in use image size - {self._transform_f(self.optim_image.image()).shape}")
 
 def normal_step(rd):
     rd.optimizer.zero_grad()
