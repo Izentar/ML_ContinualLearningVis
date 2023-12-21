@@ -217,9 +217,9 @@ PREDEFINED_TYPES = {
         "resnet20c100", 
         "cl-model"
     ],
-    "latent-default": [
+    "latent-singletarget": [
         "SELECT-CLASSIC", 
-        "TARGET-LATENT-SAMPLE-NORMAL-STD", 
+        "TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-SINGLETARGET", 
         "NO-SPLIT", 
         "OBJECTIVE-LATENT-LOSSF-CREATOR", 
         "", 
