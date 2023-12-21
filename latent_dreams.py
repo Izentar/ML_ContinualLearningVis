@@ -416,7 +416,6 @@ def collect_model_information(args, model, attack_kwargs, train_tasks_split, dat
     if(args.stat.disorder_dream and not args.fast_dev_run.enable):
         pp.sprint(f'{pp.COLOR.NORMAL}STATISTICS: Disorder dream')
         disorder_dream = DisorderDream()
-        dataset = dataset_class(root="./data", train=True, transform=transform)
         disorder_dream_call = lambda: disorder_dream(
             model=model,
             used_class=1, 
