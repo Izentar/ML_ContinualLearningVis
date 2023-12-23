@@ -125,7 +125,7 @@ class ClLatentOneHot(ClLatent):
         classified_to_class = self._loss_f.classify(y_model)
         valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(classified_to_class, y)
-        self.log("valid_acc", valid_acc.compute())
+        self.log("valid_acc", valid_acc)
 
     def valid_to_class(self, classified_to_class, y):
         uniq = torch.unique(classified_to_class)

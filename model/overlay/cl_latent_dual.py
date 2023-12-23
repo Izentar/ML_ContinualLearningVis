@@ -263,7 +263,7 @@ class ClLatentDual(ClLatentChi):
         self.log("val_last_step_loss_inner", val_loss_inner, on_epoch=True)
 
         self.valid_acc_inner(self._loss_f.classify(self._inner_output), y)
-        self.log("valid_acc_inner", self.valid_acc_inner.compute())
+        self.log("valid_acc_inner", self.valid_acc_inner)
 
     def _validation_step_outer(self, latent, y, dataloader_idx):
         val_loss_outer = self._outer_loss_f(latent, y, train=False)
@@ -271,7 +271,7 @@ class ClLatentDual(ClLatentChi):
         
         valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(self._outer_loss_f.classify(latent), y)
-        self.log("valid_acc_outer", valid_acc.compute())
+        self.log("valid_acc_outer", valid_acc)
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         x, y = batch

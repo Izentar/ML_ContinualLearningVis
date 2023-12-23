@@ -244,8 +244,11 @@ def logic(args, log_args_to_wandb=True):
                 enable=args.model.layer_replace.enable,
                 source=torch.nn.ReLU,
                 destination_f=lambda a, b, x: GaussA(30),
-            ) 
+            ),
         },
+        args_map={
+            'val_split': len(val_tasks_split),
+        }
     )
     pp.sprint(f'{pp.COLOR.NORMAL_3}MODEL TYPE: {model.get_obj_str_type()}')
 

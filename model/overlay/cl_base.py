@@ -21,6 +21,7 @@ class ClBase(LightningModule):
     class Config():
         num_classes: int
         type: str # not used but required for now
+        val_split: int
 
     @dataclass
     class Optimizer():        
@@ -75,6 +76,9 @@ class ClBase(LightningModule):
         self.data_passer = data_passer
         self.schedulers = None
 
+        for i in range(self.cfg.val_split):
+            self.valid_accs(i)
+
     def _get_config_maps(self):
         return {
             'cfg_optim': ClBase.Optimizer,
@@ -95,7 +99,9 @@ class ClBase(LightningModule):
         setup_args.setup_cfg_map(self, args, cfg_map)
 
     def valid_accs(self, idx):
-        # use metric.compute(), because self.log() did not registered this module :(
+        # OLD SOLUTION use metric.compute(), because self.log() did not registered this module :(
+        # NEW SOLUTION predefine in __init__ all necessary metrics. If error occurs then 
+        # the metric was not created inside __init__.
         try:
             return self._valid_accs[str(idx)]
         except KeyError:

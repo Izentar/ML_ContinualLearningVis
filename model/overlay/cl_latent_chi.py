@@ -86,7 +86,7 @@ class ClLatentChi(ClLatent):
         self.log("val_last_step_loss", val_loss, on_epoch=True)
         valid_acc = self.valid_accs(dataloader_idx)
         valid_acc(self._loss_f.classify(latent), y)
-        self.log("valid_acc", valid_acc.compute())
+        self.log("valid_acc", valid_acc)
 
     def test_step(self, batch, batch_idx):
         x, y = batch

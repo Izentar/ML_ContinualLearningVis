@@ -776,6 +776,7 @@ class CLDataModule(DreamDataModule):
 
         pp.sprint(f'{pp.COLOR.NORMAL_4}INFO: Testing for classes: {full_classes}')
         
+        # it works, gives exactly the same accuracy as for full classes for self.test_dataset
         return DataLoader(
             selected_dataset, 
             batch_size=self.cfg.test_batch_size if self.datasampler is None else 1, 
