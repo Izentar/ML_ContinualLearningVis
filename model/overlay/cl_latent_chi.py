@@ -28,9 +28,7 @@ class ClLatentChi(ClLatent):
             ratio_milestones: list[float] = field(default_factory=list)
             scale: float = 5
             scale_gamma: float = 1.
-            scale_milestones: list[float] = field(default_factory=list)
-            sigma: float = 0.1
-            l2: float = 1e-3            
+            scale_milestones: list[float] = field(default_factory=list)     
 
     def __init__(
             self, 
