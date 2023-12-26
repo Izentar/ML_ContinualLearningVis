@@ -399,7 +399,7 @@ def collect_model_information(args, model, attack_kwargs, train_tasks_split, dat
             collector_batch_sampler = collector_batch_sampler(dataset=dataset, batch_size=args.datamodule.batch_size, shuffle=True, classes=np.unique(targets))
         collect_stats(model=model, dataset=dataset, num_classes=num_classes,
             collect_numb_of_points=collect_numb_of_points, collector_batch_size=collector_batch_size,
-            collector_batch_sampler=collector_batch_sampler,
+            collector_batch_sampler=collector_batch_sampler, limit_plots_to=args.stat.limit_plots_to,
             nrows=nrows, ncols=ncols, plot_classes=args.stat.plot_classes,
             logger=logger, attack_kwargs=attack_kwargs, path=custom_loop.save_folder)
     if(args.stat.compare_latent and not args.fast_dev_run.enable):
@@ -511,7 +511,7 @@ def plot_std_stats_graph(model_stats:dict, model:torch.nn.Module, filepath:str):
     except Exception as std_stat_exception:
         pp.sprint(f'{pp.COLOR.WARNING}WARNING: std stat graph plot failed. Exception:\n{std_stat_exception}')
 
-def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, collector_batch_size,
+def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sampler, collector_batch_size, limit_plots_to,
                   attack_kwargs, path, num_classes, plot_classes=None, nrows=1, ncols=1, logger=None):
     stats = Statistics()
     dataloader = DataLoader(
@@ -545,7 +545,8 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
     if(isinstance(path, str)):
         path = Path(path)
 
-    plotter.plot(buffer, plot_type='singular', name=path / 'plots/singular', show=False, symetric=False, classes=plot_classes, markersize=3, ftype='png')
+    plotter.plot(buffer, plot_type='singular', name=path / 'plots/singular', show=False, symetric=False, 
+                 classes=plot_classes, limit_plots_to=limit_plots_to, markersize=3, ftype='png')
     #std_mean_dict = Statistics.by_class_operation(Statistics.f_mean_std, buffer, 'saves/mean_std.txt')
     std_mean_distance_dict = Statistics.by_class_operation(Statistics.f_distance, buffer, path / 'saves/distance.txt')
     std_mean_distance_dict = Statistics.by_class_operation(

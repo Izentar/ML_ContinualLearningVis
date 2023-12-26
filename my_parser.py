@@ -318,6 +318,7 @@ thrown, list of avaliable layers will be displayed.') ##**
         help='Slighty overestimated rank of input matrix in PCA algorithm. Default is 6.')
     parser.add_argument("--stat.compare_latent", action="store_true", help='')
     parser.add_argument("--stat.disorder_dream", action="store_true", help='')
+    parser.add_argument("--stat.limit_plots_to", type=int, default=6, help='')
     parser.add_argument("--stat.collect_stats.enable", action="store_true", help='')
     parser.add_argument("--stat.collect_stats.use_dream_dataset", action="store_true", help='')
     parser.add_argument("--stat.plot_classes", nargs='+', type=str, help='Classes to plot in 2d plot. \

@@ -539,6 +539,7 @@ class PointPlot():
         show=False, 
         markersize=1, 
         ftype='png',
+        limit_plots_to=6,
     ):
         '''
             Iterate over vector, choose 2 of them and plot them. Do it for 
@@ -577,16 +578,22 @@ class PointPlot():
 
         data_x_target, data_y_target, data_dims = self.create_buffers(target_set)
         stash = []
+        counter = 0
 
         # iterate over x and y of the plot
         for dim_x in range(dims):
+            if(limit_plots_to >= counter):
+                break
             if(symetric):
                 start = 0
             else:
                 start = dim_x
             for dim_y in range(start, dims):
+                counter += 1
                 if(dim_x == dim_y):
                     continue
+                if(limit_plots_to >= counter):
+                    break
                 data_x = torch.stack([x[dim_x].to('cpu') for x in buffer], dim=0).tolist()
                 data_y = torch.stack([y[dim_y].to('cpu') for y in buffer], dim=0).tolist()
 
