@@ -185,6 +185,9 @@ class ChiLossFunctional(torch.nn.Module):
         return new_dist
 
 class ChiLoss(ChiLossBase, ChiLossFunctional):
+    """
+        Sensitive to batch size. The batch size should be at least 3 times the number of classes.
+    """
     def __init__(self, cyclic_latent_buffer, loss_means_from_buff, classes, latent_size, shift_min_distance, shift_std_of_mean, 
                  ratio, scale,  eps=1e-5, 
                  start_mean_buff_at=500, log_np_loss=True):

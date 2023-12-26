@@ -755,6 +755,8 @@ class CLDataModule(DreamDataModule):
 
     def val_dataloader(self):
         # must return multiple for multiple tasks (each for one task)
+        # at the end of training should give the same accuracy for no split 
+        # as test dataset. Do not use accuracy.compute() because it gives different answers.
         return [
             DataLoader(dataset, 
             batch_size=self.cfg.val_batch_size if self.datasampler is None else 1, 
