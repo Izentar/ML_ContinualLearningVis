@@ -70,7 +70,7 @@ class ServePlot():
         self.del_flush = True
         self.name = None
 
-    def get_next(self):
+    def get_next(self, to_wandb):
         if(self.create_new_subplot or self.axs is None):
             self.create_new_subplot = False
             self.ax_idx = 0
@@ -78,7 +78,7 @@ class ServePlot():
 
             self.fig.set_size_inches(6.4 * self.nrows, 4.8 * self.ncols)
             if(self.name is not None):
-                self._flush()
+                self._flush(to_wandb=to_wandb)
 
         ax = self.axs
         if(isinstance(self.axs, list) or isinstance(self.axs, np.ndarray)):
@@ -394,7 +394,7 @@ class PointPlot():
         plotter = ServePlot(nrows=nrows, ncols=ncols, subplot_kw={'projection': 'polar'})
         
         for idx, (cl, val) in enumerate(std_mean_distance_dict.items()):
-            fig, ax = plotter.get_next()
+            fig, ax = plotter.get_next(to_wandb=to_wandb)
 
             dist_positive = val['distance_positive']
             dist_negative = val['distance_negative']
@@ -726,7 +726,7 @@ class PointPlot():
         legend_label = dict()
         for cl, x in data.items():
             x:np.ndarray = x.to('cpu').numpy()
-            fig, ax = plotter.get_next()
+            fig, ax = plotter.get_next(to_wandb=to_wandb)
             plot = ax.bar(range(len(x)), x)
 
             ax.grid(True)
