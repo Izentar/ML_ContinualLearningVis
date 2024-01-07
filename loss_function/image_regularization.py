@@ -16,7 +16,8 @@ class TotalVariationRegularization():
         #loss_var = torch.linalg.norm(diff1) + torch.linalg.norm(diff2) + torch.linalg.norm(diff3) + torch.linalg.norm(diff4)
         #self.loss = self.scale * loss_var
 
-        self.loss = torch.sum( (diff1**2 + diff2**2)**(1/2) )
+        # Use anisotropic version from https://en.wikipedia.org/wiki/Total_variation_denoising
+        self.loss = torch.sum(torch.abs(diff1)) + torch.sum(torch.abs(diff2))
 
     def gather_loss(self, loss):
         return loss + self.loss
