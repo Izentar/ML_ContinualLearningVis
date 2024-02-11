@@ -118,7 +118,7 @@ def model_summary(source_model):
     summary(source_model, (3, 32, 32))
     exit()
 
-def logic(args, log_args_to_wandb=True):
+def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_name="", tags=None):
     # normal dreaming
     if(args.config.seed is not None):
         pl.seed_everything(args.config.seed)
@@ -163,11 +163,15 @@ def logic(args, log_args_to_wandb=True):
 
     data_passer = {}
 
-    tags = []
+    tags = [] if tags is None else tags
     wandb_run_id = wandb.util.generate_id()
     if args.fast_dev_run.enable:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=my_parser.wandb_run_name(args, wandb_run_id),
+    if(run_name):
+        run_name = f"{run_name}_{my_parser.wandb_run_name(args, wandb_run_id)}"
+    else:
+        run_name = my_parser.wandb_run_name(args, wandb_run_id)
+    logger = WandbLogger(project=project_name, tags=tags, offline=wandb_offline, mode=wandb_mode, name=run_name,
         log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=False, id=wandb_run_id)
     if(log_args_to_wandb):
         my_parser.log_to_wandb(args)

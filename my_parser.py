@@ -11,6 +11,7 @@ from utils import utils
 import numpy as np
 from json import JSONEncoder, JSONDecoder
 from utils import pretty_print as pp
+from collections.abc import Sequence
 
 def main_arg_parser() -> ArgumentParser:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
@@ -348,8 +349,8 @@ For multi dims they will be plotted in paris for all combinations of dims.')
 
     return parser
 
-def parse_args(parser: ArgumentParser) -> Namespace:
-    args = parser.parse_args()
+def parse_args(parser: ArgumentParser, args: Sequence[str] | None = None, namespace: None = None) -> Namespace:
+    args = parser.parse_args(args, namespace)
 
     args = load_config(args, parser)
     export_config(args)
@@ -435,7 +436,7 @@ def attack_args_to_kwargs(args):
 def log_to_wandb(args):
     #if(wandb.run is not None): # does not work
     wandb.config.update({'Plain args': str(sys.argv)})
-    wandb.config.update(args)
+    wandb.config.update(args, allow_val_change=True)
     pp.sprint(f'{pp.COLOR.NORMAL}\tInput command line:')
     print(' '.join(sys.argv))
     pp.sprint(f'{pp.COLOR.NORMAL}\tUsed config:')
