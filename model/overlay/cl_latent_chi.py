@@ -4,7 +4,7 @@ from loss_function.chiLoss import ChiLoss, l2_latent_norm
 from utils.cyclic_buffer import CyclicBufferByClass
 import wandb
 import pandas as pd
-from utils import pretty_print as pp
+from utils import pretty_print as pp, utils
 
 from dataclasses import dataclass, field
 
@@ -18,9 +18,9 @@ class ClLatentChi(ClLatent):
         norm_lambda: float = 0.
 
     @dataclass
-    class Loss():
+    class Loss(utils.BaseConfigDataclass):
         @dataclass
-        class Chi():
+        class Chi(utils.BaseConfigDataclass):
             shift_min_distance: float
             shift_std_of_mean: float
             ratio: float = 2.5

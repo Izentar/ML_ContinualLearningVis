@@ -2,7 +2,7 @@ from typing import Any, Dict
 import torch
 from loss_function.chiLoss import OneHot
 from utils.cyclic_buffer import CyclicBufferByClass
-from utils import pretty_print as pp
+from utils import pretty_print as pp, utils
 
 from dataclasses import dataclass
 
@@ -12,7 +12,7 @@ class ClLatentOneHot(ClLatent):
     @dataclass
     class Latent(ClLatent.Latent):
         @dataclass
-        class OneHot():
+        class OneHot(utils.BaseConfigDataclass):
             type: str = None
             scale: float = 1.
             special_class: int = 1

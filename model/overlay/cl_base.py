@@ -18,13 +18,13 @@ from typing import Any, Dict
 
 class ClBase(LightningModule):
     @dataclass
-    class Config():
+    class Config(utils.BaseConfigDataclass):
         num_classes: int
         type: str # not used but required for now
         val_split: int
 
     @dataclass
-    class Optimizer():        
+    class Optimizer(utils.BaseConfigDataclass):        
         type: str = 'adam'
         reset_type: str = None
         kwargs: dict = None
@@ -37,7 +37,7 @@ class ClBase(LightningModule):
                 }
 
     @dataclass
-    class Scheduler():
+    class Scheduler(utils.BaseConfigDataclass):
         type: str = None
         kwargs: dict = None
 

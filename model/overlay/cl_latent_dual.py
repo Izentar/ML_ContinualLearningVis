@@ -6,6 +6,7 @@ from utils import pretty_print as pp
 from torch.nn.functional import relu
 import torchmetrics
 from copy import copy
+from utils import utils
 
 from dataclasses import dataclass
 from model.overlay.cl_latent_chi import ClLatentChi
@@ -70,11 +71,11 @@ class ClLatentDual(ClLatentChi):
         It can train using chi-loss without ModelSufix or cross-entropy with ModelSufix at the same time.
     """
     @dataclass
-    class Loss():
+    class Loss(utils.BaseConfigDataclass):
         @dataclass
-        class Chi():
+        class Chi(utils.BaseConfigDataclass):
             @dataclass
-            class Dual():
+            class Dual(utils.BaseConfigDataclass):
                 """
                     Scale of the chi-square loss. Typical values are 0, 1.
                 """
@@ -93,22 +94,22 @@ class ClLatentDual(ClLatentChi):
                         raise Exception("Both losses (inner, outer) cannot be zero!")
 
     @dataclass
-    class Outer():
+    class Outer(utils.BaseConfigDataclass):
         @dataclass
-        class Optimizer():        
+        class Optimizer(utils.BaseConfigDataclass):        
             type: str = None
             reset_type: str = None
             kwargs: dict = None
 
         @dataclass
-        class Scheduler():
+        class Scheduler(utils.BaseConfigDataclass):
             type: str = None
             kwargs: dict = None
 
     @dataclass
-    class Inner():
+    class Inner(utils.BaseConfigDataclass):
         @dataclass
-        class Config():
+        class Config(utils.BaseConfigDataclass):
             visualize_type: str = 'outer'
 
     def __after_init_sched__(source_sched, other_sched):
@@ -344,34 +345,34 @@ class ClLatentDualHalved(ClLatentDual):
         Overlay that uses chi-square loss with two optimizers and schedulers. That is why it is called halved.
     """
     @dataclass
-    class Inner():
+    class Inner(utils.BaseConfigDataclass):
         @dataclass
         class Config(ClLatentDual.Inner.Config):
             partial_backward: bool = False
 
         @dataclass
-        class First():
+        class First(utils.BaseConfigDataclass):
             @dataclass
-            class Optimizer():        
+            class Optimizer(utils.BaseConfigDataclass):        
                 type: str = None
                 reset_type: str = None
                 kwargs: dict = None
 
             @dataclass
-            class Scheduler():
+            class Scheduler(utils.BaseConfigDataclass):
                 type: str = None
                 kwargs: dict = None
 
         @dataclass
-        class Second():
+        class Second(utils.BaseConfigDataclass):
             @dataclass
-            class Optimizer():        
+            class Optimizer(utils.BaseConfigDataclass):        
                 type: str = None
                 reset_type: str = None
                 kwargs: dict = None
             
             @dataclass
-            class Scheduler():
+            class Scheduler(utils.BaseConfigDataclass):
                 type: str = None
                 kwargs: dict = None
 

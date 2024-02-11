@@ -18,14 +18,14 @@ class ClModel(cl_base.ClBase):
         train_sanity_check: bool = False
 
     @dataclass
-    class Robust():
+    class Robust(utils.BaseConfigDataclass):
         dataset_name: str = None
         data_path: str = None
         resume_path: str = None
         enable: bool = False
 
         @dataclass
-        class Kwargs():
+        class Kwargs(utils.BaseConfigDataclass):
             constraint: int = 2
             eps: float = 0.5
             step_size: float = 1.5
@@ -40,7 +40,7 @@ class ClModel(cl_base.ClBase):
             make_adversary: bool = False
 
     @dataclass
-    class LayerReplace():
+    class LayerReplace(utils.BaseConfigDataclass):
         enable: bool = False
         source: object = None
         destination_f: 'function' = None

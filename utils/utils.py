@@ -1,5 +1,6 @@
 import torch
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 
 DEBUG = False
 
@@ -218,19 +219,27 @@ def search_kwargs(kwargs: dict, vals:list[str]):
             new_kwargs[k] = v
     return new_kwargs
 
-def rgetattr(obj, name:str, separator='.', nofound_is_ok=False) -> object|None:
+def rgetattr(obj, name:str, separator='.', not_found_is_ok=False) -> object|None:
+    """
+        Get attribute specified by name from object.
+    """
     var_names = name.split(sep=separator)
     current = obj
     for v in var_names:
         try:
             current = getattr(current, v)
         except AttributeError:
-            if(nofound_is_ok):
+            if(not_found_is_ok):
                 return None
             raise Exception(f"Could not find '{v}', name '{name}' \nfor object: {vars(current)}\n\nroot obj '{obj}'")
     return current
 
-def setup_obj_dataclass_args(src_obj, args, root_name, sep='.', recursive=False, recursive_types=None):
+def setup_obj_dataclass_args(src_obj, args, root_name, sep='.', recursive=False, recursive_types=None, ignore_root_not_appear=True):
+    """
+        Set variables of a source object to a corresponding objects from args.
+        If main tree from CONFIG_MAP inside args is not present, then create a dataclass on path args
+        with a flag 'enable' set to False. 
+    """
     tree = {}
     for k in src_obj.VAR_MAP.keys():
         k: str = k
@@ -243,25 +252,36 @@ def setup_obj_dataclass_args(src_obj, args, root_name, sep='.', recursive=False,
     for k, v in src_obj.VAR_MAP.items():
         fn = src_obj.CONFIG_MAP[v].__init__
         if(DEBUG):
-            print()
-            print(src_obj.CONFIG_MAP[v], v)
+            print("\n", src_obj.CONFIG_MAP[v], v)
         if(k == ''):
+            # if no root is present
+            attr = rgetattr(args, f"{root_name}", not_found_is_ok=ignore_root_not_appear)
+            if(attr is None and ignore_root_not_appear):
+                setattr(src_obj, v, src_obj.CONFIG_MAP[v](
+                    enable=False))
+                continue
             setattr(src_obj, v, src_obj.CONFIG_MAP[v](
                 **get_obj_dict(
-                    rgetattr(args, f"{root_name}"), #reject_from=list(tree.keys()), 
+                    attr, #reject_from=list(tree.keys()), 
                     accept_only=fn.__code__.co_varnames[:fn.__code__.co_argcount], 
                     recursive=recursive, recursive_types=recursive_types)
             ))
         else:
+            # if some root is present
+
             #split = k.split('.')
             #current_tree = tree
             #for s in split:
             #    current_tree = current_tree[s]
             #current_tree = list(current_tree.keys())
-#
+            attr = rgetattr(args, f"{root_name}{sep}{k}", not_found_is_ok=ignore_root_not_appear)
+            if(attr is None and ignore_root_not_appear):
+                setattr(src_obj, v, src_obj.CONFIG_MAP[v](
+                    enable=False))
+                continue
             setattr(src_obj, v, src_obj.CONFIG_MAP[v](
                 **get_obj_dict(
-                    rgetattr(args, f"{root_name}{sep}{k}"), #reject_from=current_tree, 
+                    attr, #reject_from=current_tree, 
                     accept_only=fn.__code__.co_varnames[:fn.__code__.co_argcount], 
                     recursive=recursive, recursive_types=recursive_types)
             ))
@@ -292,6 +312,12 @@ def dict_to_tensor(d) -> torch.Tensor:
         l.insert(k, v)
     return torch.stack(l)
 
-
-
-
+@dataclass(kw_only=True)
+class BaseConfigDataclass():
+    """
+        To override this just create in child class a variable with name 'enable' and specified value.
+        During setup in 'setup_obj_dataclass_args' this flag will be set according to parse arguments.
+        If 'args' have not 'enable' var, then it will be set to False if 'ignore_root_not_appear' else default True.
+    """
+    enable: bool = True # default value
+    

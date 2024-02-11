@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from tests.evaluation.compare_latent import CompareLatent
 from tests.evaluation.disorder_dream import DisorderDream
-from my_parser import arg_parser, log_to_wandb, wandb_run_name, export_config, can_export_config
+import my_parser
 
 from model.statistics.base import pca
 from collections.abc import Sequence
@@ -167,10 +167,10 @@ def logic(args, log_args_to_wandb=True):
     wandb_run_id = wandb.util.generate_id()
     if args.fast_dev_run.enable:
         tags = ["fast_dev_run"]
-    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=wandb_run_name(args, wandb_run_id),
+    logger = WandbLogger(project="continual_dreaming", tags=tags, offline=wandb_offline, mode=wandb_mode, name=my_parser.wandb_run_name(args, wandb_run_id),
         log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=False, id=wandb_run_id)
     if(log_args_to_wandb):
-        log_to_wandb(args)
+        my_parser.log_to_wandb(args)
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
 
@@ -217,7 +217,7 @@ def logic(args, log_args_to_wandb=True):
 
     #model_summary(source_model)
 
-    if(args.model.robust.enable):
+    if(my_parser.get_arg(args, "model.robust.enable")):
         print('WARNING:\tTRAIN ROBUSTLY IS ENABLED, SLOWER TRAINING.')
 
     if(args.fast_dev_run.enable):
@@ -332,7 +332,7 @@ def logic(args, log_args_to_wandb=True):
         logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
     if(not args.fast_dev_run.enable and not custom_loop.cfg_save.ignore_config):
-        export_config(args, custom_loop.save_folder, 'run_config.json')
+        my_parser.export_config(args, custom_loop.save_folder, 'run_config.json')
 
     if(utils.check_python_enabled(args.loop.layer_stats.use_at)):
         plot_pca_graph(custom_loop.model_stats, model=model, overestimated_rank=args.pca_estimate_rank)
@@ -351,7 +351,7 @@ def logic(args, log_args_to_wandb=True):
     collect_model_information(
         args=args,
         model=model, 
-        attack_kwargs=args.model.robust, 
+        attack_kwargs=my_parser.get_arg(args, "model.robust"), 
         dataset=collect_model_information_dataset, 
         train_tasks_split=train_tasks_split, 
         logger=logger, 
@@ -522,7 +522,7 @@ def collect_stats(model, dataset, collect_numb_of_points, collector_batch_sample
         batch_size=collector_batch_size,
     )
 
-    if(attack_kwargs.enable):
+    if(my_parser.get_arg(attack_kwargs, "enable")):
         def invoker(model, input):
             xe = model.forward(
                 input,
@@ -631,5 +631,10 @@ def sample_latent_buffer_target_process(model, target_process_f, namepath, size,
 
 
 if __name__ == "__main__":
-    args, _ = arg_parser()
+    parser = my_parser.main_arg_parser()
+    parser = my_parser.layer_statistics_arg_parser(parser)
+    parser = my_parser.dream_parameters_arg_parser(parser)
+    parser = my_parser.dual_optim_arg_parser(parser)
+    parser = my_parser.model_statistics_optim_arg_parser(parser)
+    args = my_parser.parse_args(parser)
     logic(args)

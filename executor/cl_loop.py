@@ -63,7 +63,7 @@ import time
 
 class CLLoop(Loop):
     @dataclass
-    class Config():
+    class Config(utils.BaseConfigDataclass):
         plan: list[list[int]]
         schedule: list[int]
         num_tasks: Union[int, None] = field(default=None, init=False)
@@ -76,15 +76,15 @@ class CLLoop(Loop):
             self.num_loops = self.num_tasks if self.num_loops is None else self.num_loops
 
     @dataclass
-    class Visualization():
+    class Visualization(utils.BaseConfigDataclass):
         generate_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
         clear_dataset_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
         measure_time: bool = True
 
         @dataclass
-        class LayerLoss():
+        class LayerLoss(utils.BaseConfigDataclass):
             @dataclass
-            class MeanNorm():
+            class MeanNorm(utils.BaseConfigDataclass):
                 scale: float = 0.01
                 del_cov_after: bool =False
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
@@ -92,20 +92,20 @@ class CLLoop(Loop):
                 device: str = 'cuda'
 
             @dataclass
-            class GradPruning():
+            class GradPruning(utils.BaseConfigDataclass):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
                 percent: float = 0.01
                 hook_to: Union[list[str], None] = False
                 device: str = 'cuda'
 
             @dataclass
-            class GradActivePruning():
+            class GradActivePruning(utils.BaseConfigDataclass):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
                 percent: float = 0.01
                 hook_to: Union[list[str], None] = False
 
             @dataclass
-            class DeepInversion():
+            class DeepInversion(utils.BaseConfigDataclass):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
                 scale: float = 1e2
                 scale_file: str = None
@@ -116,7 +116,7 @@ class CLLoop(Loop):
                     self.hook_to = ['BatchNorm2d'] if self.hook_to is None else self.hook_to
 
             @dataclass
-            class DeepInversionTarget():
+            class DeepInversionTarget(utils.BaseConfigDataclass):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
                 scale: float = 1e2
                 hook_to: list[str] = None
@@ -126,24 +126,24 @@ class CLLoop(Loop):
                     self.hook_to = ['BatchNorm2d'] if self.hook_to is None else self.hook_to
 
         @dataclass
-        class ImageRegularization():
+        class ImageRegularization(utils.BaseConfigDataclass):
             @dataclass
-            class Variation():
+            class Variation(utils.BaseConfigDataclass):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
                 scale: float = 2.5e-5
 
             @dataclass
-            class L2():
+            class L2(utils.BaseConfigDataclass):
                 use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
                 coeff: float = 1e-05
 
     @dataclass
-    class Model():
+    class Model(utils.BaseConfigDataclass):
         reload_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
         reinit_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
 
     @dataclass
-    class Save():
+    class Save(utils.BaseConfigDataclass):
         enable_checkpoint: bool = False
         model: bool = False
         dreams: bool = False
@@ -161,7 +161,7 @@ class CLLoop(Loop):
                 self.any = True
 
     @dataclass
-    class Load():
+    class Load(utils.BaseConfigDataclass):
         id: list = None
         name: str = None
         model: bool = False
@@ -180,7 +180,7 @@ class CLLoop(Loop):
                 self.name = Path(self.name)
         
     @dataclass
-    class LayerStats():
+    class LayerStats(utils.BaseConfigDataclass):
         use_at: Union[str, bool, int, list[str], list[bool], list[int], None] = None
         hook_to: Union[list[str], None] = False
         device: str = 'cuda'
@@ -556,7 +556,7 @@ class CLLoop(Loop):
         # here put your root folder
         folder = Path(overlay_type) / model_type / self._generate_save_path_dream()
 
-        if(obj := utils.rgetattr(self.args, 'model.optim.type', nofound_is_ok=True)):
+        if(obj := utils.rgetattr(self.args, 'model.optim.type', not_found_is_ok=True)):
             folder = folder / f'model_optim_type-{obj}'
 
         adds = ""

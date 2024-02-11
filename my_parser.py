@@ -12,14 +12,18 @@ import numpy as np
 from json import JSONEncoder, JSONDecoder
 from utils import pretty_print as pp
 
-def arg_parser() -> tuple[Namespace, ArgumentParser]:
+def main_arg_parser() -> ArgumentParser:
     parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Configurable framework to work with\
 continual learning tasks.', 
 epilog="""
-Validation dataset uses data from test dataset but divided into appropriate tasks.
-Test dataset uses test data with only the classes used in previous tasks. 
+If data is divided into tasks then:
+* Validation dataset uses data from test dataset but divided into appropriate tasks.
+* Test dataset uses test data with only the classes used in previous tasks. 
 """)
 
+    ######################################
+    #####       main arguments      ######
+    ######################################
 
     parser.add_argument("--wandb.run.folder", type=str, default="log_run/", help='') ##**
     parser.add_argument("--config.seed", type=int, help='Seed of the pytorch random number generator. Default None - random seed.') ##**
@@ -48,6 +52,9 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     parser.add_argument("--datamodule.test_num_workers", type=int, help='Number of test dataloader workers.')
     parser.add_argument("--datamodule.val_num_workers", type=int, help='Number of validation dataloader workers.')
 
+    ######################################
+    #####      load/save model      ######
+    ######################################
     parser.add_argument("--loop.save.model", action="store_true", help='Save model at the end of all training loops') ##**
     parser.add_argument("--loop.load.model", action="store_true", help='') ##**
     parser.add_argument("--loop.save.enable_checkpoint", action="store_true", help='')
@@ -89,53 +96,6 @@ to choose epoch at which to call it.')
     parser.add_argument("--model.sched.steps", nargs='+', type=int, default=(3, ), help='Epoch training steps \
 at where to call scheduler, change learning rate. Use "model.scheduler.type" to enable scheduler.')
 
-    parser.add_argument("--model.outer.optim.type", type=str, help='')
-    parser.add_argument("--model.outer.optim.reset_type", type=str, default='default', help='')
-    parser.add_argument("--model.outer.optim.kwargs.lr", type=float, help='')
-    parser.add_argument("--model.outer.optim.kwargs.gamma", type=float, help='')
-    parser.add_argument("--model.outer.optim.kwargs.momentum", type=float, help='')
-    parser.add_argument("--model.outer.optim.kwargs.dampening", type=float, help='')
-    parser.add_argument("--model.outer.optim.kwargs.weight_decay", type=float, help='')
-    parser.add_argument("--model.outer.optim.kwargs.betas", nargs='+', type=float, help='')
-    parser.add_argument("--model.outer.optim.kwargs.amsgrad", help='')
-
-    parser.add_argument("--model.outer.sched.type", type=str, help='')
-    parser.add_argument("--model.outer.sched.kwargs.gamma", type=float)
-    parser.add_argument("--model.outer.sched.kwargs.milestones", nargs='+', type=int)
-    parser.add_argument("--model.outer.sched.steps", nargs='+', type=int, help='')
-
-    parser.add_argument("--model.inner.cfg.partial_backward", action="store_true", help='')
-    parser.add_argument("--model.inner.cfg.visualize_type",type=str, default='outer', help='')
-    parser.add_argument("--model.inner.first.optim.type", type=str, help='')
-    parser.add_argument("--model.inner.first.optim.reset_type", type=str, default='default', help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.lr", type=float, help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.gamma", type=float, help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.momentum", type=float, help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.dampening", type=float, help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.weight_decay", type=float, help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.betas", nargs='+', type=float, help='')
-    parser.add_argument("--model.inner.first.optim.kwargs.amsgrad", help='')
-
-    parser.add_argument("--model.inner.first.sched.type", type=str, help='')
-    parser.add_argument("--model.inner.first.sched.kwargs.gamma", type=float)
-    parser.add_argument("--model.inner.first.sched.kwargs.milestones", nargs='+', type=int)
-    parser.add_argument("--model.inner.first.sched.steps", nargs='+', type=int, help='')
-
-    parser.add_argument("--model.inner.second.optim.type", type=str, help='')
-    parser.add_argument("--model.inner.second.optim.reset_type", type=str, default='default', help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.lr", type=float, help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.gamma", type=float, help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.momentum", type=float, help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.dampening", type=float, help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.weight_decay", type=float, help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.betas", nargs='+', type=float, help='')
-    parser.add_argument("--model.inner.second.optim.kwargs.amsgrad", help='')
-
-    parser.add_argument("--model.inner.second.sched.type", type=str, help='')
-    parser.add_argument("--model.inner.second.sched.kwargs.gamma", type=float)
-    parser.add_argument("--model.inner.second.sched.kwargs.milestones", nargs='+', type=int)
-    parser.add_argument("--model.inner.second.sched.steps", nargs='+', type=int, help='')
-
     parser.add_argument("--model.norm_lambda", type=float, default=0., help='Lambda parametr of the used l2 normalization. If 0. then \
 no normalization is used. Normalization is used to the last model layer, the latent output of the "CLModelWithIslands".')
     
@@ -155,9 +115,87 @@ no normalization is used. Normalization is used to the last model layer, the lat
 
     parser.add_argument("--model.default_weights", action="store_true", help='') ##**
 
+
     ######################################
-    #####     dream parameters      ######
+    #####       model reinit        ######
     ######################################
+    parser.add_argument("--loop.model.reload_at", nargs='+', type=str, help='Reload model weights after each main loop.\
+Reloading means any weights that model had before training will be reloaded. Reload is done AFTER dream generation if turned on.') ##**
+    parser.add_argument("--loop.model.reinit_at", nargs='+', type=str, help='Reset model after each main loop.\
+Model will have newly initialized weights after each main loop. Reinit is done AFTER dream generation if turned on.') ##**
+
+    parser.add_argument("--loop.weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
+    parser.add_argument("--model.train_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
+
+
+    ######################################
+    #####       fast dev run        ######
+    ######################################
+    parser.add_argument("-f", "--fast_dev_run.enable", action="store_true", help='Use to fast check for errors in code.\
+It ') ##**
+    parser.add_argument("--fast_dev_run.batches", type=int, default=30, help='')
+    parser.add_argument("--fast_dev_run.epochs", type=int, default=1, help='')
+    parser.add_argument("--fast_dev_run.vis_threshold", nargs='+', type=int, default=[5], help='')
+
+
+    parser.add_argument("--wandb.watch.enable", action="store_true", help='')
+    parser.add_argument("--wandb.watch.log_freq", type=int, default=1000, help='')
+
+    return parser
+
+def robust_arg_parser(parser: ArgumentParser) -> ArgumentParser:
+    parser.add_argument("--model.robust.enable", action="store_true", help='Enable robust training.')
+    parser.add_argument("--model.robust.data_path", type=str, default="./data", help='')
+    parser.add_argument("--model.robust.dataset_name", type=str, help='')
+    parser.add_argument("--model.robust.resume_path", type=str, help='')
+    parser.add_argument("--model.robust.kwargs.constraint", type=str, default="2", help='')
+    parser.add_argument("--model.robust.kwargs.eps", type=float, default=0.5, help='')
+    parser.add_argument("--model.robust.kwargs.step_size", type=float, default=1.5, help='')
+    parser.add_argument("--model.robust.kwargs.iterations", type=int, default=10, help='')
+    parser.add_argument("--model.robust.kwargs.random_start", type=int, default=0, help='')
+    parser.add_argument("--model.robust.kwargs.random_restart", type=int, default=0, help='')
+    parser.add_argument("--model.robust.kwargs.custom_loss", type=str, help='') # default None
+    parser.add_argument("--model.robust.kwargs.use_worst", action="store_false", help='')
+    parser.add_argument("--model.robust.kwargs.with_latent", action="store_true", help='')
+    parser.add_argument("--model.robust.kwargs.fake_relu", action="store_true", help='')
+    parser.add_argument("--model.robust.kwargs.no_relu", action="store_true", help='')
+    parser.add_argument("--model.robust.kwargs.make_adversary", action="store_true", help='') # required
+
+    return parser
+
+def layer_statistics_arg_parser(parser: ArgumentParser) -> ArgumentParser:
+    parser.add_argument("--loop.layer_stats.use_at", type=str, nargs='+', help='Gather layer statistics \
+at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
+means it will be used just like the python indexing for negative numbers.') ##**
+    parser.add_argument("--loop.vis.layerloss.mean_norm.use_at", type=str, nargs='+', help='Use layer loss function \
+at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
+means it will be used just like the python indexing for negative numbers.') ##**
+    parser.add_argument("--loop.save.layer_stats", action="store_true", help='Path where to save layer_stats.') ##**
+    parser.add_argument("--loop.load.layer_stats", action="store_true", help='Path from where to load layer_stats.') ##**
+    parser.add_argument("--loop.layer_stats.hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
+thrown, list of avaliable layers will be displayed.') ##**
+    parser.add_argument("--loop.vis.layerloss.mean_norm.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.hook_to", nargs='+', type=str)
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
+    parser.add_argument("--model.layer_replace.enable", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
+    parser.add_argument("--loop.vis.layerloss.mean_norm.scale", type=float, default=0.001, help='Scaling for layer loss.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.use_at", type=str, nargs='+', help='Use gradient pruning at.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.percent", type=float, default=0.01,
+        help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.use_at", type=str, nargs='+', help='') ##**
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.percent", type=float, default=0.01, help='') ##**
+    parser.add_argument("--loop.vis.layerloss.mean_norm.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
+
+    parser.add_argument("--loop.vis.layerloss.mean_norm.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.vis.layerloss.grad_pruning.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.layer_stats.device", type=str, default='cuda', help='')
+    parser.add_argument("--loop.layer_stats.flush_to_disk", action="store_true", help='')
+    parser.add_argument("--loop.layer_stats.type", nargs='+', type=str, help="Possible types: 'mean', 'std', 'cov'. Default ()'mean, 'std')")
+
+    return parser
+
+def dream_parameters_arg_parser(parser: ArgumentParser) -> ArgumentParser:
     parser.add_argument("--loop.vis.generate_at", nargs='+', type=str, default='False', help='At which loop or loops enable dreaming where framework \
 should produce dreams and use them during training. Can take one or more indexes and boolean. Default None will not produce any dreams. \
 Without running this and running "loop.train_at" will run only test. Use this with "datamodule.vis.only_vis_at" to train only on dream batch.') ##**
@@ -231,86 +269,59 @@ Increasing its value can help to eliminate exploding gradient problem while havi
     parser.add_argument("--loop.vis.image_reg.l2.use_at", type=str, nargs='+', help='')   
     parser.add_argument("--loop.vis.image_reg.l2.coeff", type=float, default=1e-05, help='')
 
+    return parser
 
-    ######################################
-    #####       model reinit        ######
-    ######################################
-    parser.add_argument("--loop.model.reload_at", nargs='+', type=str, help='Reload model weights after each main loop.\
-Reloading means any weights that model had before training will be reloaded. Reload is done AFTER dream generation if turned on.') ##**
-    parser.add_argument("--loop.model.reinit_at", nargs='+', type=str, help='Reset model after each main loop.\
-Model will have newly initialized weights after each main loop. Reinit is done AFTER dream generation if turned on.') ##**
+def dual_optim_arg_parser(parser: ArgumentParser) -> ArgumentParser:
+    parser.add_argument("--model.outer.optim.type", type=str, help='')
+    parser.add_argument("--model.outer.optim.reset_type", type=str, default='default', help='')
+    parser.add_argument("--model.outer.optim.kwargs.lr", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.gamma", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.momentum", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.dampening", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.weight_decay", type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.betas", nargs='+', type=float, help='')
+    parser.add_argument("--model.outer.optim.kwargs.amsgrad", help='')
 
-    parser.add_argument("--loop.weight_reset_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
-    parser.add_argument("--model.train_sanity_check", action="store_true", help='Enable sanity check for reload/reinit weights.')
+    parser.add_argument("--model.outer.sched.type", type=str, help='')
+    parser.add_argument("--model.outer.sched.kwargs.gamma", type=float)
+    parser.add_argument("--model.outer.sched.kwargs.milestones", nargs='+', type=int)
+    parser.add_argument("--model.outer.sched.steps", nargs='+', type=int, help='')
 
+    parser.add_argument("--model.inner.cfg.partial_backward", action="store_true", help='')
+    parser.add_argument("--model.inner.cfg.visualize_type",type=str, default='outer', help='')
+    parser.add_argument("--model.inner.first.optim.type", type=str, help='')
+    parser.add_argument("--model.inner.first.optim.reset_type", type=str, default='default', help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.lr", type=float, help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.gamma", type=float, help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.momentum", type=float, help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.dampening", type=float, help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.weight_decay", type=float, help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.betas", nargs='+', type=float, help='')
+    parser.add_argument("--model.inner.first.optim.kwargs.amsgrad", help='')
 
+    parser.add_argument("--model.inner.first.sched.type", type=str, help='')
+    parser.add_argument("--model.inner.first.sched.kwargs.gamma", type=float)
+    parser.add_argument("--model.inner.first.sched.kwargs.milestones", nargs='+', type=int)
+    parser.add_argument("--model.inner.first.sched.steps", nargs='+', type=int, help='')
 
-    ######################################
-    #####       fast dev run        ######
-    ######################################
-    parser.add_argument("-f", "--fast_dev_run.enable", action="store_true", help='Use to fast check for errors in code.\
-It ') ##**
-    parser.add_argument("--fast_dev_run.batches", type=int, default=30, help='')
-    parser.add_argument("--fast_dev_run.epochs", type=int, default=1, help='')
-    parser.add_argument("--fast_dev_run.vis_threshold", nargs='+', type=int, default=[5], help='')
+    parser.add_argument("--model.inner.second.optim.type", type=str, help='')
+    parser.add_argument("--model.inner.second.optim.reset_type", type=str, default='default', help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.lr", type=float, help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.gamma", type=float, help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.momentum", type=float, help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.dampening", type=float, help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.weight_decay", type=float, help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.betas", nargs='+', type=float, help='')
+    parser.add_argument("--model.inner.second.optim.kwargs.amsgrad", help='')
 
+    parser.add_argument("--model.inner.second.sched.type", type=str, help='')
+    parser.add_argument("--model.inner.second.sched.kwargs.gamma", type=float)
+    parser.add_argument("--model.inner.second.sched.kwargs.milestones", nargs='+', type=int)
+    parser.add_argument("--model.inner.second.sched.steps", nargs='+', type=int, help='')
 
-    ######################################
-    ######         robust           ######
-    ######################################
-    parser.add_argument("--model.robust.enable", action="store_true", help='Enable robust training.')
-    parser.add_argument("--model.robust.data_path", type=str, default="./data", help='')
-    parser.add_argument("--model.robust.dataset_name", type=str, help='')
-    parser.add_argument("--model.robust.resume_path", type=str, help='')
-    parser.add_argument("--model.robust.kwargs.constraint", type=str, default="2", help='')
-    parser.add_argument("--model.robust.kwargs.eps", type=float, default=0.5, help='')
-    parser.add_argument("--model.robust.kwargs.step_size", type=float, default=1.5, help='')
-    parser.add_argument("--model.robust.kwargs.iterations", type=int, default=10, help='')
-    parser.add_argument("--model.robust.kwargs.random_start", type=int, default=0, help='')
-    parser.add_argument("--model.robust.kwargs.random_restart", type=int, default=0, help='')
-    parser.add_argument("--model.robust.kwargs.custom_loss", type=str, help='') # default None
-    parser.add_argument("--model.robust.kwargs.use_worst", action="store_false", help='')
-    parser.add_argument("--model.robust.kwargs.with_latent", action="store_true", help='')
-    parser.add_argument("--model.robust.kwargs.fake_relu", action="store_true", help='')
-    parser.add_argument("--model.robust.kwargs.no_relu", action="store_true", help='')
-    parser.add_argument("--model.robust.kwargs.make_adversary", action="store_true", help='') # required
+    return parser
 
-    ######################################
-    #####     layer statistics      ######
-    ######################################
-    parser.add_argument("--loop.layer_stats.use_at", type=str, nargs='+', help='Gather layer statistics \
-at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
-means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.vis.layerloss.mean_norm.use_at", type=str, nargs='+', help='Use layer loss function \
-at given fit loop index. Default None means this functionality is not enabled. Value less than zero \
-means it will be used just like the python indexing for negative numbers.') ##**
-    parser.add_argument("--loop.save.layer_stats", action="store_true", help='Path where to save layer_stats.') ##**
-    parser.add_argument("--loop.load.layer_stats", action="store_true", help='Path from where to load layer_stats.') ##**
-    parser.add_argument("--loop.layer_stats.hook_to", nargs='+', type=str, help='Name of the layers to hook up. If exception \
-thrown, list of avaliable layers will be displayed.') ##**
-    parser.add_argument("--loop.vis.layerloss.mean_norm.hook_to", nargs='+', type=str)
-    parser.add_argument("--loop.vis.layerloss.grad_pruning.hook_to", nargs='+', type=str)
-    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.hook_to", nargs='+', type=str)
-    parser.add_argument("--model.layer_replace.enable", action='store_true', help='Replace layer. For now replace ReLu to GaussA.') ##**
-    parser.add_argument("--loop.vis.layerloss.mean_norm.scale", type=float, default=0.001, help='Scaling for layer loss.') ##**
-    parser.add_argument("--loop.vis.layerloss.grad_pruning.use_at", type=str, nargs='+', help='Use gradient pruning at.') ##**
-    parser.add_argument("--loop.vis.layerloss.grad_pruning.percent", type=float, default=0.01,
-        help='Percent of gradient pruning neurons at given layer. Selected by std descending.') ##**
-    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.use_at", type=str, nargs='+', help='') ##**
-    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.percent", type=float, default=0.01, help='') ##**
-    parser.add_argument("--loop.vis.layerloss.mean_norm.del_cov_after", action="store_true", help='Delete covariance matrix after calculating inverse of covariance.') ##**
-
-    parser.add_argument("--loop.vis.layerloss.mean_norm.device", type=str, default='cuda', help='')
-    parser.add_argument("--loop.vis.layerloss.grad_pruning.device", type=str, default='cuda', help='')
-    parser.add_argument("--loop.vis.layerloss.grad_activ_pruning.device", type=str, default='cuda', help='')
-    parser.add_argument("--loop.layer_stats.device", type=str, default='cuda', help='')
-    parser.add_argument("--loop.layer_stats.flush_to_disk", action="store_true", help='')
-    parser.add_argument("--loop.layer_stats.type", nargs='+', type=str, help="Possible types: 'mean', 'std', 'cov'. Default ()'mean, 'std')")
-
-
-
-
-
+def model_statistics_optim_arg_parser(parser: ArgumentParser) -> ArgumentParser:
     ######################################
     ######          other           ######
     ######################################
@@ -335,9 +346,9 @@ For multi dims they will be plotted in paris for all combinations of dims.')
     parser.add_argument("--stat.collect.single_dream.enable", action="store_true", help='')
     parser.add_argument("--stat.collect.single_dream.sigma", type=float, default=0.0, help='')
 
-    parser.add_argument("--wandb.watch.enable", action="store_true", help='')
-    parser.add_argument("--wandb.watch.log_freq", type=int, default=1000, help='')
+    return parser
 
+def parse_args(parser: ArgumentParser) -> Namespace:
     args = parser.parse_args()
 
     args = load_config(args, parser)
@@ -347,8 +358,7 @@ For multi dims they will be plotted in paris for all combinations of dims.')
 
     args = extend_namespace(args)
     
-    return args, parser
-
+    return args
 
 def extend_namespace(args):
     """
@@ -523,6 +533,18 @@ def export_config(args: Namespace, filepath:str=None, filename:str=None) -> None
         dump = json.dumps(tmp_args, indent=4, sort_keys=True, cls=NamespaceEncoder)
         with open(path, 'w') as f:
             f.write(dump)
+
+def get_arg(args: Namespace, path: str) -> None|Any:
+    """
+    Get argument by value from extended Namespace.
+    """
+    #args.model.robust.enable
+    for s in path.split('.'):
+        try:
+            args = getattr(args, s)
+        except Exception:
+            return None
+    return args
 
 class NamespaceEncoder(JSONEncoder):
     def default(self, obj):

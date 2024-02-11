@@ -58,14 +58,14 @@ class BaseCLDataModule(LightningDataModule, ABC):
 
 class DreamDataModule(BaseCLDataModule, ABC):
     @dataclass
-    class Config():
+    class Config(utils.BaseConfigDataclass):
         train_tasks_split: list
         dataset_labels: dict = None
         custom_f_steps: list = (0,)
         richbar_refresh_fequency: int = 5
 
     @dataclass
-    class Visualization():
+    class Visualization(utils.BaseConfigDataclass):
         per_target: int
         threshold: list
         image_type: str = 'fft'
@@ -85,12 +85,12 @@ class DreamDataModule(BaseCLDataModule, ABC):
             self.batch_size = self.batch_size if self.batch_size < self.per_target else self.per_target
 
         @dataclass
-        class Multitarget():
+        class Multitarget(utils.BaseConfigDataclass):
             enable: bool = False
             random: bool = False
 
         @dataclass
-        class Optimizer():
+        class Optimizer(utils.BaseConfigDataclass):
             type: str = 'adam'
             kwargs: dict = None
 
@@ -101,7 +101,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
                     }
 
         @dataclass 
-        class Scheduler():
+        class Scheduler(utils.BaseConfigDataclass):
             type: str = None
             kwargs: dict = None
 

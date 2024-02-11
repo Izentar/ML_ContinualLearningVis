@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from utils import pretty_print as pp
+from utils import pretty_print as pp, utils
 
 from config.default import datasets, datasets_map
 from dataclasses import dataclass
@@ -8,14 +8,14 @@ from model.overlay.cl_model import ClModel
 
 class ClLatent(ClModel):
     @dataclass
-    class Latent():
+    class Latent(utils.BaseConfigDataclass):
         size: int = None
 
         def post_init_Latent(self, num_classes):
             self.size = self.size if self.size is not None else num_classes
 
         @dataclass
-        class Buffer():
+        class Buffer(utils.BaseConfigDataclass):
             size_per_class: int = 40
 
     def __init__(self, *args, **kwargs):
