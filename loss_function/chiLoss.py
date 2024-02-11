@@ -321,8 +321,11 @@ class ChiLoss(ChiLossBase, ChiLossFunctional):
         first_part_negative = -(k / 2 - 1) * torch.log(z_negative + self.eps)
         second_part_negative = z_negative / 2
 
-        positive_loss = ((first_part_positive + second_part_positive) * positive_mask).mean()
-        negative_loss = ((first_part_negative + second_part_negative) * negative_mask).mean()
+        positive_loss: torch.Tensor = ((first_part_positive + second_part_positive) * positive_mask)
+        negative_loss: torch.Tensor = ((first_part_negative + second_part_negative) * negative_mask)
+
+        positive_loss = positive_loss.sum().div(positive_mask.sum())
+        negative_loss = negative_loss.sum().div(negative_mask.sum())
 
         negative_loss = (negative_loss * (rho/sigma)**2)
 
