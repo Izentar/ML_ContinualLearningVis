@@ -22,7 +22,7 @@ def main(fast_dev_run=True):
 
         print(f"Experiments to be run:")
         for v in experiments.values():
-            print(f"\t* v")
+            print(f"\t* {v}")
 
         print()
         for k, v in experiments.items():
