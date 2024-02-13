@@ -18,3 +18,4 @@ data_ssd
 *.txt
 .git_old/
 tmp/
+pythonEnv/*

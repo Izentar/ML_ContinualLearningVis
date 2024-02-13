@@ -93,7 +93,7 @@ model_save/test --model.latent.size 30 --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio 5 \
 --model.loss.chi.scale 40 --model.loss.chi.ratio_gamma 2 \
 --model.loss.chi.ratio_milestones 5 20 40 60 \
-""",
+"""
 
 experiments = {
     "crossentropy_default_c10_sgd": crossentropy_default_c10_sgd,
