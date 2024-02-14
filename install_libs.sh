@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 python -m venv pythonEnv
 source pythonEnv/bin/activate
