@@ -5,24 +5,30 @@ import torch
 import shlex
 import traceback
 from datetime import datetime
+from argparse import ArgumentParser, Namespace
 
-def main(fast_dev_run=True):
+def main():
     """
         Change fast_dev_run flag to run full experiments.
     """
     if __name__ == "__main__":
         REPEAT = 3
-        
-        parser = my_parser.main_arg_parser()
-        parser = my_parser.layer_statistics_arg_parser(parser)
-        parser = my_parser.dream_parameters_arg_parser(parser)
-        parser = my_parser.model_statistics_optim_arg_parser(parser)
+
+        parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments')
+        parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast check for errors in code.') ##**
+        args = parser.parse_args()
+
+
+        parser_exp = my_parser.main_arg_parser()
+        parser_exp = my_parser.layer_statistics_arg_parser(parser_exp)
+        parser_exp = my_parser.dream_parameters_arg_parser(parser_exp)
+        parser_exp = my_parser.model_statistics_optim_arg_parser(parser_exp)
 
         time = datetime.today().strftime('%Y-%m-%d=%H-%M-%S')
 
         print(f"Experiments to be run:")
         for v in experiments.values():
-            print(f"\t* {v}")
+            print(f"* {v}")
 
         print()
         for k, v in experiments.items():
@@ -30,9 +36,9 @@ def main(fast_dev_run=True):
                 print(f"Running experiment: {k}; repeat {idx}/{REPEAT}")
 
                 v = v.replace('\n', ' ')
-                if(fast_dev_run):
+                if(args.fast_dev_run):
                     v += ' -f'
-                args_exp = my_parser.parse_args(parser, shlex.split(v))
+                args_exp = my_parser.parse_args(parser_exp, shlex.split(v))
                 try:
                     logic(args_exp, True, project_name=f"exp_{time}", run_name=k)
                 except Exception:
@@ -77,7 +83,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root \
 model_save/test --model.latent.size 3 --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio 10 \
---model.loss.chi.scale 15 --model.loss.chi.ratio_gamma 2 \
+--model.loss.chi.scale 30 --model.loss.chi.ratio_gamma 2 \
 --model.loss.chi.ratio_milestones 5 20 40 60 \
 """
 
