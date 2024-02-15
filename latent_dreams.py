@@ -370,6 +370,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
         main_split=collect_main_split,
         collector_batch_size=args.datamodule.batch_size,
     )
+    wandb.finish(quiet=True)
 
 def collect_model_information(args, model, attack_kwargs, train_tasks_split, dataset,
                               logger, dreams_transforms, set_manager, custom_loop, collector_batch_size,
