@@ -121,7 +121,10 @@ def model_summary(source_model):
 def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_name="", tags=None):
     # normal dreaming
     if(args.config.seed is not None):
+        print(f"Seed used: {args.config.seed}")
         pl.seed_everything(args.config.seed)
+    else:
+        print("Used random seed. Due to multiple random generators, seed cannot be preview.")
 
     main_split = collect_main_split = 0.5
     wandb_offline = False if not args.fast_dev_run.enable else True

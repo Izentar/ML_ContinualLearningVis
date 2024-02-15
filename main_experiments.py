@@ -59,7 +59,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
---loop.save.root model_save/test --loop.save.model \
+--loop.save.root model_save/test --loop.save.model --config.seed 2024 \
 """
 
 crossentropy_default_c100_sgd = """
@@ -69,7 +69,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
---loop.save.root model_save/test --loop.save.model \
+--loop.save.root model_save/test --loop.save.model --config.seed 2024 \
 """
 
 chi_sqr_c10_sgd = """
@@ -83,7 +83,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 model_save/test --model.latent.size 3 --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio 10 \
 --model.loss.chi.scale 30 --model.loss.chi.ratio_gamma 2 \
---model.loss.chi.ratio_milestones 5 20 40 60 \
+--model.loss.chi.ratio_milestones 5 20 40 60 --config.seed 2024 \
 """
 
 chi_sqr_c100_sgd = """
@@ -97,7 +97,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 model_save/test --model.latent.size 30 --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio 10 \
 --model.loss.chi.scale 80 --model.loss.chi.ratio_gamma 2 \
---model.loss.chi.ratio_milestones 5 20 40 60 \
+--model.loss.chi.ratio_milestones 5 20 40 60 --config.seed 2024 \
 """
 
 experiments = {
