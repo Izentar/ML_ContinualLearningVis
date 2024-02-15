@@ -12,10 +12,9 @@ def main():
         Change fast_dev_run flag to run full experiments.
     """
     if __name__ == "__main__":
-        REPEAT = 3
-
         parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments')
         parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast check for errors in code.') ##**
+        parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
         args = parser.parse_args()
 
 
@@ -32,8 +31,8 @@ def main():
 
         print()
         for k, v in experiments.items():
-            for idx in range(1, REPEAT + 1):
-                print(f"Running experiment: {k}; repeat {idx}/{REPEAT}")
+            for idx in range(1, args.repeat + 1):
+                print(f"Running experiment: {k}; repeat {idx}/{args.repeat}")
 
                 v = v.replace('\n', ' ')
                 if(args.fast_dev_run):
@@ -45,7 +44,7 @@ def main():
                     print("Experiment exception occurred")
                     print(traceback.format_exc())
 
-                print(f"End of experiment: {k}; repeat {idx}/{REPEAT}")
+                print(f"End of experiment: {k}; repeat {idx}/{args.repeat}")
                 print("Clearing gpu cache and invoking garbage collector")
 
                 torch.cuda.empty_cache()
