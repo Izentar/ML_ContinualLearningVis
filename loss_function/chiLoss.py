@@ -76,7 +76,7 @@ class ChiLossBase(torch.nn.Module, BaseLoss):
         return self._cloud_data
 
     def __call__(self, input:torch.Tensor, target:torch.Tensor, train:bool=True):
-        assert not torch.any(torch.isnan(input)), f"Input is NaN\n{input}"
+        assert not torch.any(torch.isnan(input)), f"Input for chi-square loss is NaN. Try changing 'scale' >> 'ratio' hyperparameters."
         if self._train and train:
             self._cloud_data.push_target(input, target)
 
