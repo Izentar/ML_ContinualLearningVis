@@ -15,6 +15,7 @@ def main():
         parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments')
         parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast check for errors in code.') ##**
         parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
+        parser.add_argument("--project_name", type=str, default=None , help='Name of the project. If None then it will be generated.') ##**        
         args = parser.parse_args()
 
 
@@ -39,7 +40,11 @@ def main():
                     v += ' -f'
                 args_exp = my_parser.parse_args(parser_exp, shlex.split(v))
                 try:
-                    logic(args_exp, True, project_name=f"exp_{time}", run_name=k)
+                    project_name = args.project_name
+                    if(args.project_name is None):
+                        project_name = f"exp_{time}"
+                    
+                    logic(args_exp, True, project_name=project_name, run_name=k)
                 except Exception:
                     print("Experiment exception occurred")
                     print(traceback.format_exc())
@@ -96,7 +101,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root \
 model_save/test --model.latent.size 30 --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio 10 \
---model.loss.chi.scale 80 --model.loss.chi.ratio_gamma 2 \
+--model.loss.chi.scale 100 --model.loss.chi.ratio_gamma 2 \
 --model.loss.chi.ratio_milestones 5 20 40 60 --config.seed 2024 \
 """
 
