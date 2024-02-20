@@ -175,7 +175,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
     else:
         run_name = my_parser.wandb_run_name(args, wandb_run_id)
     logger = WandbLogger(project=project_name, tags=tags, offline=wandb_offline, mode=wandb_mode, name=run_name,
-        log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=False, id=wandb_run_id)
+        log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=True, id=wandb_run_id)
     if(log_args_to_wandb):
         my_parser.log_to_wandb(args)
     progress_bar = CustomRichProgressBar()
@@ -332,6 +332,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
     trainer.fit_loop = custom_loop
     trainer.fit_loop.connect(internal_fit_loop)
     trainer.fit(model, datamodule=cl_data_module)
+    print("End of training.")
 
     if(not args.config.test.disable):
         trainer.test(model, datamodule=cl_data_module)
@@ -373,7 +374,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
         main_split=collect_main_split,
         collector_batch_size=args.datamodule.batch_size,
     )
-    wandb.finish(quiet=True)
+    wandb.finish()
 
 def collect_model_information(args, model, attack_kwargs, train_tasks_split, dataset,
                               logger, dreams_transforms, set_manager, custom_loop, collector_batch_size,
