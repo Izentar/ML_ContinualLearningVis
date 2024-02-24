@@ -152,7 +152,7 @@ model_save/test --model.latent.size 30 --stat.collect_stats.enable \
 """
 
 chi_sqr_c100_sgd_search_tmpl = """
--d c100 --model.num_classes 100 --loop.schedule 260 \
+-d c100 --model.num_classes 100 --loop.schedule 300 \
 --config.framework_type latent-multitarget --model.type \
 custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
@@ -161,7 +161,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root \
 model_save/test --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
---model.loss.chi.ratio_milestones 5 20 40 60 --config.seed 2024 \
+--model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
 """
 
 
