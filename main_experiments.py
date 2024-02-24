@@ -174,10 +174,10 @@ experiments = {
 }
 
 grid_search_dict = {
-    "--model.latent.size": ["latent_size", 3, 11, 2],
+    "--model.latent.size": ["latent_size", 3, 12, 2],
     "--model.loss.chi.ratio": ["chi_ratio", 10],
-    "--model.loss.chi.scale": ["chi_scale", 80, 180, 20],
-    "--datamodule.batch_size": ["batch_size", 120, 320, 50]
+    "--model.loss.chi.scale": ["chi_scale", 80, 181, 20],
+    "--datamodule.batch_size": ["batch_size", 120, 321, 50]
 }
 
 
