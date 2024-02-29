@@ -1,6 +1,6 @@
 from latent_dreams import logic
 import my_parser
-import gc
+import gc, sys
 import torch
 import shlex
 import traceback
@@ -54,17 +54,20 @@ def main():
                     logic(args_exp, True, project_name=project_name, run_name=k)
                 except KeyboardInterrupt:
                     print("Experiment KeyboardInterrupt occurred")
+                    print("Experiment Exception occurred")
+                    print(traceback.format_exc())
                     print("Sleep 10 seconds...")
+                    sys.stdout.flush()
                     time.sleep(10) # wait for a while for wandb to send all logs to server.
                     wandb.finish()
-                    print("Exit")
                     exit()
                 except Exception:
                     print("Sleep 10 seconds...")
-                    time.sleep(10)
-                    wandb.finish()
                     print("Experiment Exception occurred")
                     print(traceback.format_exc())
+                    sys.stdout.flush()
+                    time.sleep(10)
+                    wandb.finish()
 
                 print(f"End of experiment: {k}; repeat {idx}/{args.repeat}")
                 print("Clearing gpu cache and invoking garbage collector")
