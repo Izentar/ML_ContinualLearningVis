@@ -19,6 +19,8 @@ def main():
         parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast check for errors in code.') ##**
         parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
         parser.add_argument("--project_name", type=str, default=None , help='Name of the project. If None then it will be generated.') ##**        
+        parser.add_argument("--start_at", type=int, default=1, help='Index of the experiment to start with \
+(experiments sorted as: normal first; grid search second). Index starts at 1.') ##**        
         args = parser.parse_args()
 
 
@@ -38,9 +40,14 @@ def main():
             print(f"* {v}")
 
         print()
+        loop_counter = 0
         for k, v in experiments.items():
             for idx in range(1, args.repeat + 1):
+                loop_counter += 1
                 print(f"Running experiment: {k}; repeat {idx}/{args.repeat}")
+                if(args.start_at > loop_counter):
+                    print(f"Experiment skipped because of 'start_at' argument ({args.start_at} > {loop_counter}).")
+                    continue
 
                 v = v.replace('\n', ' ')
                 if(args.fast_dev_run):
@@ -84,10 +91,15 @@ def grid_search_recursive(input: str, search_args: dict, exp_name: str, key_idx:
 
     if not (key in search_args):
         raise Exception(f"Wrong key parameter: {key}")
-    if isinstance(search_args[key], Sequence) and len(search_args[key]) == 4:
+    if isinstance(search_args[key], Sequence) and len(search_args[key]) == 2 and isinstance(search_args[key][1], Sequence):
+        name, range_list = search_args[key]
+        for value in range_list:
+            grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
+    
+    elif isinstance(search_args[key], Sequence) and len(search_args[key]) == 4:
         name, start, stop, step = search_args[key]
 
-        for value in range(start, stop, step):
+        for value in range(start, stop + 1, step):
             grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
 
     elif isinstance(search_args[key], Sequence) and len(search_args[key]) == 2:
@@ -177,10 +189,10 @@ experiments = {
 }
 
 grid_search_dict = {
-    "--model.latent.size": ["latent_size", 3, 12, 2],
+    "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
     "--model.loss.chi.ratio": ["chi_ratio", 10],
-    "--model.loss.chi.scale": ["chi_scale", 80, 181, 20],
-    "--datamodule.batch_size": ["batch_size", 120, 321, 50]
+    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
+    "--datamodule.batch_size": ["batch_size", 120, 320, 100]
 }
 
 
