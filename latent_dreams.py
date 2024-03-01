@@ -27,7 +27,7 @@ import my_parser
 from model.statistics.base import pca
 from collections.abc import Sequence
 from utils.utils import parse_image_size
-import wandb
+import wandb, sys
 from dream.image import Image
 from utils import utils
 from loss_function.activation_layer import GaussA
@@ -374,6 +374,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
         main_split=collect_main_split,
         collector_batch_size=args.datamodule.batch_size,
     )
+    sys.stdout.flush()
     wandb.finish()
 
 def collect_model_information(args, model, attack_kwargs, train_tasks_split, dataset,
