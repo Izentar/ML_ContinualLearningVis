@@ -183,7 +183,7 @@ model_save/test --stat.collect_stats.enable \
 
 experiments = {
     "crossentropy_default_c10_sgd": crossentropy_default_c10_sgd,
-    "crossentropy_default_c100_sgd": crossentropy_default_c10_sgd,
+    "crossentropy_default_c100_sgd": crossentropy_default_c100_sgd,
     "chi_sqr_c10_sgd": chi_sqr_c10_sgd,
     "chi_sqr_c100_sgd": chi_sqr_c100_sgd,
 }
