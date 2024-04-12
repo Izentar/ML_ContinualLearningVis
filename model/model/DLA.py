@@ -142,6 +142,10 @@ class DLA(DLAImplementation, ModelBase):
 
     def get_objective_layer_output_shape(self):
         return (self.dla.linear.out_features,)
+    
+    @property
+    def name(self):
+        return "DLA"
 
 def test():
     net = DLA()
