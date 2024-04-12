@@ -121,7 +121,7 @@ def grid_search_numerical(input: str, exp_name, search_args: dict[tuple[str, str
 crossentropy_default_c10_sgd = """
 -d c10 --model.num_classes 10 --loop.schedule 200 \
 --config.framework_type crossentropy-default --model.type \
-custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
+DLA --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
@@ -131,7 +131,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 crossentropy_default_c100_sgd = """
 -d c100 --model.num_classes 100 --loop.schedule 200 \
 --config.framework_type crossentropy-default --model.type \
-custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
+DLA --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
@@ -141,7 +141,7 @@ custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
 chi_sqr_c10_sgd = """
 -d c10 --model.num_classes 10 --loop.schedule 260 \
 --config.framework_type latent-multitarget --model.type \
-custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
+DLA --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
@@ -155,7 +155,7 @@ model_save/test --model.latent.size 3 --stat.collect_stats.enable \
 chi_sqr_c100_sgd = """
 -d c100 --model.num_classes 100 --loop.schedule 260 \
 --config.framework_type latent-multitarget --model.type \
-custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
+DLA --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
@@ -169,7 +169,7 @@ model_save/test --model.latent.size 30 --stat.collect_stats.enable \
 chi_sqr_c100_sgd_search_tmpl = """
 -d c100 --model.num_classes 100 --loop.schedule 300 \
 --config.framework_type latent-multitarget --model.type \
-custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
+DLA --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
