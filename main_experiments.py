@@ -20,7 +20,9 @@ def main():
         parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
         parser.add_argument("--project_name", type=str, default=None , help='Name of the project. If None then it will be generated.') ##**        
         parser.add_argument("--start_at", type=int, default=1, help='Index of the experiment to start with \
-(experiments sorted as: normal first; grid search second). Index starts at 1.') ##**        
+(experiments sorted as: normal first; grid search second). Index starts at 1.') ##**       
+        parser.add_argument("--end_at", type=int, default=-1, help='Index of the experiment to end with \
+(experiments sorted as: normal first; grid search second). Index starts at 1.') ##**   
         args = parser.parse_args()
 
 
@@ -48,6 +50,9 @@ def main():
                 if(args.start_at > loop_counter):
                     print(f"Experiment skipped because of 'start_at' argument ({args.start_at} > {loop_counter}).")
                     continue
+                if(args.end_at != -1 and args.end_at <= loop_counter):
+                    print(f"Experiment ended because of 'end_at' argument ({args.end_at} <= {loop_counter}).")
+                    exit()
 
                 v = v.replace('\n', ' ')
                 if(args.fast_dev_run):
@@ -184,8 +189,8 @@ model_save/test --stat.collect_stats.enable \
 experiments = {
     "crossentropy_default_c10_sgd": crossentropy_default_c10_sgd,
     "crossentropy_default_c100_sgd": crossentropy_default_c100_sgd,
-    "chi_sqr_c10_sgd": chi_sqr_c10_sgd,
-    "chi_sqr_c100_sgd": chi_sqr_c100_sgd,
+    #"chi_sqr_c10_sgd": chi_sqr_c10_sgd,
+    #"chi_sqr_c100_sgd": chi_sqr_c100_sgd,
 }
 
 grid_search_dict = {
