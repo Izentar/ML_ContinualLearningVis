@@ -97,17 +97,20 @@ def grid_search_recursive(input: str, search_args: dict, exp_name: str, key_idx:
     if not (key in search_args):
         raise Exception(f"Wrong key parameter: {key}")
     if isinstance(search_args[key], Sequence) and len(search_args[key]) == 2 and isinstance(search_args[key][1], Sequence):
+        # type [name, list of values]
         name, range_list = search_args[key]
         for value in range_list:
             grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
     
     elif isinstance(search_args[key], Sequence) and len(search_args[key]) == 4:
+        # type name, start, stop, step
         name, start, stop, step = search_args[key]
 
         for value in range(start, stop + 1, step):
             grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
 
     elif isinstance(search_args[key], Sequence) and len(search_args[key]) == 2:
+        # type name, single value
         name, value = search_args[key]
         grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
     else:
@@ -193,11 +196,17 @@ experiments = {
     #"chi_sqr_c100_sgd": chi_sqr_c100_sgd,
 }
 
+# for note:
+# it can process 3 types of input:
+# - (single value)
+# - (start, stop, step)
+# - ([list of values])
+
 grid_search_dict = {
     "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
     "--model.loss.chi.ratio": ["chi_ratio", 10],
-    "--model.loss.chi.scale": ["chi_scale", 80, 160, 120],
-    "--datamodule.batch_size": ["batch_size", 120, 320, 220]
+    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
+    "--datamodule.batch_size": ["batch_size", 120, 320, 100]
 }
 
 
