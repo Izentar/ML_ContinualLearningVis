@@ -115,7 +115,7 @@ def select_datasampler(dtype, main_split):
 def model_summary(source_model):
     from torchsummary import summary
     source_model = source_model.cuda()
-    summary(source_model, (3, 32, 32))
+    summary(source_model, (3, 32, 32), batch_size=32)
     exit()
 
 def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_name="", tags=None):
@@ -129,7 +129,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
     main_split = collect_main_split = 0.5
     wandb_offline = False if not args.fast_dev_run.enable else True
     wandb_mode = "online" if not args.fast_dev_run.enable else "disabled"
-    #wandb_offline = True
+    #wandb_offline = True; wandb_mode="disabled"
     
     num_sanity_val_steps = 0
     dreams_transforms = data_transform()
@@ -158,7 +158,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
     #]
 
     render_transforms = [
-        dream_tr.pad(2*JITTER),
+        dream_tr.pad(JITTER),
         dream_tr.jitter(JITTER),
         dream_tr.random_scale([SCALE ** (n/10.) for n in range(-10, 11)]),
         dream_tr.random_rotate(range(-ROTATE, ROTATE+1))
