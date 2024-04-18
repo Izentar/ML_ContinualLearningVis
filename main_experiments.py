@@ -17,6 +17,7 @@ def main():
     if __name__ == "__main__":
         parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments')
         parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast check for errors in code.') ##**
+        parser.add_argument("-nl", "--nologic", action="store_true" , help='Run without invoking script logic.') ##**
         parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
         parser.add_argument("--project_name", type=str, default=None , help='Name of the project. If None then it will be generated.') ##**        
         parser.add_argument("--start_at", type=int, default=1, help='Index of the experiment to start with \
@@ -63,7 +64,8 @@ def main():
                     if(args.project_name is None):
                         project_name = f"exp_{today_time}"
                     
-                    logic(args_exp, True, project_name=project_name, run_name=k)
+                    if(not args.nologic):
+                        logic(args_exp, True, project_name=project_name, run_name=k)
                 except KeyboardInterrupt:
                     print("Experiment KeyboardInterrupt occurred")
                     print("Experiment Exception occurred")
@@ -96,8 +98,10 @@ def grid_search_recursive(input: str, search_args: dict, exp_name: str, key_idx:
 
     if not (key in search_args):
         raise Exception(f"Wrong key parameter: {key}")
-    if isinstance(search_args[key], Sequence) and len(search_args[key]) == 2 and isinstance(search_args[key][1], Sequence):
+    if isinstance(search_args[key], Sequence) and len(search_args[key]) == 2 and isinstance(search_args[key][1], Sequence) \
+            and not isinstance(search_args[key][1], str):
         # type [name, list of values]
+        # but not a string
         name, range_list = search_args[key]
         for value in range_list:
             grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
@@ -117,6 +121,11 @@ def grid_search_recursive(input: str, search_args: dict, exp_name: str, key_idx:
         raise Exception(f"Wrong value parameter: {key}: {search_args[key]}")
 
 def grid_search_recursive_call(input, key, value, exp_name, name, search_args, key_idx, ret):
+    if(isinstance(value, Sequence)) and not isinstance(value, str):
+        value_new = ""
+        for v in value:
+            value_new += f" {v} "
+        value = value_new
     new_input = f'{input} {key} {value}'
     new_exp_name = f"{exp_name}_{name}_{value}"
     grid_search_recursive(new_input, search_args, new_exp_name, key_idx + 1, ret=ret)
@@ -176,11 +185,9 @@ model_save/test --model.latent.size 30 --stat.collect_stats.enable \
 
 chi_sqr_c100_sgd_search_tmpl = """
 -d c100 --model.num_classes 100 --loop.schedule 300 \
---config.framework_type latent-multitarget --model.type \
-DLA --loop.num_loops 1 --loop.train_at 0 \
+--config.framework_type latent-multitarget --loop.num_loops 1 --loop.train_at 0 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
---model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
---model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --datamodule.num_workers 3 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root \
 model_save/test --stat.collect_stats.enable \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
@@ -190,8 +197,8 @@ model_save/test --stat.collect_stats.enable \
 
 
 experiments = {
-    "crossentropy_default_c10_sgd": crossentropy_default_c10_sgd,
-    "crossentropy_default_c100_sgd": crossentropy_default_c100_sgd,
+    #"crossentropy_default_c10_sgd": crossentropy_default_c10_sgd,
+    #"crossentropy_default_c100_sgd": crossentropy_default_c100_sgd,
     #"chi_sqr_c10_sgd": chi_sqr_c10_sgd,
     #"chi_sqr_c100_sgd": chi_sqr_c100_sgd,
 }
@@ -202,12 +209,31 @@ experiments = {
 # - (start, stop, step)
 # - ([list of values])
 
+#grid_search_dict = {
+#    "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
+#    "--model.loss.chi.ratio": ["chi_ratio", 10],
+#    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
+#    "--datamodule.batch_size": ["batch_size", 120, 320, 100]
+#}
+
+#grid_search_dict = {
+#    "--model.latent.size": ["latent_size", [20, 30]],
+#    "--model.loss.chi.ratio": ["chi_ratio", 10],
+#    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
+#    "--datamodule.batch_size": ["batch_size", 120, 320, 100],
+#    "--model.type": ["model_type", "DLA", "VGG", "custom-resnet34"],
+#}
+
+
 grid_search_dict = {
-    "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
+    "--model.latent.size": ["latent_size", 10],
     "--model.loss.chi.ratio": ["chi_ratio", 10],
-    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
-    "--datamodule.batch_size": ["batch_size", 120, 320, 100]
+    "--model.loss.chi.scale": ["chi_scale", 160],
+    "--datamodule.batch_size": ["batch_size", 220],
+    "--model.type": ["model_type", "DLA"],
+    "--model.sched.kwargs.milestones": ["lr_milestones", [[40, 60, 80, 100], [60, 100], [40, 60, 80, 100, 120, 140]]]
 }
+
 
 
 main()
