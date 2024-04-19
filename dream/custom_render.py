@@ -392,14 +392,14 @@ def normal_step(rd):
     rd.optimizer.zero_grad()
     image = rd.transform_f(rd.optim_image.image())
 
-    with autocast(device_type=rd.device, dtype=torch.float16, enabled=rd.autocast_enable):
-        rd.model(image)
-        rd.input_image_train_after_hook(image)
+    #with autocast(device_type=rd.device, dtype=torch.float16, enabled=rd.autocast_enable):
+    rd.model(image)
+    rd.input_image_train_after_hook(image)
 
-        loss = rd.objective_f(rd.hook.get_output)
-        loss = rd.forward_loss_hook(loss)
-        loss.backward()
-        rd.optimizer.step()
+    loss = rd.objective_f(rd.hook.get_output)
+    loss = rd.forward_loss_hook(loss)
+    loss.backward()
+    rd.optimizer.step()
 
 def render_vis_loop(
         rd, 

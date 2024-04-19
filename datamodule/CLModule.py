@@ -68,7 +68,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     class Visualization(utils.BaseConfigDataclass):
         per_target: int
         threshold: list
-        image_type: str = 'fft'
+        image_type: str = 'pixel'
         batch_size: int = 8
         disable_transforms: bool = False
         only_vis_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
@@ -277,7 +277,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         
         iterations = ceil(self.cfg_vis.per_target / self.cfg_vis.batch_size)
         image_log_idx = CounterKeys(keys=list(target))
-        pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Number of images to visualize: {self.cfg_vis.per_target * len(target)}; batch size: {self.cfg_vis.batch_size}; batches to be generated: {iterations * len(target)}")
+        pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Number of images to visualize (may change in fast-dev-run): {self.cfg_vis.per_target * len(target)}; batch size: {self.cfg_vis.batch_size}; per target: {self.cfg_vis.per_target}; batches to be generated: {iterations * len(target)}")
 
         new_dreams, new_targets = self._generate_dreams(
             model=model,

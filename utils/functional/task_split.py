@@ -20,6 +20,14 @@ def task_split_classic(num_classes, num_tasks):
     ret.append(list(range(num_tasks * one_split, num_tasks * one_split + diff)))
     return ret
 
+def task_split_classic_filllast(num_classes, num_tasks):
+    # [[0, 1, 2], [3, 4, 5], [6, 7, 8, 9]]
+    ret = task_split_classic(num_classes=num_classes, num_tasks=num_tasks)
+    if(len(ret) >= 2 and len(ret[-1]) != len(ret[-2])):
+        ret[-2].extend(ret[-1])
+        ret.pop(-1)        
+    return ret
+
 def task_no_split(num_classes, num_tasks):
     return [list(range(num_classes))]
 
@@ -32,6 +40,7 @@ def task_split_decremental(num_classes, num_tasks, jump=2):
 class TaskSplitManager():
     GET_TASK_SPLIT_PROCESSING = {
         'SPLIT-CLASSIC': task_split_classic,
+        'SPLIT-CLASSIC-FILLLAST': task_split_classic_filllast,
         'SPLIT-DECREMENTAL': task_split_decremental,
         'NO-SPLIT': task_no_split,
     }

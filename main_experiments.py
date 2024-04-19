@@ -35,7 +35,7 @@ def main():
         today_time = datetime.today().strftime('%Y-%m-%d=%H-%M-%S')
 
         if(len(grid_search_dict) != 0):
-            input_commands = grid_search_numerical(chi_sqr_c100_sgd_search_tmpl, "chi_sqr_c100_sgd_search", grid_search_dict)
+            input_commands = grid_search_numerical(chi_sqr_c100_sgd_search_tmpl, "chi_sqr_search", grid_search_dict)
             experiments.update(input_commands)
 
         print(f"Experiments to be run:")

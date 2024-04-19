@@ -233,6 +233,14 @@ PREDEFINED_TYPES = {
         "", 
         "CL-MODEL-ISLAND"
     ],
+    "latent-multitarget-multitask": [
+        "SELECT-CLASSIC", 
+        "TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET", 
+        "SPLIT-CLASSIC-FILLLAST", 
+        "OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR", 
+        "", 
+        "CL-MODEL-ISLAND"
+    ],
     "crossentropy-default": [
         "SELECT-CLASSIC", 
         "target-classic", 
