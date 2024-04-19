@@ -129,6 +129,8 @@ def grid_search_recursive_call(input, key, value, exp_name, name, search_args, k
     new_input = f'{input} {key} {value}'
     if(len(name) != 0):
         new_exp_name = f"{exp_name}_{name}_{value}"
+    else:
+        new_exp_name = exp_name
     grid_search_recursive(new_input, search_args, new_exp_name, key_idx + 1, ret=ret)
 
 def grid_search_numerical(input: str, exp_name, search_args: dict[tuple[str, str], tuple[float, float, float]]) -> dict[str, str]:
@@ -198,7 +200,7 @@ model_save/test --stat.collect_stats.enable \
 chi_sqr_continual_learning_search_tmpl = """
 -d c100 --model.num_classes 100 --model.latent.size 50 --config.num_tasks 2 --loop.schedule 100 100 \
 --config.framework_type latent-multitarget-multitask \
-custom-resnet34 --loop.num_loops 2 --loop.train_at 0 1 \
+--loop.num_loops 2 --loop.train_at 0 1 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 50 70 --datamodule.num_workers 3 \
@@ -261,7 +263,7 @@ grid_search_continual_learning_resnet_dict = {
     "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
     "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
     "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
-    "--datamodule.vis.optim.kwargs.lr 0.05": ["vis_lr", [0.001, 0.05]],
+    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.001, 0.05]],
 }
 
 grid_search_continual_learning_vgg_dict = {
@@ -270,7 +272,7 @@ grid_search_continual_learning_vgg_dict = {
     "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
     "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
     "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
-    "--datamodule.vis.optim.kwargs.lr 0.05": ["vis_lr", [0.001, 0.05]],
+    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.001, 0.05]],
 }
 
 grid_search_continual_learning_dla_dict = {
@@ -279,7 +281,7 @@ grid_search_continual_learning_dla_dict = {
     "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
     "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
     "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
-    "--datamodule.vis.optim.kwargs.lr 0.05": ["vis_lr", [0.001, 0.05]],
+    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.001, 0.05]],
 }
 
 grid_search_dict = grid_search_continual_learning_resnet_dict
