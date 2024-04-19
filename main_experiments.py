@@ -35,7 +35,7 @@ def main():
         today_time = datetime.today().strftime('%Y-%m-%d=%H-%M-%S')
 
         if(len(grid_search_dict) != 0):
-            input_commands = grid_search_numerical(chi_sqr_c100_sgd_search_tmpl, "chi_sqr_search", grid_search_dict)
+            input_commands = grid_search_numerical(exp_template, "exp_search", grid_search_dict)
             experiments.update(input_commands)
 
         print(f"Experiments to be run:")
@@ -127,7 +127,8 @@ def grid_search_recursive_call(input, key, value, exp_name, name, search_args, k
             value_new += f" {v} "
         value = value_new
     new_input = f'{input} {key} {value}'
-    new_exp_name = f"{exp_name}_{name}_{value}"
+    if(len(name) != 0):
+        new_exp_name = f"{exp_name}_{name}_{value}"
     grid_search_recursive(new_input, search_args, new_exp_name, key_idx + 1, ret=ret)
 
 def grid_search_numerical(input: str, exp_name, search_args: dict[tuple[str, str], tuple[float, float, float]]) -> dict[str, str]:
@@ -194,6 +195,26 @@ model_save/test --stat.collect_stats.enable \
 --model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
 """
 
+chi_sqr_continual_learning_search_tmpl = """
+-d c100 --model.num_classes 100 --model.latent.size 50 --config.num_tasks 2 --loop.schedule 100 100 \
+--config.framework_type latent-multitarget-multitask \
+custom-resnet34 --loop.num_loops 2 --loop.train_at 0 1 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 50 70 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root \
+model_save/test --stat.collect_stats.enable --stat.collect_stats.use_dream_dataset  \
+--loop.load.model --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
+--model.loss.chi.ratio_milestones 40 60 80 --config.seed 2024 \
+--model.latent.size 10 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at 0 1 --loop.vis.image_reg.var.use_at 0 \
+--loop.vis.image_reg.l2.use_at False \
+--loop.vis.layerloss.deep_inversion.use_at 0 \
+--datamodule.vis.optim.type adam --datamodule.vis.optim.kwargs.lr 0.05 \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 200 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 440 --loop.vis.generate_at 0 --datamodule.vis.standard_image_size 32 \
+"""
 
 
 experiments = {
@@ -221,19 +242,47 @@ experiments = {
 #    "--model.loss.chi.ratio": ["chi_ratio", 10],
 #    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
 #    "--datamodule.batch_size": ["batch_size", 120, 320, 100],
-#    "--model.type": ["model_type", "DLA", "VGG", "custom-resnet34"],
+#    "--model.type": ["model_type", ["DLA", "VGG", "custom-resnet34"]],
 #}
 
 
-grid_search_dict = {
+grid_search_normal_train_dict = {
     "--model.latent.size": ["latent_size", 10],
     "--model.loss.chi.ratio": ["chi_ratio", 10],
     "--model.loss.chi.scale": ["chi_scale", 160],
     "--datamodule.batch_size": ["batch_size", 220],
     "--model.type": ["model_type", "DLA"],
-    "--model.sched.kwargs.milestones": ["lr_milestones", [[40, 60, 80, 100], [60, 100], [40, 60, 80, 100, 120, 140]]]
+    "--model.sched.kwargs.milestones": ["lr_milestones", [[40, 60, 80, 100], [60, 100], [40, 60, 80, 100, 120, 140]]],
 }
 
+grid_search_continual_learning_resnet_dict = {
+    "--loop.load.name": ["", "/home/ubuntu/models/cky76ok9/checkpoints/epoch=299-step=68400.ckpt"],
+    "--model.type": ["model_type", ["custom-resnet34"]],
+    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
+    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
+    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
+    "--datamodule.vis.optim.kwargs.lr 0.05": ["vis_lr", [0.001, 0.05]],
+}
 
+grid_search_continual_learning_vgg_dict = {
+    "--loop.load.name": ["", "/home/ubuntu/models/..."],
+    "--model.type": ["model_type", ["vgg"]],
+    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
+    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
+    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
+    "--datamodule.vis.optim.kwargs.lr 0.05": ["vis_lr", [0.001, 0.05]],
+}
+
+grid_search_continual_learning_dla_dict = {
+    "--loop.load.name": ["", "/home/ubuntu/models/..."],
+    "--model.type": ["model_type", ["dla"]],
+    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
+    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
+    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
+    "--datamodule.vis.optim.kwargs.lr 0.05": ["vis_lr", [0.001, 0.05]],
+}
+
+grid_search_dict = grid_search_continual_learning_resnet_dict
+exp_template = chi_sqr_continual_learning_search_tmpl
 
 main()
