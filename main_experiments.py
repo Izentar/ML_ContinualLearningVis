@@ -204,9 +204,9 @@ chi_sqr_continual_learning_search_tmpl = """
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 50 70 --datamodule.num_workers 3 \
---loop.save.root model_save/test --loop.save.model --loop.load.root \
-model_save/test --stat.collect_stats.enable --stat.collect_stats.use_dream_dataset  \
---loop.load.model --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable --stat.collect_stats.use_dream_dataset  \
+--model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
 --model.loss.chi.ratio_milestones 40 60 80 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
