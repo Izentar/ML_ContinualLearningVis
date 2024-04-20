@@ -72,6 +72,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
         batch_size: int = 8
         disable_transforms: bool = False
         only_vis_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
+        enable_vis_at: Union[str, bool, int, list[str], list[bool], list[int], None] = False
         image_size: list = (3, 32, 32)
         standard_image_size: Union[int, list, None] = None
         decorrelate: bool = True
@@ -676,13 +677,16 @@ class CLDataModule(DreamDataModule):
         return class_list[index]
 
     def _check_dream_dataset_setup(self) -> bool:
-        inner_check = bool(
+        inner_check_only_vis = bool(
             utils.check_python_index(self.cfg_vis.only_vis_at, self.data_passer['num_loops'], self.data_passer['current_loop'])
         )
-        if(self.dream_dataset_for_current_task is None and inner_check):
+        inner_check_enable = bool(
+            utils.check_python_index(self.cfg_vis.enable_vis_at, self.data_passer['num_loops'], self.data_passer['current_loop'])
+        )
+        if(self.dream_dataset_for_current_task is None and (inner_check_only_vis or inner_check_enable)):
             raise Exception("Dream dataset not properly set. Try call before 'generate_synthetic_data' or 'next' or 'setup_task_index'")
         return bool(
-            self.dream_dataset_for_current_task is not None and inner_check
+            self.dream_dataset_for_current_task is not None and (inner_check_only_vis or inner_check_enable)
         )
 
     def train_dataloader(self):

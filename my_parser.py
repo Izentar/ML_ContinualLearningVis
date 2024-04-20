@@ -225,7 +225,10 @@ tranforms on dreamed images used in lucid framework in main function.') ##**
     parser.add_argument("--datamodule.vis.image_type", type=str, default='pixel', help='Type of image. Default \
 "fft"; "pixel"; "cppn"(does not use "datamodule.vis.batch_size")')
     parser.add_argument("--datamodule.vis.only_vis_at", nargs='+', type=str, default='False', help='Use this flag to train only on dream batch \
-after first epoch when dream batch is created.') ##**
+after first epoch when dream batch is created. If you want to train on both new and old datasets then do not use this flag. If the dream dataset is present \
+then use also "--enable_vis_at". In this situation training is done by calculating loss on two batches on two different datasets simultaneously.') ##**
+    parser.add_argument("--datamodule.vis.enable_vis_at", nargs='+', type=str, default='False', help='Enable dream dataset to be present during training \
+if dream dataset was created and is not empty.') ##**
     parser.add_argument("--datamodule.vis.standard_image_size", nargs='+', type=int, help='Tuple of sizes of the image after image transformation during dreaming. \
 Checks if the output image has the provided shape. Do not include batch here. Default None.') ##**
     parser.add_argument("--loop.vis.clear_dataset_at", type=str, nargs='+', help='If the dreams at the beginning of the advance loop should be cleared.')
