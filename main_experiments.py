@@ -210,7 +210,7 @@ chi_sqr_continual_learning_search_tmpl = """
 --model.loss.chi.ratio_milestones 40 60 100 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
---loop.vis.image_reg.l2.use_at True \
+--loop.vis.image_reg.l2.use_at True --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True \
 --datamodule.vis.optim.type adam --datamodule.vis.optim.kwargs.lr 0.05 \
 --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 200 \
