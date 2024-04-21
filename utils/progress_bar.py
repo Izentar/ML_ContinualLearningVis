@@ -30,7 +30,9 @@ class CustomRichProgressBar(RichProgressBar):
             self.refresh()
 
     def clear(self, key):
-        if(self.other_progress.get(key) is not None):
+        # second statement is there for if the progress bar was cleared by lightning framework during invoking test funkction
+        # and now there are no other progress bars
+        if(self.other_progress.get(key) is not None and self.progress._tasks.get(self.other_progress[key]) is not None ):
             self.progress.remove_task(self.other_progress[key])
             self.other_progress[key] = None
 

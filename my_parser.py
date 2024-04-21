@@ -31,6 +31,8 @@ If data is divided into tasks then:
     parser.add_argument("--config.folder", type=str, default='run_conf/', help='Root forlder of the runs.') ##**
     parser.add_argument("--loop.train_at", nargs='+', type=str, default='True', help='Run training at corresponding loop index or indexes. \
 If True, run on all loops, if False, do not run. If "loop.gather_layer_loss_at" is set, then it takes precedence.') ##**
+    parser.add_argument("--loop.test_at", nargs='+', type=str, default='True', help='Run test / evaluation of the model at corresponding loop index or indexes. \
+If True, run on all loops, if False, do not run.') ##**
     parser.add_argument("--config.load", action="append", help='The config file(s) that should be used. The config file \
 takes precedence over command line arguments. Config files will be applied in order of the declaration.')
     parser.add_argument("--config.export", type=str, help='File where to export current config.')

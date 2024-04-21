@@ -70,6 +70,7 @@ class CLLoop(Loop):
         num_loops: Union[int, None] = None
         train_at: Union[str, bool, int, list[str], list[bool], list[int], None] = True
         weight_reset_sanity_check: bool = False
+        test_at: Union[str, bool, int, list[str], list[bool], list[int], None] = True
 
         def __post_init__(self):
             self.num_tasks = len(self.plan)
@@ -759,6 +760,7 @@ class CLLoop(Loop):
         if callable(getattr(self.trainer.lightning_module, "on_task_end", None)):
             self.trainer.lightning_module.on_task_end()
         self._try_export_model_checkpoint()
+        self._try_test_model()
         self._next()
         torch.cuda.empty_cache()
         gc.collect()
@@ -767,6 +769,16 @@ class CLLoop(Loop):
         """Used to compute the performance of the ensemble model on the test set."""
         self._try_save_trained_model()
         self._try_save_dreams()
+
+    def _try_test_model(self):
+        if(utils.check_python_index(self.cfg.test_at, self.cfg.num_loops, self.current_loop)):
+            pp.sprint(f"{pp.COLOR.NORMAL}TESTING TASK {self.current_task}, loop {self.current_loop}")
+            # during test model is set to be on cpu; after test return to proper device
+            device_save = self.trainer.lightning_module.device
+            self.trainer.test(self.trainer.lightning_module, datamodule=self.data_module)
+            # needs to be here because after test progress bar display is disabled  
+            self.progress_bar._init_progress(self.trainer)
+            self.trainer.strategy.model = self.trainer.strategy.model.to(device_save)
 
     def on_save_checkpoint(self) -> Dict[str, int]:
         return {"current_task": self.current_task, "current_loop": self.current_loop}

@@ -752,6 +752,9 @@ class CLDataModule(DreamDataModule):
             loaders = {normal_key: normal_loader, "dream": dream_loader}
         else:
             loaders = {normal_key: normal_loader}
+
+        if("normal" in loaders.keys() and "dream" in loaders.keys()):
+            pp.sprint(f"{pp.COLOR.NORMAL_4}INFO: Use dream and normal datasets simultaneously.")
         return CombinedLoader(loaders, mode="max_size_cycle")
 
     def clear_dreams_dataset(self):

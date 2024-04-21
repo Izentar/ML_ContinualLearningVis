@@ -334,8 +334,8 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
     trainer.fit(model, datamodule=cl_data_module)
     print("End of training.")
 
-    if(not args.config.test.disable):
-        trainer.test(model, datamodule=cl_data_module)
+    #if(not args.config.test.disable):
+    #    trainer.test(model, datamodule=cl_data_module)
     if(args.wandb.watch.enable):
         logger.experiment.unwatch(model)
     cl_data_module.flush_wandb()
