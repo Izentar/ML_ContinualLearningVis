@@ -270,6 +270,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     def generate_synthetic_data(self, model: LightningModule, task_index: int, layer_hook_obj:list=None, input_image_train_after_obj:list=None) -> None:
         """Generate new dreams."""
         target = self.select_dream_tasks_f(self.cfg.train_tasks_split, task_index)
+        pp.sprint(f"{pp.COLOR.NORMAL_2}VIS: Visualization for targets: {target}")
 
         layer_hook_obj = layer_hook_obj if layer_hook_obj is not None else ()
         input_image_train_after_obj = input_image_train_after_obj if input_image_train_after_obj is not None else []
@@ -779,7 +780,7 @@ class CLDataModule(DreamDataModule):
         ]
 
     def test_dataloader(self):
-        full_classes = list(set(x for split in self.cfg.val_tasks_split for x in split))
+        full_classes = list(set(x for split in self.cfg.val_tasks_split[: self.current_task_index + 1] for x in split))
         selected_dataset = CLDataModule._get_subset(self.test_dataset, full_classes)  
         #ConcatDataset(self.train_datasets) # creates error / no easy way to get targets from this dataset
 

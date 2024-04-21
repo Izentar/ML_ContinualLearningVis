@@ -444,9 +444,15 @@ class CLLoop(Loop):
             if(self.cfg_vis.measure_time):
                 start = time.time()
             try:
+                # it is ok because after all tasks end then current_task is frozen
+                if self.cfg.num_tasks > 1 and self.current_task == self.current_loop:
+                    current_task = self.current_task - 1
+                else:
+                    current_task = self.current_task
+
                 self.trainer.datamodule.generate_synthetic_data(
                     model=self.trainer.lightning_module, 
-                    task_index=self.current_task, 
+                    task_index=current_task, 
                     layer_hook_obj=layerloss_hook_obj,
                     input_image_train_after_obj=input_image_train_after_obj,
                 )
