@@ -198,16 +198,16 @@ model_save/test --stat.collect_stats.enable \
 """
 
 chi_sqr_continual_learning_search_tmpl = """
--d c100 --model.num_classes 100 --model.latent.size 10 --config.num_tasks 2 --loop.schedule 100 100 0 \
+-d c100 --model.num_classes 100 --model.latent.size 10 --config.num_tasks 2 --loop.schedule 300 300 0 \
 --config.framework_type latent-multitarget-multitask \
 --loop.num_loops 3 --loop.train_at 0 1 \
 --model.optim.type sgd --model.optim.kwargs.lr 0.1 \
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
---model.sched.kwargs.milestones 50 70 --datamodule.num_workers 3 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
 --stat.collect_stats.enable --stat.collect_stats.use_dream_dataset  \
 --model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
---model.loss.chi.ratio_milestones 40 60 80 --config.seed 2024 \
+--model.loss.chi.ratio_milestones 40 60 100 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at True \
@@ -263,7 +263,7 @@ grid_search_continual_learning_resnet_dict = {
     "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
     "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
     "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
-    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.001, 0.05]],
+    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
 grid_search_continual_learning_vgg_dict = {
@@ -272,7 +272,7 @@ grid_search_continual_learning_vgg_dict = {
     "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
     "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
     "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
-    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.001, 0.05]],
+    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
 grid_search_continual_learning_dla_dict = {
@@ -281,7 +281,7 @@ grid_search_continual_learning_dla_dict = {
     "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
     "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
     "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
-    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.001, 0.05]],
+    "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
 grid_search_dict = grid_search_continual_learning_resnet_dict
