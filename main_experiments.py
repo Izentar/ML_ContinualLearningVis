@@ -213,7 +213,7 @@ chi_sqr_continual_learning_search_tmpl = """
 --loop.vis.image_reg.l2.use_at True --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True \
 --datamodule.vis.optim.type adam --datamodule.vis.optim.kwargs.lr 0.05 \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 200 \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 3 --datamodule.vis.standard_image_size 32 \
 """
@@ -260,27 +260,27 @@ grid_search_normal_train_dict = {
 grid_search_continual_learning_resnet_dict = {
     #"--loop.load.name": ["", "/home/ubuntu/models/cky76ok9/checkpoints/epoch=299-step=68400.ckpt"],
     "--model.type": ["model_type", ["custom-resnet34"]],
-    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
-    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
-    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
+    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01]],
+    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-05]],
+    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1]],
     "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
 grid_search_continual_learning_vgg_dict = {
     #"--loop.load.name": ["", "/home/ubuntu/models/..."],
     "--model.type": ["model_type", ["vgg"]],
-    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
-    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
-    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
+    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01]],
+    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-05]],
+    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1]],
     "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
 grid_search_continual_learning_dla_dict = {
     #"--loop.load.name": ["", "/home/ubuntu/models/..."],
     "--model.type": ["model_type", ["dla"]],
-    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01, 0.001]],
-    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-04, 1e-05]],
-    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1, 0.01]],
+    "--loop.vis.image_reg.var.scale": ["vis_var_scale", [0.01]],
+    "--loop.vis.image_reg.l2.coeff": ["vis_l2_coeff", [1e-05]],
+    "--loop.vis.layerloss.deep_inversion.scale": ["deep_inv_scale", [0.1]],
     "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
