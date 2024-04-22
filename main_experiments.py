@@ -306,7 +306,7 @@ grid_search_continual_learning_dla_dict = {
 
 chi_sqr_sgd_train_full_and_vis_grid_search = {
     "--model.type": ["model_type", ["dla", "vis", "custom-resnet34"]],
-    "--model.latent.size": ["dataset", [3, 10, 20, 30]],
+    "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
 
 }
 
