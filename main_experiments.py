@@ -197,6 +197,27 @@ model_save/test --stat.collect_stats.enable \
 --model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
 """
 
+chi_sqr_sgd_train_full_and_vis_tmpl = """
+-d c100 --model.num_classes 100 --config.num_tasks 1 --loop.schedule 300 0 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 2 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 5 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at True --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 \
+--loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
 chi_sqr_continual_learning_search_tmpl = """
 -d c100 --model.num_classes 100 --model.latent.size 10 --config.num_tasks 2 --loop.schedule 300 300 0 \
 --config.framework_type latent-multitarget-multitask \
@@ -211,8 +232,7 @@ chi_sqr_continual_learning_search_tmpl = """
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at True --loop.test_at True \
---loop.vis.layerloss.deep_inversion.use_at True \
---datamodule.vis.optim.type adam --datamodule.vis.optim.kwargs.lr 0.05 \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
 --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 3 --datamodule.vis.standard_image_size 32 \
@@ -284,7 +304,13 @@ grid_search_continual_learning_dla_dict = {
     "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
-grid_search_dict = grid_search_continual_learning_resnet_dict
-exp_template = chi_sqr_continual_learning_search_tmpl
+chi_sqr_sgd_train_full_and_vis_grid_search = {
+    "--model.type": ["model_type", ["dla", "vis", "custom-resnet34"]],
+    "--model.latent.size": ["dataset", [3, 10, 20, 30]],
+
+}
+
+grid_search_dict = chi_sqr_sgd_train_full_and_vis_grid_search
+exp_template = chi_sqr_sgd_train_full_and_vis_tmpl
 
 main()
