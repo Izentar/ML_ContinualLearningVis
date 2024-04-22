@@ -180,6 +180,8 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
         my_parser.log_to_wandb(args)
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
+    pp.sprint(f"{pp.COLOR.NORMAL}WANDBO RUN ID: {wandb_run_id}")
+
 
     #print(wandb_run_id, wandb.run.name, wandb.run.id)
     #wandb.save('tmp.txt')
