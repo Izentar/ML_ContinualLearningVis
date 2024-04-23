@@ -118,7 +118,7 @@ def model_summary(source_model):
     summary(source_model, (3, 32, 32), batch_size=32)
     exit()
 
-def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_name="", tags=None):
+def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_name="", tags=None, full_text_command=None):
     # normal dreaming
     if(args.config.seed is not None):
         print(f"Seed used: {args.config.seed}")
@@ -177,7 +177,7 @@ def logic(args, log_args_to_wandb=True, project_name="continual_dreaming", run_n
     logger = WandbLogger(project=project_name, tags=tags, offline=wandb_offline, mode=wandb_mode, name=run_name,
         log_model=False, save_dir=args.wandb.run.folder, config=args, save_code=True, id=wandb_run_id)
     if(log_args_to_wandb):
-        my_parser.log_to_wandb(args)
+        my_parser.log_to_wandb(args, full_text_command=full_text_command)
     progress_bar = CustomRichProgressBar()
     callbacks = [progress_bar]
     pp.sprint(f"{pp.COLOR.NORMAL}WANDBO RUN ID: {wandb_run_id}")

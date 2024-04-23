@@ -58,14 +58,15 @@ def main():
                 v = v.replace('\n', ' ')
                 if(args.fast_dev_run):
                     v += ' -f'
-                args_exp = my_parser.parse_args(parser_exp, shlex.split(v))
+                    full_command = shlex.split(v)
+                args_exp = my_parser.parse_args(parser_exp, full_command)
                 try:
                     project_name = args.project_name
                     if(args.project_name is None):
                         project_name = f"exp_{today_time}"
                     
                     if(not args.nologic):
-                        logic(args_exp, True, project_name=project_name, run_name=k)
+                        logic(args_exp, True, project_name=project_name, run_name=k, full_text_command=' '.join(full_command))
                 except KeyboardInterrupt:
                     print("Experiment KeyboardInterrupt occurred")
                     print("Experiment Exception occurred")

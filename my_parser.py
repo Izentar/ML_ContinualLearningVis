@@ -440,12 +440,15 @@ def attack_args_to_kwargs(args):
     else:
         return {}
 
-def log_to_wandb(args):
+def log_to_wandb(args, full_text_command=None):
     #if(wandb.run is not None): # does not work
     wandb.config.update({'Plain args': str(sys.argv)})
     wandb.config.update(args, allow_val_change=True)
     pp.sprint(f'{pp.COLOR.NORMAL}\tInput command line:')
     print(' '.join(sys.argv))
+    if(full_text_command is not None):
+        pp.sprint(f'{pp.COLOR.NORMAL}\tFull second command line:')
+        print(full_text_command)
     pp.sprint(f'{pp.COLOR.NORMAL}\tUsed config:')
     print(wandb.config)
 
