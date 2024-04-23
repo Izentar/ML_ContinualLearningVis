@@ -15,8 +15,8 @@ def main():
         Change fast_dev_run flag to run full experiments.
     """
     if __name__ == "__main__":
-        parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments')
-        parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast check for errors in code.') ##**
+        parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments. Change this script at wish.')
+        parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast_dev_run check for errors in code.') ##**
         parser.add_argument("-nl", "--nologic", action="store_true" , help='Run without invoking script logic.') ##**
         parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
         parser.add_argument("--project_name", type=str, default=None , help='Name of the project. If None then it will be generated.') ##**        
@@ -268,6 +268,46 @@ model_save/test --stat.collect_stats.enable \
 """
 
 #########################################################################
+
+chi_sqr_sgd_train_full_const_ratio_tmpl = """
+-d c100 --model.num_classes 100 --config.num_tasks 1 --loop.schedule 300 0 --model.latent.size 10 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 2 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+chi_sqr_sgd_train_full_const_ratio_c10_tmpl = """
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --model.latent.size 3 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 2 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
 
 
 cross_entropy_sgd_train_full_and_vis_tmpl = """
@@ -546,6 +586,16 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search = {
 #exp_template = chi_sqr_train_full_vgg_tmpl
 #exp_template = chi_sqr_train_full_resnet_tmpl
 #exp_template = chi_sqr_train_full_dla_tmpl
+
+
+# experiment for chi-square, train and visualize for const ratio, C100
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
+#exp_template = chi_sqr_sgd_train_full_const_ratio_tmpl
+
+# experiment for chi-square, train and visualize for const ratio, C10
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
+#exp_template = chi_sqr_sgd_train_full_const_ratio_c10_tmpl
+
 
 ###########
 
