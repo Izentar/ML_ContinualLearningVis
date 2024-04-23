@@ -138,25 +138,6 @@ def grid_search_numerical(input: str, exp_name, search_args: dict[tuple[str, str
     grid_search_recursive(input, search_args, exp_name, 0, ret=ret)
     return ret
 
-crossentropy_default_c10_sgd = """
--d c10 --model.num_classes 10 --loop.schedule 200 \
---config.framework_type crossentropy-default --model.type \
-DLA --loop.num_loops 1 --loop.train_at 0 \
---model.optim.type sgd --model.optim.kwargs.lr 0.1 \
---model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
---model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
---loop.save.root model_save/test --loop.save.model --config.seed 2024 \
-"""
-
-crossentropy_default_c100_sgd = """
--d c100 --model.num_classes 100 --loop.schedule 200 \
---config.framework_type crossentropy-default --model.type \
-DLA --loop.num_loops 1 --loop.train_at 0 \
---model.optim.type sgd --model.optim.kwargs.lr 0.1 \
---model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
---model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
---loop.save.root model_save/test --loop.save.model --config.seed 2024 \
-"""
 
 chi_sqr_c10_sgd = """
 -d c10 --model.num_classes 10 --loop.schedule 260 \
@@ -197,27 +178,6 @@ model_save/test --stat.collect_stats.enable \
 --model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
 """
 
-chi_sqr_sgd_train_full_and_vis_tmpl = """
--d c100 --model.num_classes 100 --config.num_tasks 1 --loop.schedule 300 0 \
---config.framework_type latent-multitarget-multitask \
---loop.num_loops 2 --loop.train_at 0 \
---model.optim.type sgd --model.optim.kwargs.lr 0.1 \
---model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
---model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
---loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
---stat.collect_stats.enable  \
---model.loss.chi.shift_min_distance 0 --config.seed 2024 \
---model.loss.chi.ratio 10 --model.loss.chi.scale 20 --datamodule.batch_size 220 \
---datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
---loop.vis.image_reg.l2.use_at True --loop.test_at True \
---loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
---loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
---datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
---loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-4 \
---loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
-"""
-
 chi_sqr_continual_learning_search_tmpl = """
 -d c100 --model.num_classes 100 --model.latent.size 10 --config.num_tasks 2 --loop.schedule 300 300 0 \
 --config.framework_type latent-multitarget-multitask \
@@ -238,6 +198,79 @@ chi_sqr_continual_learning_search_tmpl = """
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 3 --datamodule.vis.standard_image_size 32 \
 """
 
+#########################
+#########################
+#########################
+
+
+crossentropy_ADAM_c10_tmpl
+
+
+#########################
+
+# change model at wish
+crossentropy_default_c10_sgd_tmpl = """
+-d c10 --model.num_classes 10 --loop.schedule 200 \
+--config.framework_type crossentropy-default --model.type \
+DLA --loop.num_loops 1 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --config.seed 2024 \
+"""
+
+# change model at wish
+crossentropy_default_c100_sgd_tmpl = """
+-d c100 --model.num_classes 100 --loop.schedule 200 \
+--config.framework_type crossentropy-default --model.type \
+DLA --loop.num_loops 1 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 100 150 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --config.seed 2024 \
+"""
+
+chi_sqr_train_full_vgg_tmpl = """
+-d c100 --model.num_classes 100 --loop.schedule 300 \
+--config.framework_type latent-multitarget --model.type \
+VGG --loop.num_loops 1 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root \
+model_save/test --stat.collect_stats.enable \
+--model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
+--model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
+"""
+
+chi_sqr_train_full_resnet_tmpl = """
+-d c100 --model.num_classes 100 --loop.schedule 300 \
+--config.framework_type latent-multitarget --model.type \
+custom-resnet34 --loop.num_loops 1 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root \
+model_save/test --stat.collect_stats.enable \
+--model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
+--model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
+"""
+
+chi_sqr_train_full_dla_tmpl = """
+-d c100 --model.num_classes 100 --loop.schedule 300 \
+--config.framework_type latent-multitarget --model.type \
+DLA --loop.num_loops 1 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root \
+model_save/test --stat.collect_stats.enable \
+--model.loss.chi.shift_min_distance 0 --model.loss.chi.ratio_gamma 2  \
+--model.loss.chi.ratio_milestones 40 60 80 100 --config.seed 2024 \
+"""
+
+#########################################################################
+
 
 cross_entropy_sgd_train_full_and_vis_tmpl = """
 -d c100 --model.num_classes 100 --config.num_tasks 1 --loop.schedule 300 0 \
@@ -253,14 +286,156 @@ cross_entropy_sgd_train_full_and_vis_tmpl = """
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
 --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
---datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 \
 --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
 """
 
+cross_entropy_sgd_train_full_and_vis_c10_tmpl = """
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 \
+--config.framework_type crossentropy-multitarget-multitask \
+--loop.num_loops 2 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable --config.seed 2024 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+chi_sqr_sgd_train_full_and_vis_tmpl = """
+-d c100 --model.num_classes 100 --config.num_tasks 1 --loop.schedule 300 0 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 2 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+chi_sqr_sgd_train_full_and_vis_c10_tmpl = """
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 2 --loop.train_at 0 \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+cross_entropy_sgd_train_full_and_vis_multitask_tmpl = """
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 \
+--config.framework_type crossentropy-multitarget-multitask \
+--loop.num_loops 3 --loop.train_at True  \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable --config.seed 2024 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+cross_entropy_sgd_train_full_and_vis_multitask_c10_tmpl = """
+-d c10 --model.num_classes 10 --config.num_tasks 2 --loop.schedule 300 300 0 \
+--config.framework_type crossentropy-multitarget-multitask \
+--loop.num_loops 3 --loop.train_at True  \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable --config.seed 2024 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+chi_sqr_sgd_train_full_and_vis_multitask_tmpl = """
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 3 --loop.train_at True \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl = """
+-d c10 --model.num_classes 10 --config.num_tasks 2 --loop.schedule 300 300 0 \
+--config.framework_type latent-multitarget-multitask \
+--loop.num_loops 3 --loop.train_at True \
+--model.optim.type sgd --model.optim.kwargs.lr 0.1 \
+--model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
+--model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
+--loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
+--stat.collect_stats.enable  \
+--model.loss.chi.shift_min_distance 0 --config.seed 2024 \
+--model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
+--datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
+--loop.vis.image_reg.l2.use_at False --loop.test_at True \
+--loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
+--datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
+--datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
+--loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+"""
+
+
 experiments = {
-    #"crossentropy_default_c10_sgd": crossentropy_default_c10_sgd,
-    #"crossentropy_default_c100_sgd": crossentropy_default_c100_sgd,
+    #"crossentropy_default_c10_sgd_tmpl": crossentropy_default_c10_sgd_tmpl,
+    #"crossentropy_default_c100_sgd_tmpl": crossentropy_default_c100_sgd_tmpl,
     #"chi_sqr_c10_sgd": chi_sqr_c10_sgd,
     #"chi_sqr_c100_sgd": chi_sqr_c100_sgd,
 }
@@ -323,16 +498,99 @@ grid_search_continual_learning_dla_dict = {
     "--datamodule.vis.optim.kwargs.lr": ["vis_lr", [0.05]],
 }
 
-chi_sqr_sgd_train_full_and_vis_grid_search = {
-    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+#chi_sqr_sgd_train_full_and_vis_grid_search = {
+#    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+#    "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
+#}
+
+#########################
+#########################
+#########################
+
+chi_sqr_train_full_vgg_resnet_dla_grid_search = {
     "--model.latent.size": ["latent_size", [3, 10, 20, 30]],
+    "--model.loss.chi.ratio": ["chi_ratio", 10],
+    "--model.loss.chi.scale": ["chi_scale", 80, 160, 40],
+    "--datamodule.batch_size": ["batch_size", 120, 320, 100]
 }
 
 cross_entropy_sgd_train_full_and_vis_grid_search = {
     "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
 }
 
-grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
-exp_template = cross_entropy_sgd_train_full_and_vis_tmpl
+
+chi_sqr_sgd_train_full_and_vis_grid_search = {
+    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+    "--model.latent.size": ["latent_size", 10],
+}
+
+chi_sqr_sgd_train_full_and_vis_c10_grid_search = {
+    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+    "--model.latent.size": ["latent_size", 3],
+}
+
+cross_entropy_sgd_train_full_and_vis_multitask_grid_search = {
+    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+}
+
+chi_sqr_sgd_train_full_and_vis_multitask_grid_search = {
+    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+    "--model.latent.size": ["latent_size", 10],
+}
+
+chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search = {
+    "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+    "--model.latent.size": ["latent_size", 3],
+}
+
+# experiment for chi2, only train and full grid search
+#grid_search_dict = chi_sqr_train_full_vgg_resnet_dla_grid_search
+#exp_template = chi_sqr_train_full_vgg_tmpl
+#exp_template = chi_sqr_train_full_resnet_tmpl
+#exp_template = chi_sqr_train_full_dla_tmpl
+
+###########
+
+# experiment for cross entropy, train and visualize like deep inversion C100
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
+#exp_template = cross_entropy_sgd_train_full_and_vis_tmpl
+
+# experiment for cross entropy, train and visualize like deep inversion C10
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
+#exp_template = cross_entropy_sgd_train_full_and_vis_c10_tmpl
+
+###########
+
+# experiment for chi-square, train and visualize like deep inversion C100
+#grid_search_dict = chi_sqr_sgd_train_full_and_vis_grid_search
+#exp_template = chi_sqr_sgd_train_full_and_vis_tmpl
+
+# experiment for chi-square, train and visualize like deep inversion C10
+#grid_search_dict = chi_sqr_sgd_train_full_and_vis_c10_grid_search
+#exp_template = chi_sqr_sgd_train_full_and_vis_c10_tmpl
+
+###########
+
+# experiment for cross-entropy, train and visualize like deep inversion
+# in 2 tasks, multitask, C100
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_multitask_grid_search
+#exp_template = cross_entropy_sgd_train_full_and_vis_multitask_tmpl
+
+# experiment for cross-entropy, train and visualize like deep inversion
+# in 2 tasks, multitask, C10
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_multitask_grid_search
+#exp_template = cross_entropy_sgd_train_full_and_vis_multitask_c10_tmpl
+
+###########
+
+# experiment for chi-square, train and visualize like deep inversion
+# in 2 tasks, multitask, C100
+#grid_search_dict = chi_sqr_sgd_train_full_and_vis_multitask_grid_search
+#exp_template = chi_sqr_sgd_train_full_and_vis_multitask_tmpl
+
+# experiment for chi-square, train and visualize like deep inversion
+# in 2 tasks, multitask, C10
+#grid_search_dict = chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search
+#exp_template = chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl
 
 main()

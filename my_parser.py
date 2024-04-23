@@ -79,7 +79,9 @@ the last task in array will be used.') ##**
     parser.add_argument("--loop.schedule", nargs='+', type=int, help='How many epochs do per one task in "num_tasks". \
 Array size should be the same as num_loops for each loop.') ##**
     parser.add_argument("--model.num_classes", type=int, default=10, help='Number of classes model should output. \
-If less than in dataset then model will be trained and validated only using this number of classes')
+If less than in dataset then model will be trained and validated only using this number of classes. \
+Do not use this to divide model into tasks. Write full number of classes in dataset. Model will be trained only on \
+subset of his output.')
     parser.add_argument("--model.latent.size", type=int)
 
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
