@@ -193,7 +193,7 @@ chi_sqr_continual_learning_search_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at True --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 3 --datamodule.vis.standard_image_size 32 \
 """
@@ -202,8 +202,6 @@ chi_sqr_continual_learning_search_tmpl = """
 #########################
 #########################
 
-
-crossentropy_ADAM_c10_tmpl
 
 
 #########################
@@ -284,7 +282,7 @@ cross_entropy_sgd_train_full_and_vis_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 \
@@ -303,7 +301,7 @@ cross_entropy_sgd_train_full_and_vis_c10_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 \
@@ -324,7 +322,7 @@ chi_sqr_sgd_train_full_and_vis_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
@@ -345,7 +343,7 @@ chi_sqr_sgd_train_full_and_vis_c10_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
@@ -364,7 +362,7 @@ cross_entropy_sgd_train_full_and_vis_multitask_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 \
@@ -383,7 +381,7 @@ cross_entropy_sgd_train_full_and_vis_multitask_c10_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 \
@@ -404,7 +402,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
@@ -425,7 +423,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl = """
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
 --loop.vis.image_reg.l2.use_at False --loop.test_at True \
 --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  \
---datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 \
+--datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
