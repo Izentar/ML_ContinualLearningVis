@@ -594,8 +594,8 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search = {
 #exp_template = chi_sqr_sgd_train_full_const_ratio_tmpl
 
 # experiment for chi-square, train and visualize for const ratio, C10
-grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
-exp_template = chi_sqr_sgd_train_full_const_ratio_c10_tmpl
+#grid_search_dict = cross_entropy_sgd_train_full_and_vis_grid_search
+#exp_template = chi_sqr_sgd_train_full_const_ratio_c10_tmpl
 
 
 ###########
