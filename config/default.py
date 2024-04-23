@@ -257,6 +257,14 @@ PREDEFINED_TYPES = {
         "", 
         "CL-MODEL"
     ],
+    "crossentropy-multitarget-multitask": [
+        "SELECT-CLASSIC", 
+        "target-classic", 
+        "SPLIT-CLASSIC-FILLLAST", 
+        "OBJECTIVE-MULTITARGET-CROSSENTROPY", 
+        "", 
+        "CL-MODEL"
+    ],
     "latent-dual-multitarget": [
         "SELECT-CLASSIC", 
         "TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET", 
