@@ -118,6 +118,11 @@ def grid_search_recursive(input: str, search_args: dict, exp_name: str, key_idx:
         # type name, single value
         name, value = search_args[key]
         grid_search_recursive_call(input=input, key=key, value=value, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
+    elif isinstance(search_args[key], Sequence) and len(search_args[key]) == 1:
+        # boolean argument
+        name = search_args[key]
+        grid_search_recursive_call(input=input, key=key, value=False, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
+        grid_search_recursive_call(input=input, key=key, value=True, exp_name=exp_name, name=name, search_args=search_args, key_idx=key_idx, ret=ret)
     else:
         raise Exception(f"Wrong value parameter: {key}: {search_args[key]}")
 
@@ -127,7 +132,12 @@ def grid_search_recursive_call(input, key, value, exp_name, name, search_args, k
         for v in value:
             value_new += f" {v} "
         value = value_new
-    new_input = f'{input} {key} {value}'
+    if(not isinstance(value, bool)):
+        new_input = f'{input} {key} {value}'
+    elif(value == False):
+        new_input = f'{input}'
+    elif(value == True):
+        new_input = f'{input} {key}'
     if(len(name) != 0):
         new_exp_name = f"{exp_name}_{name}_{value}"
     else:
@@ -437,7 +447,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_tmpl = """
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
---stat.collect_stats.enable  --model.enable_connect_batch \
+--stat.collect_stats.enable  \
 --model.loss.chi.shift_min_distance 0 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
@@ -458,7 +468,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl = """
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
---stat.collect_stats.enable  --model.enable_connect_batch \
+--stat.collect_stats.enable  \
 --model.loss.chi.shift_min_distance 0 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
@@ -570,16 +580,19 @@ chi_sqr_sgd_train_full_and_vis_c10_grid_search = {
 
 cross_entropy_sgd_train_full_and_vis_multitask_grid_search = {
     "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
+    "--model.enable_connect_batch": ["conc_batch"],
 }
 
 chi_sqr_sgd_train_full_and_vis_multitask_grid_search = {
     "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
     "--model.latent.size": ["latent_size", 10],
+    "--model.enable_connect_batch": ["conc_batch"],
 }
 
 chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search = {
     "--model.type": ["model_type", ["dla", "vgg", "custom-resnet34"]],
     "--model.latent.size": ["latent_size", 3],
+    "--model.enable_connect_batch": ["conc_batch"],
 }
 
 # experiment for chi2, only train and full grid search
@@ -639,7 +652,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search = {
 
 # experiment for chi-square, train and visualize like deep inversion
 # in 2 tasks, multitask, C10
-#grid_search_dict = chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search
-#exp_template = chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl
+grid_search_dict = chi_sqr_sgd_train_full_and_vis_multitask_c10_grid_search
+exp_template = chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl
 
 main()
