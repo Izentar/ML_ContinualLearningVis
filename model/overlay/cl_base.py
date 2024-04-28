@@ -114,10 +114,12 @@ class ClBase(LightningModule):
             return self.training_step_normal(batch["normal"], optimizer_idx)
         if 'normal' not in batch:
             return self.training_step_dream(batch["dream"], optimizer_idx)
+        
+        new_batch_data = torch.cat((batch["normal"][0], batch["dream"][0]))
+        new_batch_target = torch.cat((batch["normal"][1], batch["dream"][1]))
 
-        loss_normal = self.training_step_normal(batch["normal"], optimizer_idx)
-        loss_dream = self.training_step_dream(batch["dream"], optimizer_idx)
-        return loss_normal + loss_dream
+        loss = self.training_step_normal([new_batch_data, new_batch_target], optimizer_idx)
+        return loss
 
     def get_model_out_data(self, model_out):
         """
