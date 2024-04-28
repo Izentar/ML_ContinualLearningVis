@@ -437,7 +437,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_tmpl = """
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
---stat.collect_stats.enable  \
+--stat.collect_stats.enable  --model.enable_connect_batch \
 --model.loss.chi.shift_min_distance 0 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
@@ -458,7 +458,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl = """
 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 \
 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 \
 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test \
---stat.collect_stats.enable  \
+--stat.collect_stats.enable  --model.enable_connect_batch \
 --model.loss.chi.shift_min_distance 0 --config.seed 2024 \
 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 \
 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True \
