@@ -83,6 +83,9 @@ If less than in dataset then model will be trained and validated only using this
 Do not use this to divide model into tasks. Write full number of classes in dataset. Model will be trained only on \
 subset of his output.')
     parser.add_argument("--model.latent.size", type=int)
+    parser.add_argument("--model.enable_connect_batch", action="store_true", help="If normal and dream batch are present during training, \
+then connect them into one batch. Otherwise calculate loss separately for each batch. Size of normal and dream batch are always the same, so \
+after connecting them together the resulting batch has size 2 times of --datamodule.batch_size.") ##**
 
     parser.add_argument("--model.optim.type", type=str, default='adam', help='')
     parser.add_argument("--model.optim.reset_type", type=str, default='default', help='')

@@ -404,7 +404,7 @@ class DreamDataModule(BaseCLDataModule, ABC):
     
     def _log_images(self, new_images, target, image_log_idx: CounterKeys):
         if not self.fast_dev_run and self.logger is not None:
-            if(isinstance(target, Sequence)): # it target is batched
+            if(isinstance(target, Sequence)): # if target is batched
                 for image, t in zip(new_images, target):
                     self._log_image_to_table(image_log_idx.up(t), image, t)
             else:

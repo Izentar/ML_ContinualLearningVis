@@ -22,6 +22,7 @@ class ClBase(LightningModule):
         num_classes: int
         type: str # not used but required for now
         val_split: int
+        enable_connect_batch: bool = False
 
     @dataclass
     class Optimizer(utils.BaseConfigDataclass):        
@@ -115,11 +116,16 @@ class ClBase(LightningModule):
         if 'normal' not in batch:
             return self.training_step_dream(batch["dream"], optimizer_idx)
         
-        new_batch_data = torch.cat((batch["normal"][0], batch["dream"][0]))
-        new_batch_target = torch.cat((batch["normal"][1], batch["dream"][1]))
+        if(self.cfg.enable_connect_batch):
+            new_batch_data = torch.cat((batch["normal"][0], batch["dream"][0]))
+            new_batch_target = torch.cat((batch["normal"][1], batch["dream"][1]))
 
-        loss = self.training_step_normal([new_batch_data, new_batch_target], optimizer_idx)
-        return loss
+            loss = self.training_step_normal([new_batch_data, new_batch_target], optimizer_idx)
+            return loss
+        else:
+            loss_normal = self.training_step_normal(batch["normal"], optimizer_idx)
+            loss_dream = self.training_step_dream(batch["dream"], optimizer_idx)
+            return loss_normal + loss_dream
 
     def get_model_out_data(self, model_out):
         """
