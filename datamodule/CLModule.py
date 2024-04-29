@@ -515,6 +515,7 @@ class CLDataModule(DreamDataModule):
     @dataclass
     class Config(DreamDataModule.Config):
         batch_size: int = 32
+        dream_batch_size_per_target: float = 2.2
         disable_shuffle: bool = False
         num_workers: int = 4
         test_num_workers: int = None
@@ -700,7 +701,8 @@ class CLDataModule(DreamDataModule):
         if self.train_task is None: # check
             raise Exception("No task index set for training")
         dream_loader = None
-        batch_size=self.cfg.batch_size if self.datasampler is None else 1
+        batch_size = self.cfg.batch_size if self.datasampler is None else 1
+        dream_batch_size_per_target = self.cfg.dream_batch_size_per_target if self.datasampler is None else 1
         if self._check_dream_dataset_setup():
             # first loop is always False. After accumulating dreams this dataloader will be used.
             # batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
@@ -709,10 +711,12 @@ class CLDataModule(DreamDataModule):
 
             if(len(self.dreams_dataset) == 0):
                 raise Exception("Empty dream dataset. Run dream generation or load dreams from file.")
+            
+            unique_targets_dream = torch.unique(torch.stack(self.dream_dataset_for_current_task.targets))
 
             dream_loader = DataLoader(
                 self.dream_dataset_for_current_task, # give full dataset, var classes is used to select classes
-                batch_size=batch_size, 
+                batch_size=int(dream_batch_size_per_target * len(unique_targets_dream)), 
                 num_workers=self.cfg_vis.num_workers, 
                 shuffle=self.cfg_vis.shuffle if self.datasampler is None else False, 
                 pin_memory=True,
@@ -720,7 +724,7 @@ class CLDataModule(DreamDataModule):
                     dataset=self.dream_dataset_for_current_task , # give full dataset, var classes is used to select classes
                     shuffle=self.cfg_vis.shuffle,
                     classes=dream_tasks_classes, # all classes that were dream of at least once
-                    batch_size=self.cfg.batch_size,
+                    batch_size=int(self.cfg.dream_batch_size_per_target * len(unique_targets_dream)),
                 ) if self.datasampler is not None else None
             )
 

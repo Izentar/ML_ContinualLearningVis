@@ -72,6 +72,7 @@ flag "dataloader_disable_dream_shuffle" is set then it takes precedence over thi
     #####    numerical parameters   ######
     ######################################
     parser.add_argument("--datamodule.batch_size", type=int, default=32, help='Size of the batch.')
+    parser.add_argument("--datamodule.dream_batch_size_per_target", type=float, default=2.2, help='Size of the batch.')
     parser.add_argument("--config.num_tasks", type=int, default=1, help='How many tasks will be created')
     parser.add_argument("--loop.num_loops", type=int, default=1, help='How many loops will be traversed. \
 Each new loop will increment current task index. If "num_loops">"num_tasks" then at each new loop \

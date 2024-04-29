@@ -416,8 +416,8 @@ cross_entropy_sgd_train_full_and_vis_multitask_tmpl = """
 --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
---loop.vis.image_reg.var.scale 0.001 \
---loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+--loop.vis.image_reg.var.scale 0.001 --datamodule.dream_batch_size_per_target 44 \
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 
 """
 
 cross_entropy_sgd_train_full_and_vis_multitask_c10_tmpl = """
@@ -435,7 +435,7 @@ cross_entropy_sgd_train_full_and_vis_multitask_c10_tmpl = """
 --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 \
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
---loop.vis.image_reg.var.scale 0.001 \
+--loop.vis.image_reg.var.scale 0.001 --datamodule.dream_batch_size_per_target 4.4 \
 --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
 """
 
@@ -457,7 +457,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_tmpl = """
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
---loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2
 """
 
 chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl = """
@@ -478,7 +478,7 @@ chi_sqr_sgd_train_full_and_vis_multitask_c10_tmpl = """
 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 \
 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 \
 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 \
---loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05
+--loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 22
 """
 
 
