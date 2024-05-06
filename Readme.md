@@ -21,4 +21,4 @@ Uruchomienie:
 * Każdy ze skryptów można uruchomić z flagą -f do szybkiego sprawdzenia działania użytych innych komend.
 
 
-Logi znajdują się w domyśłnych folderach './log_run/' oraz './model_save/'. Można je znaleźć poprzez hash lub w './model_save/' poprzez datę wykonania.
+Logi znajdują się w domyśłnych folderach './log_run/' oraz './model_save/'. Można je znaleźć poprzez hash lub w './model_save/' poprzez datę wykonania. Logi eksperymentów z konsoli znajdują się w folderze './log_console/'. 
