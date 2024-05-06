@@ -1,0 +1,946 @@
+Global seed set to 2024
+wandb: Currently logged in as: 01133344 (cccvb). Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240422_011440-2impjhpw
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_dla_latent_size_3_2impjhpw_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/2impjhpw
+Experiments to be run:
+* 
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 2 --loop.train_at 0 --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 10 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at True --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 --loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+ --model.type dla --model.latent.size 3
+* 
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 2 --loop.train_at 0 --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 10 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at True --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 --loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+ --model.type dla --model.latent.size 10
+* 
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 2 --loop.train_at 0 --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 10 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at True --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 --loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+ --model.type vis --model.latent.size 3
+* 
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 2 --loop.train_at 0 --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 10 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at True --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 --loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+ --model.type vis --model.latent.size 10
+* 
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 2 --loop.train_at 0 --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 10 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at True --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 --loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+ --model.type custom-resnet34 --model.latent.size 3
+* 
+-d c10 --model.num_classes 10 --config.num_tasks 1 --loop.schedule 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 2 --loop.train_at 0 --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 10 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at True --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.num_workers 3 --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 220 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.01 --loop.vis.image_reg.l2.coeff 1e-5 --loop.vis.layerloss.deep_inversion.scale 0.1 --datamodule.vis.optim.kwargs.lr 0.05
+ --model.type custom-resnet34 --model.latent.size 10
+
+Running experiment: exp_search_model_type_dla_latent_size_3; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Used config: [0m
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c10', datasampler_type='none', num_tasks=1, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[0], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=2, schedule=[300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=0.1, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.01), l2=Namespace(use_at=[True], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=3, onehot=Namespace(type='diagonal')), num_classes=10, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='dla', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=10.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=None, scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=220, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: dla
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+[34mINFO: Generated:
+tensor([[0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_DLA [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ DLA                 │ 32.6 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 32.6 M                                                                                                      
+Non-trainable params: 0                                                                                                       
+Total params: 32.6 M                                                                                                          
+Total estimated model params size (MB): 130                                                                                   
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/nn/modules/conv.py:456: UserWarning: Applied workaround for CuDNN issue, install nvrtc.so (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:80.)
+  return F.conv2d(input, weight, bias, self.stride,
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 0, loop 0 [0m
+[34mTESTING TASK 0, loop 0 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.9046000242233276     │
+│      test_loss_epoch      │     61.32258224487305     │
+└───────────────────────────┴───────────────────────────┘
+Epoch 299 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 274/274 0:00:27 • 0:00:00 9.92it/s   
+Testing   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:04 • 0:00:00 30.33it/s  
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 0, loop 1 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'0.1'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 0, loop 1 [0m
+[34mINFO: hooking model during visualization to - [33mL2 IMAGE REGULARIZATION[34m - task: 0, loop 1 [0m
+[34mDREAMING DURING TASK: 0, loop 1 [0m
+[36mVIS: Visualization for targets: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 2200; batch size: 220; per target: 220; batches to be generated: 10 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 00:10:18 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 0, loop 1 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[31mINFO: SKIPPING ANY TRAINING at loop 1 [0m
+[34mENDING TASK 0, loop 1 [0m
+[34mTESTING TASK 0, loop 1 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.9046000242233276     │
+│      test_loss_epoch      │     61.32258224487305     │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:01:01 • 0:00:00 8.12it/s   
+                                                                                         
+                                                                                         
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 30.23it/s  
+[34mINFO: Generated current run name: d22-04-2024_h03-45-48_2impjhpw [0m
+[31mWARNING: At loop 2 selected last epoch per task "0" because list index out of range. [0m
+[31mWARNING: At loop 2 selected last epoch per task "0" because list index out of range. [0m
+
+End of training.
+[34mINFO: COLLECT STATS: Selected normal dataset. [0m
+[34mSTATISTICS: Collecting model stats [0m
+[34mINFO: Selected None datasampler [0m
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h03-45-48_2impjhpw/plots/std-mean_idx10
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h03-45-48_2impjhpw/plots/distance_class_idx10
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h03-45-48_2impjhpw/plots/mean_distance_idx10
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h03-45-48_2impjhpw/plots/mean_dist_matrix_idx10
+wandb: - 1.950 MB of 1.950 MB uploadedwandb: \ 1.950 MB of 1.950 MB uploadedwandb: | 1.950 MB of 1.950 MB uploadedwandb: / 1.979 MB of 2.036 MB uploadedwandb: - 1.979 MB of 2.036 MB uploadedwandb: \ 2.036 MB of 2.036 MB uploadedwandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb: dream_loss/run_0/multi_target_0 █▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_1 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_2 █▄▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_3 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_4 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_5 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_6 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_7 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_8 █▆▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_9 █▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           epoch ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇███
+wandb:                   negative_loss █▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                   positive_loss █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           ratio ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                     rho_sigma_2 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           scale ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          stats/collect_accuracy ▅▅█▅▄▃▃▄▂▁▁▁
+wandb:              stats/collect_loss ▃▂▁▅▇▁▃▂█▅▇▄
+wandb:                        test_acc ▁▁
+wandb:                 test_loss_epoch ▁▁
+wandb:                  test_loss_step ▃▂▆▂▅▄▅▄█▄▃▆▁▅▄▄▄▅▇▄▃▅▂▂▆▃▅▅▂▄▃▃▁▆▅▄▅▅▇▃
+wandb:               train_loss/island █▅▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                train_loss/total █▅▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                  train_step_acc ▁▂▄▆▇▇▇▇████████████████████████████████
+wandb:             trainer/global_step ▁▁▂▃▄▄▅▅▆▇█████████████████████████████▁
+wandb:              val_last_step_loss ███▄▂▃▁▁▂▂▁▁▁▁▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       valid_acc ▁▁▂▅▇▆▇▇▇▇▇█▇███▆███████████████████████
+wandb: 
+wandb: Run summary:
+wandb: dream_loss/run_0/multi_target_0 2.24029
+wandb: dream_loss/run_0/multi_target_1 2.18845
+wandb: dream_loss/run_0/multi_target_2 2.13146
+wandb: dream_loss/run_0/multi_target_3 4.88342
+wandb: dream_loss/run_0/multi_target_4 1.88187
+wandb: dream_loss/run_0/multi_target_5 2.46755
+wandb: dream_loss/run_0/multi_target_6 4.75992
+wandb: dream_loss/run_0/multi_target_7 1.96359
+wandb: dream_loss/run_0/multi_target_8 2.5231
+wandb: dream_loss/run_0/multi_target_9 1.97299
+wandb:                           epoch 0
+wandb:                   negative_loss 55.26062
+wandb:                   positive_loss 0.65745
+wandb:                           ratio 10.0
+wandb:                     rho_sigma_2 100.0
+wandb:                           scale 10.0
+wandb:          stats/collect_accuracy 0.90265
+wandb:              stats/collect_loss 60.87975
+wandb:                        test_acc 0.9046
+wandb:                 test_loss_epoch 61.32258
+wandb:                  test_loss_step 60.50127
+wandb:               train_loss/island 55.68641
+wandb:                train_loss/total 55.68641
+wandb:                  train_step_acc 0.99884
+wandb:             trainer/global_step 2420
+wandb:              val_last_step_loss 61.32258
+wandb:                       valid_acc 0.9046
+wandb: 
+wandb: 🚀 View run exp_search_model_type_dla_latent_size_3_2impjhpw_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/2impjhpw
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: Synced 6 W&B file(s), 28 media file(s), 96 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240422_011440-2impjhpw/logs
+Global seed set to 2024
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240422_034725-5da986ae
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_dla_latent_size_10_5da986ae_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/5da986ae
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+End of experiment: exp_search_model_type_dla_latent_size_3; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_dla_latent_size_10; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c10', datasampler_type='none', num_tasks=1, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[0], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=2, schedule=[300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=0.1, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.01), l2=Namespace(use_at=[True], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=10, onehot=Namespace(type='diagonal')), num_classes=10, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='dla', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=10.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=None, scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=220, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: dla
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+[34mINFO: Generated:
+tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_DLA [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ DLA                 │ 32.6 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 32.6 M                                                                                                      
+Non-trainable params: 0                                                                                                       
+Total params: 32.6 M                                                                                                          
+Total estimated model params size (MB): 130                                                                                   
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 0, loop 0 [0m
+[34mTESTING TASK 0, loop 0 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.8651999831199646     │
+│      test_loss_epoch      │    -348.0610656738281     │
+└───────────────────────────┴───────────────────────────┘
+Epoch 299 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 274/274 0:00:27 • 0:00:00 9.90it/s   
+Testing   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:08 • 0:00:00 29.58it/s  
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 0, loop 1 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'0.1'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 0, loop 1 [0m
+[34mINFO: hooking model during visualization to - [33mL2 IMAGE REGULARIZATION[34m - task: 0, loop 1 [0m
+[34mDREAMING DURING TASK: 0, loop 1 [0m
+[36mVIS: Visualization for targets: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 2200; batch size: 220; per target: 220; batches to be generated: 10 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 00:10:32 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 0, loop 1 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[31mINFO: SKIPPING ANY TRAINING at loop 1 [0m
+[34mENDING TASK 0, loop 1 [0m
+[34mTESTING TASK 0, loop 1 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.8651999831199646     │
+│      test_loss_epoch      │    -348.0610656738281     │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:01:01 • 0:00:00 8.15it/s   
+                                                                                         
+                                                                                         
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 29.42it/s  
+[34mINFO: Generated current run name: d22-04-2024_h06-18-44_5da986ae [0m
+[31mWARNING: At loop 2 selected last epoch per task "0" because list index out of range. [0m
+[31mWARNING: At loop 2 selected last epoch per task "0" because list index out of range. [0m
+
+End of training.
+[34mINFO: COLLECT STATS: Selected normal dataset. [0m
+[34mSTATISTICS: Collecting model stats [0m
+[34mINFO: Selected None datasampler [0m
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+
+WARNING: Plot 3D only for 3 dimensional space! Found 10 dimensions.
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h06-18-44_5da986ae/plots/std-mean_idx10
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h06-18-44_5da986ae/plots/distance_class_idx10
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h06-18-44_5da986ae/plots/mean_distance_idx10
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h06-18-44_5da986ae/plots/mean_dist_matrix_idx10
+wandb: - 1.801 MB of 1.801 MB uploadedwandb: \ 1.801 MB of 1.801 MB uploadedwandb: | 1.801 MB of 1.801 MB uploadedwandb: / 1.828 MB of 1.883 MB uploaded (0.003 MB deduped)wandb: - 1.828 MB of 1.883 MB uploaded (0.003 MB deduped)wandb: \ 1.883 MB of 1.883 MB uploaded (0.003 MB deduped)wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb: dream_loss/run_0/multi_target_0 ▁▇▇██▇███▇██▇▇████████▇▇▇▇▇█▇▇▇▇▇▇▇▇▇▇▇█
+wandb: dream_loss/run_0/multi_target_1 ▁▆▇▇▇▇▇█▇▇▇█▇▇▇▇█▇▇███▇▇▇▇███████▇▇█▇█▇█
+wandb: dream_loss/run_0/multi_target_2 ▁▇█▇█▇████▇▇▇▇▇▇▇▇▇▇▇▇▇▇▆▆▇▇▆▆▆▆▆▆▆▆▅▅▅▆
+wandb: dream_loss/run_0/multi_target_3 ▁▇██████▇██▇█████████████████████▇▇▇▇██▇
+wandb: dream_loss/run_0/multi_target_4 ▁▇▇▆▇▇▇▇██▇▇▇███▇▇████▇▇█▇█▇█▇▇▇▇▇▇▇▇▇▇▇
+wandb: dream_loss/run_0/multi_target_5 ▁▇▇▇▇▇▇▇█▇▇▇████▇▇▇▇█████▇█▇▇███▇▇▇████▇
+wandb: dream_loss/run_0/multi_target_6 ▁▇██▇█▇█▇▇███▇██████████████████▇███████
+wandb: dream_loss/run_0/multi_target_7 ▁▇▆▇█▇▇▇████▇▇▇▇▇▇███▇█▇██▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+wandb: dream_loss/run_0/multi_target_8 ▁▇▆▆▇▇▇▇▇▇▇▇▇▇▇▆▇▇█▇▇▇▇▇▇▇▇▇▆▇▇▇████████
+wandb: dream_loss/run_0/multi_target_9 ▁▇▇▇▇█████████▇▇▇▇█▇▇██▇▇▇█▇██▇▇█▇▇██▇▇▇
+wandb:                           epoch ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇███
+wandb:                   negative_loss ██▆▄▄▃▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                   positive_loss ██▇▅▅▄▄▃▃▃▂▂▃▂▂▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           ratio ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                     rho_sigma_2 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           scale ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          stats/collect_accuracy █▅▇▆▄▃▄▃▂▂▁▁
+wandb:              stats/collect_loss ▃▄▁▄▇▄▄▅▆█▆▅
+wandb:                        test_acc ▁▁
+wandb:                 test_loss_epoch ▁▁
+wandb:                  test_loss_step ▂▁▆▅▇▅▂▅▅▅▅▆▂▂▃▆▇▅▅▃▂▄▄▅▆▃▂▂▃▅▅▅▂▇█▆▄▃▅▄
+wandb:               train_loss/island ██▆▅▄▄▄▃▂▂▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                train_loss/total ██▆▅▄▄▄▃▂▂▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                  train_step_acc ▁▁▂▃▄▄▅▅▆▆▇▇▇▇▇▇▇███████████████████████
+wandb:             trainer/global_step ▁▁▂▃▄▄▅▅▆▇█████████████████████████████▁
+wandb:              val_last_step_loss █▇▇▅▄▃▅▄▃▂▂▂▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       valid_acc ▁▂▂▂▃▅▃▅▆▇▆▆▇▇▇▆▇▇▇█████████████████████
+wandb: 
+wandb: Run summary:
+wandb: dream_loss/run_0/multi_target_0 7169.89453
+wandb: dream_loss/run_0/multi_target_1 7508.13525
+wandb: dream_loss/run_0/multi_target_2 6942.77734
+wandb: dream_loss/run_0/multi_target_3 7345.29834
+wandb: dream_loss/run_0/multi_target_4 7266.04346
+wandb: dream_loss/run_0/multi_target_5 7498.74902
+wandb: dream_loss/run_0/multi_target_6 7435.81836
+wandb: dream_loss/run_0/multi_target_7 7364.88916
+wandb: dream_loss/run_0/multi_target_8 7049.89014
+wandb: dream_loss/run_0/multi_target_9 7055.65283
+wandb:                           epoch 0
+wandb:                   negative_loss -428.33987
+wandb:                   positive_loss 4.42734
+wandb:                           ratio 10.0
+wandb:                     rho_sigma_2 100.0
+wandb:                           scale 10.0
+wandb:          stats/collect_accuracy 0.86212
+wandb:              stats/collect_loss -344.1066
+wandb:                        test_acc 0.8652
+wandb:                 test_loss_epoch -348.06107
+wandb:                  test_loss_step -355.53049
+wandb:               train_loss/island -408.12473
+wandb:                train_loss/total -408.12473
+wandb:                  train_step_acc 0.98924
+wandb:             trainer/global_step 2420
+wandb:              val_last_step_loss -348.06107
+wandb:                       valid_acc 0.8652
+wandb: 
+wandb: 🚀 View run exp_search_model_type_dla_latent_size_10_5da986ae_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/5da986ae
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: Synced 6 W&B file(s), 27 media file(s), 96 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240422_034725-5da986ae/logs
+Global seed set to 2024
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240422_062023-vmsk4d2g
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_vis_latent_size_3_vmsk4d2g_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/vmsk4d2g
+End of experiment: exp_search_model_type_dla_latent_size_10; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_vis_latent_size_3; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c10', datasampler_type='none', num_tasks=1, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[0], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=2, schedule=[300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=0.1, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.01), l2=Namespace(use_at=[True], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=3, onehot=Namespace(type='diagonal')), num_classes=10, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='vis', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=10.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=None, scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=220, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+Sleep 10 seconds...
+Experiment Exception occurred
+Traceback (most recent call last):
+  File "/home/ubuntu/continual_dreaming/main_experiments.py", line 68, in main
+    logic(args_exp, True, project_name=project_name, run_name=k)
+  File "/home/ubuntu/continual_dreaming/latent_dreams.py", line 199, in logic
+    set_manager = FunConfigSetPredefined(
+  File "/home/ubuntu/continual_dreaming/utils/fun_config_set.py", line 228, in __init__
+    super().__init__(
+  File "/home/ubuntu/continual_dreaming/utils/fun_config_set.py", line 94, in __init__
+    raise Exception(f"Unknown model type: {mtype}")
+Exception: Unknown model type: VIS
+
+wandb: - 0.022 MB of 0.033 MB uploaded (0.003 MB deduped)wandb: \ 0.022 MB of 0.033 MB uploaded (0.003 MB deduped)wandb: | 0.033 MB of 0.033 MB uploaded (0.003 MB deduped)wandb:                                                                                
+wandb: W&B sync reduced upload amount by 9.1%             
+wandb: 🚀 View run exp_search_model_type_vis_latent_size_3_vmsk4d2g_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/vmsk4d2g
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: Synced 6 W&B file(s), 0 media file(s), 3 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240422_062023-vmsk4d2g/logs
+Global seed set to 2024
+wandb: - Waiting for wandb.init()...wandb: \ Waiting for wandb.init()...wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240422_062040-25c23ssj
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_vis_latent_size_10_25c23ssj_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/25c23ssj
+End of experiment: exp_search_model_type_vis_latent_size_3; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_vis_latent_size_10; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c10', datasampler_type='none', num_tasks=1, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[0], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=2, schedule=[300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=0.1, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.01), l2=Namespace(use_at=[True], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=10, onehot=Namespace(type='diagonal')), num_classes=10, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='vis', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=10.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=None, scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=220, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+Sleep 10 seconds...
+Experiment Exception occurred
+Traceback (most recent call last):
+  File "/home/ubuntu/continual_dreaming/main_experiments.py", line 68, in main
+    logic(args_exp, True, project_name=project_name, run_name=k)
+  File "/home/ubuntu/continual_dreaming/latent_dreams.py", line 199, in logic
+    set_manager = FunConfigSetPredefined(
+  File "/home/ubuntu/continual_dreaming/utils/fun_config_set.py", line 228, in __init__
+    super().__init__(
+  File "/home/ubuntu/continual_dreaming/utils/fun_config_set.py", line 94, in __init__
+    raise Exception(f"Unknown model type: {mtype}")
+Exception: Unknown model type: VIS
+
+wandb: - 0.018 MB of 0.028 MB uploadedwandb: \ 0.018 MB of 0.028 MB uploadedwandb: | 0.028 MB of 0.028 MB uploadedwandb:                                                                                
+wandb: 🚀 View run exp_search_model_type_vis_latent_size_10_25c23ssj_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/25c23ssj
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: Synced 6 W&B file(s), 0 media file(s), 0 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240422_062040-25c23ssj/logs
+Global seed set to 2024
+wandb: - Waiting for wandb.init()...wandb: \ Waiting for wandb.init()...wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240422_062056-z9yx306n
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_custom-resnet34_latent_size_3_z9yx306n_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/z9yx306n
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+End of experiment: exp_search_model_type_vis_latent_size_10; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_custom-resnet34_latent_size_3; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c10', datasampler_type='none', num_tasks=1, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[0], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=2, schedule=[300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=0.1, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.01), l2=Namespace(use_at=[True], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=3, onehot=Namespace(type='diagonal')), num_classes=10, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='custom-resnet34', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=10.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=None, scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=220, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: custom-resnet34
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+[34mINFO: Generated:
+tensor([[0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.],
+        [0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_CustomResNet34 [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ CustomResNet34      │ 21.3 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 21.3 M                                                                                                      
+Non-trainable params: 0                                                                                                       
+Total params: 21.3 M                                                                                                          
+Total estimated model params size (MB): 85                                                                                    
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 0, loop 0 [0m
+[34mTESTING TASK 0, loop 0 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.9154999852180481     │
+│      test_loss_epoch      │      60.625244140625      │
+└───────────────────────────┴───────────────────────────┘
+Epoch 299 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 274/274 0:00:27 • 0:00:00 10.12it/s  
+Testing   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:04 • 0:00:00 31.18it/s  
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 0, loop 1 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'0.1'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 0, loop 1 [0m
+[34mINFO: hooking model during visualization to - [33mL2 IMAGE REGULARIZATION[34m - task: 0, loop 1 [0m
+[34mDREAMING DURING TASK: 0, loop 1 [0m
+[36mVIS: Visualization for targets: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 2200; batch size: 220; per target: 220; batches to be generated: 10 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 00:09:50 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 0, loop 1 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[31mINFO: SKIPPING ANY TRAINING at loop 1 [0m
+[34mENDING TASK 0, loop 1 [0m
+[34mTESTING TASK 0, loop 1 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.9154999852180481     │
+│      test_loss_epoch      │      60.625244140625      │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:00:58 • 0:00:00 8.56it/s   
+                                                                                         
+                                                                                         
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 31.00it/s  
+[34mINFO: Generated current run name: d22-04-2024_h08-48-58_z9yx306n [0m
+[31mWARNING: At loop 2 selected last epoch per task "0" because list index out of range. [0m
+[31mWARNING: At loop 2 selected last epoch per task "0" because list index out of range. [0m
+
+End of training.
+[34mINFO: COLLECT STATS: Selected normal dataset. [0m
+[34mSTATISTICS: Collecting model stats [0m
+[34mINFO: Selected None datasampler [0m
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h08-48-58_z9yx306n/plots/std-mean_idx10
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h08-48-58_z9yx306n/plots/distance_class_idx10
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h08-48-58_z9yx306n/plots/mean_distance_idx10
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/l2/model_optim_type-sgd/-deep_inversion/image_reg_var-image_reg_l2/d22-04-2024_h08-48-58_z9yx306n/plots/mean_dist_matrix_idx10
+wandb: - 1.955 MB of 1.955 MB uploadedwandb: \ 1.955 MB of 1.955 MB uploadedwandb: | 1.955 MB of 1.955 MB uploadedwandb: / 1.984 MB of 2.041 MB uploaded (0.003 MB deduped)wandb: - 1.984 MB of 2.041 MB uploaded (0.003 MB deduped)wandb: \ 2.041 MB of 2.041 MB uploaded (0.003 MB deduped)wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb: dream_loss/run_0/multi_target_0 ▁▁▄▆▆█▆▆▅▅▅▅▅▄▄▄▄▃▃▃▃▃▃▄▃▃▃▃▃▂▃▂▂▂▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_1 ▁▂▇▇▇▇█████▇▇▇▇▆▆▆▇▆▆▆▅▅▅▄▅▅▄▅▄▄▅▄▄▅▅▅▅▅
+wandb: dream_loss/run_0/multi_target_2 ▁▅▇██▇▇▇▇█▇█▇▇▇▇▇▆▆▆▆▅▅▅▅▅▅▅▅▅▅▅▅▅▅▄▄▄▄▄
+wandb: dream_loss/run_0/multi_target_3 ▁▁▇███▇▇███▇▇▇▇▇▇▇▆▇▆▆▆▆▆▆▆▆▅▅▅▅▅▅▅▅▅▄▄▄
+wandb: dream_loss/run_0/multi_target_4 ▁▃▅▇▇██▇▇▇▇███▇▆▆▇▆▆▅▅▅▆▅▅▅▄▄▄▃▃▃▃▃▃▃▃▃▂
+wandb: dream_loss/run_0/multi_target_5 ▁▄▆▇▇█▆█▆▇▇▇▆▇▆▆▅▅▅▆▅▅▅▅▅▅▄▄▄▄▄▄▄▄▄▄▄▃▃▃
+wandb: dream_loss/run_0/multi_target_6 ▁▄▃▇█▇▆▆▅▅▅▅▅▄▄▄▃▃▂▂▂▂▂▂▃▂▂▂▂▁▂▁▂▂▂▃▃▂▂▂
+wandb: dream_loss/run_0/multi_target_7 ▁▄▆██▇▇▇▆▅▆▄▅▄▄▄▄▃▄▄▄▃▄▃▃▃▃▂▂▂▂▂▂▂▁▁▁▁▁▁
+wandb: dream_loss/run_0/multi_target_8 ▁▂▆▇▇█▆▇▆▆▇▇▆▆▅▅▅▅▅▅▅▄▄▄▄▄▄▃▄▄▃▃▃▃▃▃▃▃▃▂
+wandb: dream_loss/run_0/multi_target_9 ▁▃▅▆██▇▇▇▇▆▇▇▇▇▆▆▆▆▆▆▆▆▆▆▅▅▅▄▄▄▄▄▃▄▄▃▃▃▃
+wandb:                           epoch ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇███
+wandb:                   negative_loss █▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                   positive_loss █▆▃▄▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           ratio ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                     rho_sigma_2 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           scale ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          stats/collect_accuracy ▆▄█▆▃▃▃▃▂▂▁▁
+wandb:              stats/collect_loss ▄▆▁▆█▅▄▅▆▆█▇
+wandb:                        test_acc ▁▁
+wandb:                 test_loss_epoch ▁▁
+wandb:                  test_loss_step ▄▁█▅▆▇▄▅▆▇▇▅▄▄▅▇▅▅▅▆▄▆▅▅█▆▄▅▄▇▄▆▄▆▆▇▆▃▅▇
+wandb:               train_loss/island █▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                train_loss/total █▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                  train_step_acc ▁▃▆▆▇▇▇█████████████████████████████████
+wandb:             trainer/global_step ▁▁▂▃▄▄▅▅▆▇█████████████████████████████▁
+wandb:              val_last_step_loss █▄▂▂▂▂▄▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       valid_acc ▁▄▆▇▇▇▅█▇▇█▇▇█▇█████████████████████████
+wandb: 
+wandb: Run summary:
+wandb: dream_loss/run_0/multi_target_0 1769.9408
+wandb: dream_loss/run_0/multi_target_1 1892.53369
+wandb: dream_loss/run_0/multi_target_2 1896.18079
+wandb: dream_loss/run_0/multi_target_3 2132.59546
+wandb: dream_loss/run_0/multi_target_4 1736.37646
+wandb: dream_loss/run_0/multi_target_5 1827.66125
+wandb: dream_loss/run_0/multi_target_6 1856.58521
+wandb: dream_loss/run_0/multi_target_7 2003.76697
+wandb: dream_loss/run_0/multi_target_8 1798.14087
+wandb: dream_loss/run_0/multi_target_9 1856.07251
+wandb:                           epoch 0
+wandb:                   negative_loss 55.18274
+wandb:                   positive_loss 0.66212
+wandb:                           ratio 10.0
+wandb:                     rho_sigma_2 100.0
+wandb:                           scale 10.0
+wandb:          stats/collect_accuracy 0.91326
+wandb:              stats/collect_loss 62.34824
+wandb:                        test_acc 0.9155
+wandb:                 test_loss_epoch 60.62524
+wandb:                  test_loss_step 62.48949
+wandb:               train_loss/island 55.46207
+wandb:                train_loss/total 55.46207
+wandb:                  train_step_acc 0.99926
+wandb:             trainer/global_step 2420
+wandb:              val_last_step_loss 60.62524
+wandb:                       valid_acc 0.9155
+wandb: 
+wandb: 🚀 View run exp_search_model_type_custom-resnet34_latent_size_3_z9yx306n_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/z9yx306n
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: Synced 6 W&B file(s), 28 media file(s), 96 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240422_062056-z9yx306n/logs
+Global seed set to 2024
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240422_085040-btapjpew
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_custom-resnet34_latent_size_10_btapjpew_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/btapjpew
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+End of experiment: exp_search_model_type_custom-resnet34_latent_size_3; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_custom-resnet34_latent_size_10; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c10', datasampler_type='none', num_tasks=1, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[0], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=2, schedule=[300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=0.1, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.01), l2=Namespace(use_at=[True], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=10, onehot=Namespace(type='diagonal')), num_classes=10, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='custom-resnet34', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=10.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=None, scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=220, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: custom-resnet34
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+[34mINFO: Generated:
+tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_CustomResNet34 [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ CustomResNet34      │ 21.3 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 21.3 M                                                                                                      
+Non-trainable params: 0                                                                                                       
+Total params: 21.3 M                                                                                                          
+Total estimated model params size (MB): 85                                                                                    
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] [0m
+Epoch 0    ╸                                        5/274 0:00:00 • 0:00:30 9.27it/s loss: 1.39e+29 v_num: jpew 
+Sleep 10 seconds...
+Experiment Exception occurred
+Traceback (most recent call last):
+  File "/home/ubuntu/continual_dreaming/main_experiments.py", line 68, in main
+    logic(args_exp, True, project_name=project_name, run_name=k)
+  File "/home/ubuntu/continual_dreaming/latent_dreams.py", line 334, in logic
+    trainer.fit(model, datamodule=cl_data_module)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 770, in fit
+    self._call_and_handle_interrupt(
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 723, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 811, in _fit_impl
+    results = self._run(model, ckpt_path=self.ckpt_path)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1236, in _run
+    results = self._run_stage()
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1323, in _run_stage
+    return self._run_train()
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1353, in _run_train
+    self.fit_loop.run()
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/base.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/executor/cl_loop.py", line 758, in advance
+    self.custom_advance_f(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/base.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/fit_loop.py", line 269, in advance
+    self._outputs = self.epoch_loop.run(self._data_fetcher)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/base.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/epoch/training_epoch_loop.py", line 208, in advance
+    batch_output = self.batch_loop.run(batch, batch_idx)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/base.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/batch/training_batch_loop.py", line 88, in advance
+    outputs = self.optimizer_loop.run(split_batch, optimizers, batch_idx)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/base.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 203, in advance
+    result = self._run_optimization(
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 256, in _run_optimization
+    self._optimizer_step(optimizer, opt_idx, batch_idx, closure)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 369, in _optimizer_step
+    self.trainer._call_lightning_module_hook(
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1595, in _call_lightning_module_hook
+    output = fn(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/core/lightning.py", line 1646, in optimizer_step
+    optimizer.step(closure=optimizer_closure)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/core/optimizer.py", line 168, in step
+    step_output = self._strategy.optimizer_step(self._optimizer, self._optimizer_idx, closure, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 193, in optimizer_step
+    return self.precision_plugin.optimizer_step(model, optimizer, opt_idx, closure, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/plugins/precision/precision_plugin.py", line 155, in optimizer_step
+    return optimizer.step(closure=closure, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/lr_scheduler.py", line 75, in wrapper
+    return wrapped(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/optimizer.py", line 385, in wrapper
+    out = func(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/optimizer.py", line 76, in _use_grad
+    ret = func(self, *args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/sgd.py", line 66, in step
+    loss = closure()
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/plugins/precision/precision_plugin.py", line 140, in _wrap_closure
+    closure_result = closure()
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 148, in __call__
+    self._result = self.closure(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 134, in closure
+    step_output = self._step_fn()
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 427, in _training_step
+    training_step_output = self.trainer._call_strategy_hook("training_step", *step_kwargs.values())
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1765, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 333, in training_step
+    return self.model.training_step(*args, **kwargs)
+  File "/home/ubuntu/continual_dreaming/model/overlay/cl_latent_chi.py", line 170, in training_step
+    return super().training_step(batch=batch, batch_idx=batch_idx, optimizer_idx=optimizer_idx)
+  File "/home/ubuntu/continual_dreaming/model/overlay/cl_base.py", line 114, in training_step
+    return self.training_step_normal(batch["normal"], optimizer_idx)
+  File "/home/ubuntu/continual_dreaming/model/overlay/cl_model.py", line 166, in training_step_normal
+    loss = self.process_losses_normal(
+  File "/home/ubuntu/continual_dreaming/model/overlay/cl_latent_chi.py", line 74, in process_losses_normal
+    loss = self._loss_f(latent, y)
+  File "/home/ubuntu/continual_dreaming/loss_function/chiLoss.py", line 304, in __call__
+    super().__call__(input, target, train=train)
+  File "/home/ubuntu/continual_dreaming/loss_function/chiLoss.py", line 79, in __call__
+    assert not torch.any(torch.isnan(input)), f"Input for chi-square loss is NaN. Try changing 'scale' >> 'ratio' hyperparameters \
+AssertionError: Input for chi-square loss is NaN. Try changing 'scale' >> 'ratio' hyperparameters or give bigger batch size (for X classes the X * 3.2 batch size should work good).
+
+wandb: - 0.018 MB of 0.018 MB uploadedwandb: \ 0.018 MB of 0.018 MB uploadedwandb: | 0.018 MB of 0.018 MB uploadedwandb: / 0.023 MB of 0.043 MB uploaded (0.003 MB deduped)wandb: - 0.023 MB of 0.043 MB uploaded (0.003 MB deduped)wandb: \ 0.043 MB of 0.043 MB uploaded (0.003 MB deduped)wandb:                                                                                
+wandb: W&B sync reduced upload amount by 6.8%             
+wandb: 🚀 View run exp_search_model_type_custom-resnet34_latent_size_10_btapjpew_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38/runs/btapjpew
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-22%3D01-14-38
+wandb: Synced 6 W&B file(s), 0 media file(s), 3 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240422_085040-btapjpew/logs
+End of experiment: exp_search_model_type_custom-resnet34_latent_size_10; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+[31mWARNING:	dreaming images were not flushed by wandb. [0m
+Done

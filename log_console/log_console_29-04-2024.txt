@@ -1,0 +1,1722 @@
+Global seed set to 2024
+wandb: Currently logged in as: 01133344 (cccvb). Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240429_100600-h512pqc2
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_dla_latent_size_10_h512pqc2_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59/runs/h512pqc2
+Experiments to be run:
+* 
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 3 --loop.train_at True --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at False --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 --model.enable_connect_batch --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2
+ --model.type dla --model.latent.size 10
+* 
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 3 --loop.train_at True --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at False --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 --model.enable_connect_batch --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2
+ --model.type vgg --model.latent.size 10
+* 
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 3 --loop.train_at True --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable  --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at False --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam  --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 --model.enable_connect_batch --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2
+ --model.type custom-resnet34 --model.latent.size 10
+
+Running experiment: exp_search_model_type_dla_latent_size_10; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Full second command line: [0m
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 3 --loop.train_at True --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at False --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 --model.enable_connect_batch --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2 --model.type dla --model.latent.size 10
+[34m	Used config: [0m
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c100', datasampler_type='none', num_tasks=2, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[True], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=3, schedule=[300, 300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=10.0, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.001), l2=Namespace(use_at=[False], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=10, onehot=Namespace(type='diagonal')), num_classes=100, enable_connect_batch=True, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='dla', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=120.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=[40.0, 60.0, 100.0], scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=440, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1, 2], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220, dream_batch_size_per_target=2.2)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mWANDBO RUN ID: h512pqc2 [0m
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: dla
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+[34mINFO: Generated:
+tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_DLA [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ DLA                 │ 32.6 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 32.6 M                                                                                                                                                      
+Non-trainable params: 0                                                                                                                                                       
+Total params: 32.6 M                                                                                                                                                          
+Total estimated model params size (MB): 130                                                                                                                                   
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/nn/modules/conv.py:456: UserWarning: Applied workaround for CuDNN issue, install nvrtc.so (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:80.)
+  return F.conv2d(input, weight, bias, self.stride,
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 40 [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 60 [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 100 [0m
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 0, loop 0 [0m
+[34mTESTING TASK 0, loop 0 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.5875999927520752     │
+│      test_loss_epoch      │    -246.7509002685547     │
+└───────────────────────────┴───────────────────────────┘
+Epoch 299 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 160/160 0:00:18 • 0:00:00 8.86it/s   
+Testing   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23/23   0:01:07 • 0:00:00 24.27it/s  
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 1, loop 1 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'10.0'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 1, loop 1 [0m
+[34mDREAMING DURING TASK: 1, loop 1 [0m
+[36mVIS: Visualization for targets: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 22000; batch size: 220; per target: 440; batches to be generated: 100 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 01:43:50 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 1, loop 1 -- classes in task [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mSelected task number: 1 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mSelected dream dataloader classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]. Use datasampler=False. Batch size: 220 [0m
+[95mINFO: Selected classes for normal dataloader: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mINFO: Use dream dataloader. [0m
+[95mINFO: Use dream and normal datasets simultaneously. [0m
+/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/lr_scheduler.py:143: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn("Detected call of `lr_scheduler.step()` before `optimizer.step()`. "
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 1, loop 1 [0m
+[34mTESTING TASK 1, loop 1 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.3529999852180481     │
+│      test_loss_epoch      │     -193.207275390625     │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:01:01 • 0:00:00 8.14it/s   
+                                                                                         
+                                                                                         
+Epoch 299  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 246/246 0:00:42 • 0:00:00 6.17it/s   
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:02 • 0:00:00 22.01it/s  
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 1, loop 2 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'10.0'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 1, loop 2 [0m
+[34mDREAMING DURING TASK: 1, loop 2 [0m
+[36mVIS: Visualization for targets: {50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 22000; batch size: 220; per target: 440; batches to be generated: 100 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 01:44:02 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 1, loop 2 -- classes in task [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mSelected task number: 1 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[34mENDING TASK 1, loop 2 [0m
+[34mTESTING TASK 1, loop 2 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.3529999852180481     │
+│      test_loss_epoch      │     -193.207275390625     │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:01:01 • 0:00:00 8.06it/s   
+                                                                                         
+                                                                                         
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 23.12it/s  
+[34mINFO: Generated current run name: d29-04-2024_h18-43-47_h512pqc2 [0m
+[31mWARNING: At loop 3 selected last epoch per task "0" because list index out of range. [0m
+[31mWARNING: At loop 3 selected last epoch per task "0" because list index out of range. [0m
+
+End of training.
+[34mINFO: COLLECT STATS: Selected normal dataset. [0m
+[34mSTATISTICS: Collecting model stats [0m
+[34mINFO: Selected None datasampler [0m
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+
+WARNING: Plot 3D only for 3 dimensional space! Found 10 dimensions.
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/std-mean_idx100
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx15
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx31
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx47
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx63
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx79
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx95
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/distance_class_idx100
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/mean_distance_idx100
+INFO: Plot model_save/test/ClLatentChi/DLA/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h18-43-47_h512pqc2/plots/mean_dist_matrix_idx100
+wandb: - 10.838 MB of 10.838 MB uploaded (0.870 MB deduped)wandb: \ 10.838 MB of 10.838 MB uploaded (0.870 MB deduped)wandb: | 10.838 MB of 10.838 MB uploaded (0.870 MB deduped)wandb: / 10.989 MB of 11.264 MB uploaded (0.870 MB deduped)wandb: - 10.989 MB of 11.264 MB uploaded (0.870 MB deduped)wandb: \ 11.264 MB of 11.264 MB uploaded (0.870 MB deduped)wandb:                                                                                
+wandb: W&B sync reduced upload amount by 7.7%             
+wandb: 
+wandb: Run history:
+wandb:     dream_loss/run_0/multi_target_0 █▆▄▃▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▇▆▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_1 ▄█▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_10 ▇▆▄▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁█▆▄▂▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_11 █▆▄▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▄▂▂▁▁▂▁▁▁▂▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_12 █▆▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_13 █▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▆▇▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_14 █▆▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▂█▅█▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_15 █▆▅▃▃▂▂▁▂▁▁▁▁▁▂▁▁▁▁▁█▆▅▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_16 █▆▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▆▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_17 █▆▅▂▆▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁█▇▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_18 ▇▅▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▄█▂▂▁▂▁▁▁▁▁▁▁▁▁▂▁▁▁
+wandb:    dream_loss/run_0/multi_target_19 █▆▄▂▂▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁▆▅▃▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_2 █▅▅▃▂▂▁▂▁▁▁▂▁▁▁▁▁▁▁▁▇▅▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_20 █▆▄▂▄▁▂▂▂▁▁▁▁▁▁▁▁▁▁▁█▅▄▃▂▁▁▁▁▁▁▁▂▁▂▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_21 █▅▄▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▇▆▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_22 ▇▇▄▂▂▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁█▅▃▃▄▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_23 █▆▃▂▄▂▁▁▁▁▁▁▁▂▁▁▁▁▂▁▇▅▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_24 ▆▄▃▂▃▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁█▅▃▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_25 ▆▄▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅█▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_26 █▆▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▆▄▂▂▃▁▁▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_27 ▆█▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▆▅▃▃▃▁▁▁▂▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_28 █▆▃▂▃▂▁▂▁▁▁▁▁▁▁▁▂▁▁▁█▆▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_29 █▅▇▂▄▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁▆▅▃▂▃▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_3 ▆▅█▂▂▁▁▁▂▁▁▁▁▂▁▁▁▁▁▁▆▅▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_30 █▆▄▂▃▁▃▂▁▁▁▁▁▁▁▁▁▂▁▁▇▆▄▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_31 █▆▄▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁█▆▄▃▂▂▃▁▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_32 █▆▃▂▂▂▁▁▁▂▁▁▁▁▁▂▁▁▁▁█▇▃▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_33 █▆█▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▅▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_34 █▆▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_35 █▆▃▂▂▂▁▁▁▁▁▂▁▂▁▁▁▁▁▁▇▄▃▃▂▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_36 █▅▅▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▇▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_37 █▆█▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▆▄▂▂▂▁▁▁▂▁▁▁▂▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_38 █▆▄▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▆▅▃▄▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_39 █▇▄▂▂▂▃▁▁▁▁▁▁▁▁▁▁▁▁▁█▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_4 █▆▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▇▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_40 █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▅▃▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_41 █▆▅▂▂▂▃▁▁▁▁▂▂▁▁▁▁▁▂▁█▆▄▃▂▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_42 █▆▄▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_43 █▆▃▃▂▂▁▂▁▂▁▁▁▁▁▂▁▁▁▁▆▄▅▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_44 █▅▄▃▄▃▂▁▁▁▁▁▁▂▁▁▁▁▁▁█▆▃▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_45 █▆▄▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▆▄▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_46 █▆▄▃▃▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▇▅▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_47 ▆▄▃▅▂▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁▆█▅▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_48 █▇▅▃▃▄▁▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁▂
+wandb:    dream_loss/run_0/multi_target_49 █▆▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_5 ▅▄▃▂▂▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅█▂▂▂▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_6 ▇▅▆▂▆▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇█▃▃▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_7 █▇▅▃▂▂▁▂▁▁▂▁▁▁▁▁▁▁▁▁█▆▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_8 ▅█▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_9 █▆▄▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁█▅▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_0 █▄▅▃▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▃▂▂▁▁▁▂▁▁▂▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_1 █▄▅▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_10 █▄▅▃▃▅▂▂▂▂▁▁▁▁▁▁▁▁▂▁▆▄▄▃▂▂▃▂▁▂▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_11 █▅▇▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_12 █▄▄▃▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▆▅▄▅▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_13 █▅▄▃▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▁▂▁▁▁▂▂▁▁▁▁▂
+wandb:    dream_loss/run_1/multi_target_14 █▄▄▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▂▂▂▁▁▁▁▂▁▁▁▁▁▂▁
+wandb:    dream_loss/run_1/multi_target_15 █▆▅▄▄▃▂▂▂▁▁▁▁▁▂▁▁▁▁▁▆▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_16 █▄▄▃▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▆▄▅▃▃▂▂▁▂▁▁▁▂▁▁▂▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_17 █▅▅▃▃▂▂▁▁▁▁▁▁▂▁▁▁▁▁▁▆▅▄▃▂▃▂▁▁▁▁▁▁▂▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_18 █▄▅▃▂▂▂▂▁▁▂▁▂▁▁▁▁▁▁▁▆▄▄▃▃▃▂▁▁▂▁▁▁▁▂▁▁▁▂▁
+wandb:    dream_loss/run_1/multi_target_19 █▅▄▃▂▂▂▂▂▃▂▁▁▁▁▁▁▁▁▁▆▄▅▅▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_2 █▅▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▃▂▃▂▂▁▁▁▁▁▁▂▂▁▁▁
+wandb:    dream_loss/run_1/multi_target_20 █▄▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▂▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_21 █▅█▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▅▃▂▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_22 █▄▅▃▃▂▂▂▂▁▁▁▁▁▁▁▂▁▁▁▆▄▇▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_23 █▅▄▃▃▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▅▃▂▂▂▁▁▂▁▂▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_24 █▅▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▂▁▁▇▅▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▂▁▁
+wandb:    dream_loss/run_1/multi_target_25 █▅▅▃▃▂▃▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_26 █▆▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▆▅▃▂▂▂▂▁▁▁▁▁▁▁▂▁▂▁▁
+wandb:    dream_loss/run_1/multi_target_27 █▄▄▃▃▂▂▂▁▂▁▂▁▁▁▁▁▁▁▁▇▄▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_28 █▅▅▃▃▂▂▂▂▁▁▁▁▁▂▁▁▁▁▁▇▄▅▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_29 █▅▄▃▃▂▂▂▁▂▁▂▁▁▁▁▁▁▁▁▆▆▄▃▃▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_3 █▄▅▃▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▆▄▄▅▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_30 █▄▅▃▄▂▂▂▂▁▁▁▁▁▁▁▂▁▁▁▆▄▄▆▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_31 █▆▅▃▃▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▆▄▆▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_32 █▅▄▃▃▃▂▁▂▁▁▁▁▁▁▁▁▁▁▁▇▅▅▃▃▂▂▂▂▂▂▁▁▁▁▂▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_33 █▅▅▃▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▅▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_34 █▆▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▂▂▂▂▁▁▁▁▁▁▂▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_35 █▅▅▅▃▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁█▅▄▃▂▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_36 █▅▇▃▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▄▅▃▃▂▂▂▁▁▁▁▁▁▁▂▂▁▁▁
+wandb:    dream_loss/run_1/multi_target_37 █▅▅▄▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▂▁▁▁
+wandb:    dream_loss/run_1/multi_target_38 █▄▄▃▃▂▃▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▅▃▃▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_39 █▄▅▄▃▂▂▂▂▁▁▁▁▁▁▂▁▁▁▁▅▄▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_4 █▄█▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_40 █▅▅▄▃▂▂▂▁▁▁▂▁▁▁▁▁▂▁▁▆▄▅▃▃▂▂▃▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_41 █▅▅▄▃▂▂▂▁▁▁▁▁▁▁▂▁▁▁▁▆▄▇▃▃▂▃▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_42 █▅▅▃▂▂▃▃▁▂▁▁▁▁▁▁▁▁▁▁▅▄▅▃▂▂▃▁▁▁▁▁▁▁▁▁▁▁▂▁
+wandb:    dream_loss/run_1/multi_target_43 █▄▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_44 █▅▅▄▅▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▆▄▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_45 █▅█▄▄▂▃▂▁▁▁▁▁▁▁▁▁▁▁▂▇▅▄▃▃▂▂▁▂▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_46 █▄▄▅▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▆▄▄▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_47 █▅▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▂▂▂▂▁▁▁▁▁▂▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_48 █▄▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▂▂▂▁▁▁▁▁▁▁▂▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_49 █▅▄▄▃▂▂▂▁▂▁▁▁▂▁▁▁▁▁▁▇▄▄▃▃▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_5 █▅▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▄▃▃▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_6 █▅▇▃▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▅▄▃▃▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_7 █▄▅▃▂▂▂▂▂▁▂▂▁▁▁▁▁▁▁▁▇▄▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_8 █▅▅▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▅▃▃▃▂▂▁▂▁▁▁▁▁▁▂▁▁▂
+wandb:     dream_loss/run_1/multi_target_9 █▄▅▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▄▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁
+wandb:                               epoch ▁▁▂▂▃▃▄▄▄▅▅▆▆▇▇██▁▁▂▂▂▃▃▃▄▄▄▅▅▅▆▆▆▆▇▇▇██
+wandb:                       negative_loss █▆▅▃▃▃▃▃▃▃▃▃▃▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       positive_loss ██▆▃▃▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               ratio ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                         rho_sigma_2 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               scale ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:              stats/collect_accuracy ▂▂▁█▂▅▂▁▄▂▁▄
+wandb:                  stats/collect_loss ▄▄█▇▅▂▇▃▁▅▅▃
+wandb:                            test_acc █▁▁
+wandb:                     test_loss_epoch ▁██
+wandb:                      test_loss_step ▁▂▁▁▃▂▂▃▄▆▆▅▆▇▃▄▄▅▇▅▃▄▆▅▅▅▄▅▆▇▆▇▄█▃▅▅▅▂▂
+wandb:                   train_loss/island █▇▅▄▃▃▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    train_loss/total █▇▅▄▃▃▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                      train_step_acc ▁▁▂▃▃▄▅▆▇▇▇█████████▅▇██████████████████
+wandb:                 trainer/global_step ▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃███████████████████▁
+wandb: val_last_step_loss/dataloader_idx_0 █▆▅▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▄▄▄▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆
+wandb: val_last_step_loss/dataloader_idx_1 █▇▆▆▅▆▅▆▅▅▅▅▅▅▅▅▅▅▅▅▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          valid_acc/dataloader_idx_0 ▂▂▃▄▅▆▇▇████████████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          valid_acc/dataloader_idx_1 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▇▇█████████████████
+wandb: 
+wandb: Run summary:
+wandb:     dream_loss/run_0/multi_target_0 8723.17969
+wandb:     dream_loss/run_0/multi_target_1 17890.10742
+wandb:    dream_loss/run_0/multi_target_10 9426.77148
+wandb:    dream_loss/run_0/multi_target_11 9363.10449
+wandb:    dream_loss/run_0/multi_target_12 10095.31055
+wandb:    dream_loss/run_0/multi_target_13 9756.57812
+wandb:    dream_loss/run_0/multi_target_14 10639.66992
+wandb:    dream_loss/run_0/multi_target_15 9140.41016
+wandb:    dream_loss/run_0/multi_target_16 9124.66211
+wandb:    dream_loss/run_0/multi_target_17 8565.66602
+wandb:    dream_loss/run_0/multi_target_18 11104.42188
+wandb:    dream_loss/run_0/multi_target_19 9445.53418
+wandb:     dream_loss/run_0/multi_target_2 9664.56348
+wandb:    dream_loss/run_0/multi_target_20 10170.83301
+wandb:    dream_loss/run_0/multi_target_21 7776.85986
+wandb:    dream_loss/run_0/multi_target_22 10382.4209
+wandb:    dream_loss/run_0/multi_target_23 8192.89062
+wandb:    dream_loss/run_0/multi_target_24 10902.78711
+wandb:    dream_loss/run_0/multi_target_25 8272.31445
+wandb:    dream_loss/run_0/multi_target_26 9158.56152
+wandb:    dream_loss/run_0/multi_target_27 7844.3291
+wandb:    dream_loss/run_0/multi_target_28 7947.62891
+wandb:    dream_loss/run_0/multi_target_29 9892.27246
+wandb:     dream_loss/run_0/multi_target_3 8598.50586
+wandb:    dream_loss/run_0/multi_target_30 10591.04883
+wandb:    dream_loss/run_0/multi_target_31 9899.70312
+wandb:    dream_loss/run_0/multi_target_32 7780.76904
+wandb:    dream_loss/run_0/multi_target_33 10076.13281
+wandb:    dream_loss/run_0/multi_target_34 7912.38916
+wandb:    dream_loss/run_0/multi_target_35 11683.86328
+wandb:    dream_loss/run_0/multi_target_36 8261.23438
+wandb:    dream_loss/run_0/multi_target_37 12401.41699
+wandb:    dream_loss/run_0/multi_target_38 18935.98242
+wandb:    dream_loss/run_0/multi_target_39 8755.1416
+wandb:     dream_loss/run_0/multi_target_4 9367.7041
+wandb:    dream_loss/run_0/multi_target_40 10582.78223
+wandb:    dream_loss/run_0/multi_target_41 18784.51953
+wandb:    dream_loss/run_0/multi_target_42 7753.77637
+wandb:    dream_loss/run_0/multi_target_43 10469.21094
+wandb:    dream_loss/run_0/multi_target_44 11145.05273
+wandb:    dream_loss/run_0/multi_target_45 9111.67188
+wandb:    dream_loss/run_0/multi_target_46 9787.64746
+wandb:    dream_loss/run_0/multi_target_47 11550.80957
+wandb:    dream_loss/run_0/multi_target_48 9136.41113
+wandb:    dream_loss/run_0/multi_target_49 12322.2041
+wandb:     dream_loss/run_0/multi_target_5 9069.21582
+wandb:     dream_loss/run_0/multi_target_6 9949.57324
+wandb:     dream_loss/run_0/multi_target_7 9403.69141
+wandb:     dream_loss/run_0/multi_target_8 8544.66406
+wandb:     dream_loss/run_0/multi_target_9 9085.26562
+wandb:     dream_loss/run_1/multi_target_0 20404.65039
+wandb:     dream_loss/run_1/multi_target_1 23109.78906
+wandb:    dream_loss/run_1/multi_target_10 21055.52148
+wandb:    dream_loss/run_1/multi_target_11 21493.23633
+wandb:    dream_loss/run_1/multi_target_12 22485.7793
+wandb:    dream_loss/run_1/multi_target_13 34823.24609
+wandb:    dream_loss/run_1/multi_target_14 25910.88672
+wandb:    dream_loss/run_1/multi_target_15 22482.91016
+wandb:    dream_loss/run_1/multi_target_16 48613.33984
+wandb:    dream_loss/run_1/multi_target_17 21146.78906
+wandb:    dream_loss/run_1/multi_target_18 20623.11328
+wandb:    dream_loss/run_1/multi_target_19 20209.10352
+wandb:     dream_loss/run_1/multi_target_2 25774.94922
+wandb:    dream_loss/run_1/multi_target_20 22094.66797
+wandb:    dream_loss/run_1/multi_target_21 20802.53906
+wandb:    dream_loss/run_1/multi_target_22 21904.31836
+wandb:    dream_loss/run_1/multi_target_23 17831.85547
+wandb:    dream_loss/run_1/multi_target_24 20199.22266
+wandb:    dream_loss/run_1/multi_target_25 19530.39648
+wandb:    dream_loss/run_1/multi_target_26 17471.71484
+wandb:    dream_loss/run_1/multi_target_27 24414.01562
+wandb:    dream_loss/run_1/multi_target_28 23449.45508
+wandb:    dream_loss/run_1/multi_target_29 19376.81836
+wandb:     dream_loss/run_1/multi_target_3 25355.14062
+wandb:    dream_loss/run_1/multi_target_30 23373.36523
+wandb:    dream_loss/run_1/multi_target_31 21658.78516
+wandb:    dream_loss/run_1/multi_target_32 28886.2793
+wandb:    dream_loss/run_1/multi_target_33 21107.08008
+wandb:    dream_loss/run_1/multi_target_34 22463.60742
+wandb:    dream_loss/run_1/multi_target_35 24157.16797
+wandb:    dream_loss/run_1/multi_target_36 21039.21094
+wandb:    dream_loss/run_1/multi_target_37 37953.28906
+wandb:    dream_loss/run_1/multi_target_38 25793.99219
+wandb:    dream_loss/run_1/multi_target_39 20478.15625
+wandb:     dream_loss/run_1/multi_target_4 22868.78711
+wandb:    dream_loss/run_1/multi_target_40 22962.06641
+wandb:    dream_loss/run_1/multi_target_41 32844.60547
+wandb:    dream_loss/run_1/multi_target_42 24589.33594
+wandb:    dream_loss/run_1/multi_target_43 23686.16406
+wandb:    dream_loss/run_1/multi_target_44 23337.14844
+wandb:    dream_loss/run_1/multi_target_45 21837.81445
+wandb:    dream_loss/run_1/multi_target_46 22128.59766
+wandb:    dream_loss/run_1/multi_target_47 22371.26367
+wandb:    dream_loss/run_1/multi_target_48 18086.13672
+wandb:    dream_loss/run_1/multi_target_49 19699.73633
+wandb:     dream_loss/run_1/multi_target_5 20613.33008
+wandb:     dream_loss/run_1/multi_target_6 34523.30078
+wandb:     dream_loss/run_1/multi_target_7 20490.15625
+wandb:     dream_loss/run_1/multi_target_8 25091.12695
+wandb:     dream_loss/run_1/multi_target_9 20365.07812
+wandb:                               epoch 0
+wandb:                       negative_loss -413.371
+wandb:                       positive_loss -3.77997
+wandb:                               ratio 10.0
+wandb:                         rho_sigma_2 100.0
+wandb:                               scale 120.0
+wandb:              stats/collect_accuracy 0.34773
+wandb:                  stats/collect_loss -204.99045
+wandb:                            test_acc 0.353
+wandb:                     test_loss_epoch -193.20728
+wandb:                      test_loss_step -234.15546
+wandb:                   train_loss/island -416.8046
+wandb:                    train_loss/total -416.8046
+wandb:                      train_step_acc 0.9997
+wandb:                 trainer/global_step 2420
+wandb: val_last_step_loss/dataloader_idx_0 -21.00367
+wandb: val_last_step_loss/dataloader_idx_1 -275.62939
+wandb:          valid_acc/dataloader_idx_0 0.0004
+wandb:          valid_acc/dataloader_idx_1 0.7056
+wandb: 
+wandb: 🚀 View run exp_search_model_type_dla_latent_size_10_h512pqc2_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59/runs/h512pqc2
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59
+wandb: Synced 6 W&B file(s), 213 media file(s), 1307 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240429_100600-h512pqc2/logs
+Global seed set to 2024
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240429_184503-t0kgu1li
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_vgg_latent_size_10_t0kgu1li_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59/runs/t0kgu1li
+End of experiment: exp_search_model_type_dla_latent_size_10; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_vgg_latent_size_10; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Full second command line: [0m
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 3 --loop.train_at True --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at False --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 --model.enable_connect_batch --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2 --model.type vgg --model.latent.size 10
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c100', datasampler_type='none', num_tasks=2, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[True], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=3, schedule=[300, 300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=10.0, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.001), l2=Namespace(use_at=[False], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=10, onehot=Namespace(type='diagonal')), num_classes=100, enable_connect_batch=True, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='vgg', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=120.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=[40.0, 60.0, 100.0], scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=440, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1, 2], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220, dream_batch_size_per_target=2.2)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mWANDBO RUN ID: t0kgu1li [0m
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: vgg
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: Generated:
+tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_VGG [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ VGG                 │  9.2 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 9.2 M                                                                                                                                                       
+Non-trainable params: 0                                                                                                                                                       
+Total params: 9.2 M                                                                                                                                                           
+Total estimated model params size (MB): 36                                                                                                                                    
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 40 [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 60 [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 100 [0m
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 0, loop 0 [0m
+[34mTESTING TASK 0, loop 0 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.6028000116348267     │
+│      test_loss_epoch      │    -255.86412048339844    │
+└───────────────────────────┴───────────────────────────┘
+Epoch 299 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 160/160 0:00:08 • 0:00:00 19.65it/s  
+Testing   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23/23   0:00:42 • 0:00:00 43.73it/s  
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 1, loop 1 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'10.0'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 1, loop 1 [0m
+[34mDREAMING DURING TASK: 1, loop 1 [0m
+[36mVIS: Visualization for targets: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 22000; batch size: 220; per target: 440; batches to be generated: 100 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 00:20:30 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 1, loop 1 -- classes in task [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mSelected task number: 1 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mSelected dream dataloader classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]. Use datasampler=False. Batch size: 220 [0m
+[95mINFO: Selected classes for normal dataloader: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mINFO: Use dream dataloader. [0m
+[95mINFO: Use dream and normal datasets simultaneously. [0m
+/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/lr_scheduler.py:143: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn("Detected call of `lr_scheduler.step()` before `optimizer.step()`. "
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 1, loop 1 [0m
+[34mTESTING TASK 1, loop 1 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.33959999680519104    │
+│      test_loss_epoch      │    -183.18121337890625    │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:00:13 • 0:00:00 37.71it/s  
+                                                                                         
+                                                                                         
+Epoch 299  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 246/246 0:00:20 • 0:00:00 12.32it/s  
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 39.41it/s  
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 1, loop 2 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'10.0'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 1, loop 2 [0m
+[34mDREAMING DURING TASK: 1, loop 2 [0m
+[36mVIS: Visualization for targets: {50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 22000; batch size: 220; per target: 440; batches to be generated: 100 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 00:20:33 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 1, loop 2 -- classes in task [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mSelected task number: 1 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[34mENDING TASK 1, loop 2 [0m
+[34mTESTING TASK 1, loop 2 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.33959999680519104    │
+│      test_loss_epoch      │    -183.18121337890625    │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:00:12 • 0:00:00 38.76it/s  
+                                                                                         
+                                                                                         
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 42.76it/s  
+[34mINFO: Generated current run name: d29-04-2024_h21-54-09_t0kgu1li [0m
+[31mWARNING: At loop 3 selected last epoch per task "0" because list index out of range. [0m
+[31mWARNING: At loop 3 selected last epoch per task "0" because list index out of range. [0m
+
+End of training.
+[34mINFO: COLLECT STATS: Selected normal dataset. [0m
+[34mSTATISTICS: Collecting model stats [0m
+[34mINFO: Selected None datasampler [0m
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+
+WARNING: Plot 3D only for 3 dimensional space! Found 10 dimensions.
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/std-mean_idx100
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx15
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx31
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx47
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx63
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx79
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx95
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/distance_class_idx100
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/mean_distance_idx100
+INFO: Plot model_save/test/ClLatentChi/VGG/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d29-04-2024_h21-54-09_t0kgu1li/plots/mean_dist_matrix_idx100
+wandb: - 11.270 MB of 11.270 MB uploaded (0.998 MB deduped)wandb: \ 11.270 MB of 11.270 MB uploaded (0.998 MB deduped)wandb: | 11.270 MB of 11.270 MB uploaded (0.998 MB deduped)wandb: / 11.421 MB of 11.696 MB uploaded (1.002 MB deduped)wandb: - 11.528 MB of 11.696 MB uploaded (1.002 MB deduped)wandb: \ 11.528 MB of 11.696 MB uploaded (1.002 MB deduped)wandb: | 11.696 MB of 11.696 MB uploaded (1.002 MB deduped)wandb:                                                                                
+wandb: W&B sync reduced upload amount by 8.6%             
+wandb: 
+wandb: Run history:
+wandb:     dream_loss/run_0/multi_target_0 █▃▃▃▂▂▄▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▂▁▁▁▁▁▁▁▃▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_1 █▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_10 █▃▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▅▂▃▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_11 █▃▂▃▂▁▂▁▁▁▂▁▁▁▁▁▁▁▁▁▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_12 █▃▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_13 █▃▂▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃▅▂▃▂▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_14 █▃▂▂▂▁▁▁▁▁▃▁▁▁▁▁▁▁▁▂▆▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_15 █▃▂▂▂▂▂▁▂▁▂▁▁▁▂▁▁▁▁▁▇▃▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_16 █▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_17 █▃▂▂▃▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_18 █▃▂▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▅▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_19 █▃▃▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_2 █▃▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▅▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▂▁▁▁
+wandb:    dream_loss/run_0/multi_target_20 █▂▂▂▂▁▁▂▁▂▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_21 █▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▂▂▂▁▁▂▁▁▁▁▃▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_22 █▃▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▃▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_23 █▃▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_24 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_25 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▂▂▂▁▁▂▁▂▁▁▁▂▁▁▁▁▂
+wandb:    dream_loss/run_0/multi_target_26 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▂▁▁▁▁▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_27 █▄▂▅▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_28 █▃▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▆▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_29 █▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_3 █▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▂▁▁▁
+wandb:    dream_loss/run_0/multi_target_30 █▃▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▇▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_31 █▂▂▂▁▂▂▁▁▁▁▁▁▁▁▁▃▁▁▁▅▂▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_32 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▂▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_33 █▄▃▃▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_34 █▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_35 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▂▁▁▁▁▁▁▁▃▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_36 █▃▂▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_37 █▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▅▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_38 █▂▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_39 █▃▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_4 █▄▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▃▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_40 █▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▃▂▂▂▃▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_41 █▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_42 █▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▁▁▁▂▁▁▁▁▁▁▁▁▃▁▁▁
+wandb:    dream_loss/run_0/multi_target_43 █▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_44 █▃▂▂▂▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁▆▃▂▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_45 █▃▂▂▂▁▂▁▁▂▁▁▁▁▁▁▁▁▂▁▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂
+wandb:    dream_loss/run_0/multi_target_46 █▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_47 █▃▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_48 █▄▂▂▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▅▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_49 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_5 █▃▃▃▂▃▂▂▂▂▁▁▁▁▁▁▁▁▁▂▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_6 █▂▂▂▃▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_7 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▃▂▂▂▁▁▁▄▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_8 █▄▃▂▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_9 █▃▃▃▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▆▂▂▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_0 █▃▂▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▆▃▂▂▁▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_1 █▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_10 █▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▂▁▂▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_11 █▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_12 █▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▅▃▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_13 █▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_14 █▃▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_15 █▃▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▁▅▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_16 █▃▂▃▁▁▁▁▁▄▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_17 █▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▂▂▂▁▁▁▁▁▁▁▁▃▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_18 █▃▂▂▂▁▁▁▁▁▅▁▁▁▁▁▁▁▁▁▇▃▂▂▂▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_19 █▃▂▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_2 █▃▂▂▂▁▂▁▂▁▁▁▁▁▁▁▁▄▁▁▇▃▂▂▂▃▂▁▁▁▁▁▁▁▂▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_20 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▂▁▁▁▅▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_21 █▄▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_22 █▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▃▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_23 █▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▂▁▁▁▂▁▂▁▁▁▄▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_24 ▆▃▂▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁█▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▅▁▁
+wandb:    dream_loss/run_1/multi_target_25 █▃▂▂▂▁▂▁▁▁▁▁▂▁▁▁▁▁▂▁▆▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_26 █▃▂▂▂▁▁▁▂▁▂▁▁▁▁▁▁▁▁▁▆▃▂▂▁▁▁▂▁▁▁▁▁▁▁▂▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_27 █▃▂▂▂▁▂▁▁▂▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▂▁▁▁
+wandb:    dream_loss/run_1/multi_target_28 █▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_29 █▄▂▂▂▁▄▁▁▁▂▂▁▁▁▁▁▁▁▁▆▃▃▂▂▁▁▁▁▁▂▂▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_3 █▃▂▂▂▁▂▁▁▁▁▂▁▁▁▁▁▁▁▁▆▃▂▃▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_30 █▃▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_31 █▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_32 █▃▂▃▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_33 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_34 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_35 █▃▂▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▃▂▂▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_36 █▃▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_37 █▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_38 █▃▂▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▆▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_39 █▃▂▂▂▁▁▂▁▁▂▁▁▁▁▁▁▁▁▁▅▃▂▂▂▁▁▂▁▁▁▁▁▁▂▁▁▁▁▂
+wandb:     dream_loss/run_1/multi_target_4 █▃▃▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▃▂▂▂▂▁▁▁▁▁▂▁▁▁▁▂▁▁▁
+wandb:    dream_loss/run_1/multi_target_40 █▃▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_41 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_42 █▄▂▃▂▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▂▁▁▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_43 █▃▂▂▂▃▁▁▁▂▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_44 █▃▂▂▂▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▆▃▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_45 █▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁█▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_46 █▃▂▃▂▁▁▄▁▁▁▁▁▁▁▁▁▁▁▁▅▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_47 ▆▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁█▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_48 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▁▁▂▁▁▁▁▁▁▂▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_49 █▃▂▄▂▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▇▃▂▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_5 █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_6 █▃▂▂▂▁▂▁▁▂▁▁▁▁▁▁▁▁▁▁▇▃▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▂▁▁
+wandb:     dream_loss/run_1/multi_target_7 █▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▄▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_8 █▃▂▃▂▁▁▄▁▁▁▂▁▁▁▁▁▁▁▁▆▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_9 █▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               epoch ▁▁▂▂▃▃▄▄▄▅▅▆▆▇▇██▁▁▂▂▂▃▃▃▄▄▄▅▅▅▆▆▆▆▇▇▇██
+wandb:                       negative_loss █▆▄▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       positive_loss █▆▅▃▂▂▂▁▁▁▁▁▁▁▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               ratio ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                         rho_sigma_2 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               scale ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:              stats/collect_accuracy ▃▅▁█▂▇▇▆▇▆▆█
+wandb:                  stats/collect_loss ▅▆█▅▆▅▃▆▁█▆▂
+wandb:                            test_acc █▁▁
+wandb:                     test_loss_epoch ▁██
+wandb:                      test_loss_step ▂▂▁▁▁▂▂▃▅▅▄▆▆▆▄▄▃▄▇▅▅▄▅▆▆▆▆▆▆▆▅▇▄█▃▅▆▄▄▄
+wandb:                   train_loss/island █▆▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    train_loss/total █▆▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                      train_step_acc ▁▁▂▃▄▅▅▆▇▇▇▇████████▅▇▇█████████████████
+wandb:                 trainer/global_step ▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃███████████████████▁
+wandb: val_last_step_loss/dataloader_idx_0 █▆▄▃▂▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▄▅▅▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆
+wandb: val_last_step_loss/dataloader_idx_1 █▇▆▆▅▇▆▆▅▆▆▆▆▆▆▆▆▆▆▆▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          valid_acc/dataloader_idx_0 ▂▂▃▄▅▅▇▇▇███████████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          valid_acc/dataloader_idx_1 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▇▇█████████████████
+wandb: 
+wandb: Run summary:
+wandb:     dream_loss/run_0/multi_target_0 12427.57715
+wandb:     dream_loss/run_0/multi_target_1 17660.1543
+wandb:    dream_loss/run_0/multi_target_10 16427.44336
+wandb:    dream_loss/run_0/multi_target_11 19491.75195
+wandb:    dream_loss/run_0/multi_target_12 14943.41113
+wandb:    dream_loss/run_0/multi_target_13 17843.91211
+wandb:    dream_loss/run_0/multi_target_14 11845.45312
+wandb:    dream_loss/run_0/multi_target_15 13074.75781
+wandb:    dream_loss/run_0/multi_target_16 14857.56543
+wandb:    dream_loss/run_0/multi_target_17 11313.58398
+wandb:    dream_loss/run_0/multi_target_18 11419.30957
+wandb:    dream_loss/run_0/multi_target_19 13334.14746
+wandb:     dream_loss/run_0/multi_target_2 14854.96387
+wandb:    dream_loss/run_0/multi_target_20 15789.01465
+wandb:    dream_loss/run_0/multi_target_21 16066.62402
+wandb:    dream_loss/run_0/multi_target_22 17616.60352
+wandb:    dream_loss/run_0/multi_target_23 11334.00586
+wandb:    dream_loss/run_0/multi_target_24 13652.48926
+wandb:    dream_loss/run_0/multi_target_25 15626.00879
+wandb:    dream_loss/run_0/multi_target_26 15874.90918
+wandb:    dream_loss/run_0/multi_target_27 16568.93164
+wandb:    dream_loss/run_0/multi_target_28 14063.63965
+wandb:    dream_loss/run_0/multi_target_29 14778.66016
+wandb:     dream_loss/run_0/multi_target_3 13076.14648
+wandb:    dream_loss/run_0/multi_target_30 16236.61328
+wandb:    dream_loss/run_0/multi_target_31 11182.35938
+wandb:    dream_loss/run_0/multi_target_32 11144.41699
+wandb:    dream_loss/run_0/multi_target_33 15863.96582
+wandb:    dream_loss/run_0/multi_target_34 11532.73828
+wandb:    dream_loss/run_0/multi_target_35 14560.3125
+wandb:    dream_loss/run_0/multi_target_36 12687.10449
+wandb:    dream_loss/run_0/multi_target_37 11038.59961
+wandb:    dream_loss/run_0/multi_target_38 20698.63672
+wandb:    dream_loss/run_0/multi_target_39 13451.46191
+wandb:     dream_loss/run_0/multi_target_4 16259.37793
+wandb:    dream_loss/run_0/multi_target_40 14519.24219
+wandb:    dream_loss/run_0/multi_target_41 22263.66602
+wandb:    dream_loss/run_0/multi_target_42 15708.99609
+wandb:    dream_loss/run_0/multi_target_43 15157.66504
+wandb:    dream_loss/run_0/multi_target_44 13307.92383
+wandb:    dream_loss/run_0/multi_target_45 13234.40625
+wandb:    dream_loss/run_0/multi_target_46 10098.53906
+wandb:    dream_loss/run_0/multi_target_47 20413.71094
+wandb:    dream_loss/run_0/multi_target_48 13727.72852
+wandb:    dream_loss/run_0/multi_target_49 18413.60742
+wandb:     dream_loss/run_0/multi_target_5 11994.12891
+wandb:     dream_loss/run_0/multi_target_6 14000.65137
+wandb:     dream_loss/run_0/multi_target_7 14390.01855
+wandb:     dream_loss/run_0/multi_target_8 12644.84766
+wandb:     dream_loss/run_0/multi_target_9 13067.72363
+wandb:     dream_loss/run_1/multi_target_0 12564.23535
+wandb:     dream_loss/run_1/multi_target_1 13592.99609
+wandb:    dream_loss/run_1/multi_target_10 15460.84961
+wandb:    dream_loss/run_1/multi_target_11 13346.35645
+wandb:    dream_loss/run_1/multi_target_12 10746.82129
+wandb:    dream_loss/run_1/multi_target_13 22051.79883
+wandb:    dream_loss/run_1/multi_target_14 14988.94238
+wandb:    dream_loss/run_1/multi_target_15 15289.3125
+wandb:    dream_loss/run_1/multi_target_16 52300.09375
+wandb:    dream_loss/run_1/multi_target_17 13936.86719
+wandb:    dream_loss/run_1/multi_target_18 16328.23242
+wandb:    dream_loss/run_1/multi_target_19 12144.45508
+wandb:     dream_loss/run_1/multi_target_2 15722.28027
+wandb:    dream_loss/run_1/multi_target_20 12777.23926
+wandb:    dream_loss/run_1/multi_target_21 11997.17285
+wandb:    dream_loss/run_1/multi_target_22 37021.95703
+wandb:    dream_loss/run_1/multi_target_23 12006.29297
+wandb:    dream_loss/run_1/multi_target_24 13784.35059
+wandb:    dream_loss/run_1/multi_target_25 11199.04297
+wandb:    dream_loss/run_1/multi_target_26 18428.89453
+wandb:    dream_loss/run_1/multi_target_27 13014.42676
+wandb:    dream_loss/run_1/multi_target_28 13257.60449
+wandb:    dream_loss/run_1/multi_target_29 10463.41602
+wandb:     dream_loss/run_1/multi_target_3 14168.29102
+wandb:    dream_loss/run_1/multi_target_30 13277.84277
+wandb:    dream_loss/run_1/multi_target_31 10152.77637
+wandb:    dream_loss/run_1/multi_target_32 15430.41797
+wandb:    dream_loss/run_1/multi_target_33 14858.71289
+wandb:    dream_loss/run_1/multi_target_34 22187.75195
+wandb:    dream_loss/run_1/multi_target_35 15228.34473
+wandb:    dream_loss/run_1/multi_target_36 12895.81445
+wandb:    dream_loss/run_1/multi_target_37 19369.7793
+wandb:    dream_loss/run_1/multi_target_38 21715.12109
+wandb:    dream_loss/run_1/multi_target_39 15105.21289
+wandb:     dream_loss/run_1/multi_target_4 15340.09863
+wandb:    dream_loss/run_1/multi_target_40 16606.05859
+wandb:    dream_loss/run_1/multi_target_41 24484.21875
+wandb:    dream_loss/run_1/multi_target_42 14266.41602
+wandb:    dream_loss/run_1/multi_target_43 16134.8623
+wandb:    dream_loss/run_1/multi_target_44 11321.46191
+wandb:    dream_loss/run_1/multi_target_45 13320.36035
+wandb:    dream_loss/run_1/multi_target_46 21575.23242
+wandb:    dream_loss/run_1/multi_target_47 11289.65137
+wandb:    dream_loss/run_1/multi_target_48 12360.41309
+wandb:    dream_loss/run_1/multi_target_49 11942.79785
+wandb:     dream_loss/run_1/multi_target_5 13332.11621
+wandb:     dream_loss/run_1/multi_target_6 149777.0625
+wandb:     dream_loss/run_1/multi_target_7 15387.95605
+wandb:     dream_loss/run_1/multi_target_8 13779.19629
+wandb:     dream_loss/run_1/multi_target_9 13822.73828
+wandb:                               epoch 0
+wandb:                       negative_loss -413.45428
+wandb:                       positive_loss -3.58816
+wandb:                               ratio 10.0
+wandb:                         rho_sigma_2 100.0
+wandb:                               scale 120.0
+wandb:              stats/collect_accuracy 0.33144
+wandb:                  stats/collect_loss -202.90186
+wandb:                            test_acc 0.3396
+wandb:                     test_loss_epoch -183.18121
+wandb:                      test_loss_step -205.35196
+wandb:                   train_loss/island -417.01904
+wandb:                    train_loss/total -417.01904
+wandb:                      train_step_acc 0.99959
+wandb:                 trainer/global_step 2420
+wandb: val_last_step_loss/dataloader_idx_0 -9.2707
+wandb: val_last_step_loss/dataloader_idx_1 -263.64844
+wandb:          valid_acc/dataloader_idx_0 0.0002
+wandb:          valid_acc/dataloader_idx_1 0.679
+wandb: 
+wandb: 🚀 View run exp_search_model_type_vgg_latent_size_10_t0kgu1li_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59/runs/t0kgu1li
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59
+wandb: Synced 6 W&B file(s), 213 media file(s), 1307 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240429_184503-t0kgu1li/logs
+Global seed set to 2024
+wandb: Tracking run with wandb version 0.16.6
+wandb: Run data is saved locally in log_run/wandb/run-20240429_215517-x6bvrpum
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exp_search_model_type_custom-resnet34_latent_size_10_x6bvrpum_latent-multitarget-multitask_dream_tr_
+wandb: ⭐️ View project at https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59
+wandb: 🚀 View run at https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59/runs/x6bvrpum
+End of experiment: exp_search_model_type_vgg_latent_size_10; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
+Running experiment: exp_search_model_type_custom-resnet34_latent_size_10; repeat 1/1
+Seed used: 2024
+[34mINFO: Selected None datasampler [0m
+[34m	Input command line: [0m
+main_experiments.py
+[34m	Full second command line: [0m
+-d c100 --model.num_classes 100 --config.num_tasks 2 --loop.schedule 300 300 0 --config.framework_type latent-multitarget-multitask --loop.num_loops 3 --loop.train_at True --model.optim.type sgd --model.optim.kwargs.lr 0.1 --model.sched.type MULTISTEP-SCHED --model.sched.kwargs.gamma 0.1 --model.sched.kwargs.milestones 140 180 --datamodule.num_workers 3 --loop.save.root model_save/test --loop.save.model --loop.load.root model_save/test --stat.collect_stats.enable --model.loss.chi.shift_min_distance 0 --config.seed 2024 --model.loss.chi.ratio 10 --model.loss.chi.scale 120 --datamodule.batch_size 220 --datamodule.vis.only_vis_at False --datamodule.vis.enable_vis_at 1 2 --loop.vis.image_reg.var.use_at True --loop.vis.image_reg.l2.use_at False --loop.test_at True --loop.vis.layerloss.deep_inversion.use_at True --datamodule.vis.optim.type adam --datamodule.vis.image_type pixel --datamodule.vis.threshold 500 --loop.save.dreams --datamodule.vis.multitarget.enable --datamodule.vis.batch_size 220 --datamodule.vis.per_target 440 --loop.vis.generate_at 1 2 --datamodule.vis.standard_image_size 32 --loop.vis.image_reg.var.scale 0.001 --model.loss.chi.ratio_milestones 40 60 100 --model.enable_connect_batch --loop.vis.layerloss.deep_inversion.scale 10 --datamodule.vis.optim.kwargs.lr 0.05 --datamodule.dream_batch_size_per_target 2.2 --model.type custom-resnet34 --model.latent.size 10
+[34m	Used config: [0m
+{'pca_estimate_rank': 6, 'wandb': "Namespace(run=Namespace(folder='log_run/'), watch=Namespace(enable=False, log_freq=1000))", 'config': "Namespace(seed=2024, folder='run_conf/', load=None, export=None, test=Namespace(disable=False), cpu=False, dataset='c100', datasampler_type='none', num_tasks=2, framework_type='latent-multitarget-multitask', dream_obj_type=None, select_task_type=None, target_processing_type=None, task_split_type=None, overlay_type=None, split=Namespace(num_classes=None))", 'loop': "Namespace(train_at=[True], test_at=[True], save=Namespace(model=True, enable_checkpoint=False, dreams=True, root='model_save/test', layer_stats=False, ignore_config=False), load=Namespace(model=False, dreams=False, root='model_save/test', id=None, name=None, layer_stats=False), num_loops=3, schedule=[300, 300, 0], model=Namespace(reload_at=None, reinit_at=None), weight_reset_sanity_check=False, layer_stats=Namespace(use_at=None, hook_to=None, device='cuda', flush_to_disk=False, type=None), vis=Namespace(layerloss=Namespace(mean_norm=Namespace(use_at=None, hook_to=None, scale=0.001, del_cov_after=False, device='cuda'), grad_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), grad_activ_pruning=Namespace(hook_to=None, use_at=None, percent=0.01, device='cuda'), deep_inversion=Namespace(use_at=[True], scale=10.0, scale_file=None, hook_to=None), deep_inversion_target=Namespace(use_at=None, scale=1.0, hook_to=None)), generate_at=[1, 2], clear_dataset_at=None, image_reg=Namespace(var=Namespace(use_at=[True], scale=0.001), l2=Namespace(use_at=[False], coeff=1e-05))))", 'model': "Namespace(latent=Namespace(buffer=Namespace(size_per_class=40), size=10, onehot=Namespace(type='diagonal')), num_classes=100, enable_connect_batch=True, optim=Namespace(type='sgd', reset_type='default', kwargs=Namespace(lr=0.1, gamma=1, momentum=0, dampening=0, weight_decay=0, betas=[0.9, 0.999], amsgrad=False)), sched=Namespace(type='MULTISTEP-SCHED', kwargs=Namespace(gamma=0.1, milestones=[140, 180]), steps=(3,)), norm_lambda=0.0, type='custom-resnet34', default_weights=False, train_sanity_check=False, layer_replace=Namespace(enable=False), loss=Namespace(chi=Namespace(sigma=0.1, ratio=10.0, scale=120.0, l2=0.001, shift_min_distance=0.0, shift_std_of_mean=0.0, ratio_gamma=1.0, scale_gamma=1.0, ratio_milestones=[40.0, 60.0, 100.0], scale_milestones=None, dual=Namespace(inner_scale=1.0, outer_scale=1.0))))", 'datamodule': "Namespace(disable_shuffle=False, num_workers=3, vis=Namespace(num_workers=None, per_target=440, multitarget=Namespace(enable=True, random=False), batch_size=220, optim=Namespace(type='adam', kwargs=Namespace(lr=0.05, betas=[0.9, 0.999], gamma=1, weight_decay=0, amsgrad=False, momentum=0, dampening=0)), sched=Namespace(type=None), threshold=[500], disable_transforms=False, disable_shuffle=False, image_type='pixel', only_vis_at=[False], enable_vis_at=[1, 2], standard_image_size=[32], decorrelate=False), test_num_workers=None, val_num_workers=None, batch_size=220, dream_batch_size_per_target=2.2)", 'fast_dev_run': 'Namespace(enable=False, batches=30, epochs=1, vis_threshold=[5])', 'stat': 'Namespace(compare_latent=False, disorder_dream=False, limit_plots_to=6, collect_stats=Namespace(enable=True, use_dream_dataset=False), plot_classes=None, disorder=Namespace(sigma=0.0, start_img_val=None), collect=Namespace(latent_buffer=Namespace(enable=False, name=None, cl_idx=None, size=50), single_dream=Namespace(enable=False, sigma=0.0)))', 'Plain args': "['main_experiments.py']"}
+[34mWANDBO RUN ID: x6bvrpum [0m
+[34mSelected configuration:[0m
+	SELECT TASK: SELECT-CLASSIC
+	TARGET PROCESSING: TARGET-LATENT-SAMPLE-NORMAL-MINIMAL-STD-MULTITARGET
+	TASK SPLIT: SPLIT-CLASSIC-FILLLAST
+	DREAM OBJECTIVE: OBJECTIVE-LATENT-LOSSF-MULTITARGET-CREATOR
+	MODEL TYPE: custom-resnet34
+	OVERLAY TYPE: CL-MODEL-ISLAND [0m
+[36mCHI-LOSS: Used buffer: CyclicBufferByClass() [0m
+[34mINFO: Generating means shifts [0m
+[34mINFO: shift_min_distance '0.0' or shift_std_of_mean '0.0' iss zero. Generating matrix of zeros. [0m
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: Generated:
+tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]) [0m
+[32mINFO: Using loss CHI_LOSS [0m
+[32mMODEL TYPE: ClLatentChi_CLModel_CustomResNet34 [0m
+[36mVIS: Selected dream image type: pixel [0m
+[95mTrain task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]] [0m
+[31mVIS: Enabled multitarget visualization. Each batch will have multiple targets. [0m
+[95mValidation task split: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]] [0m
+[31mFast dev run is False [0m
+Files already downloaded and verified
+[34mINFO: Created [95m0[34m optim config: [32mSGD (
+Parameter Group 0
+    dampening: 0
+    differentiable: False
+    foreach: None
+    lr: 0.1
+    maximize: False
+    momentum: 0
+    nesterov: False
+    weight_decay: 0
+) [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃   ┃ Name                 ┃ Type                ┃ Params ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 0 │ train_acc            │ MulticlassAccuracy  │      0 │
+│ 1 │ train_acc_dream      │ MulticlassAccuracy  │      0 │
+│ 2 │ _valid_accs          │ ModuleDict          │      0 │
+│ 3 │ test_acc             │ MulticlassAccuracy  │      0 │
+│ 4 │ model                │ CustomResNet34      │ 21.3 M │
+│ 5 │ cyclic_latent_buffer │ CyclicBufferByClass │      0 │
+│ 6 │ _loss_f              │ ChiLoss             │      0 │
+└───┴──────────────────────┴─────────────────────┴────────┘
+Trainable params: 21.3 M                                                                                                                                                      
+Non-trainable params: 0                                                                                                                                                       
+Total params: 21.3 M                                                                                                                                                          
+Total estimated model params size (MB): 85                                                                                                                                    
+[34mSTARTING TASK 0, loop 0 -- classes in task [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+[95mSelected task number: 0 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mINFO: Selected classes for normal dataloader: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 40 [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 60 [0m
+[34mINFO: Scheduler for ChiLoss ratio changed value from: 10.0 to: 10.0 at step: 100 [0m
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 0, loop 0 [0m
+[34mTESTING TASK 0, loop 0 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.6151999831199646     │
+│      test_loss_epoch      │    -226.91944885253906    │
+└───────────────────────────┴───────────────────────────┘
+Epoch 299 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 160/160 0:00:17 • 0:00:00 9.20it/s   
+Testing   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23/23   0:00:42 • 0:00:00 25.05it/s  
+wandb: WARNING A graphql request initiated by the public wandb API timed out (timeout=19 sec). Create a new API with an integer timeout larger than 19, e.g., `api = wandb.Api(timeout=29)` to increase the graphql timeout.
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 1, loop 1 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'10.0'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 1, loop 1 [0m
+[34mDREAMING DURING TASK: 1, loop 1 [0m
+[36mVIS: Visualization for targets: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 22000; batch size: 220; per target: 440; batches to be generated: 100 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 01:39:05 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 1, loop 1 -- classes in task [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mSelected task number: 1 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[95mSelected dream dataloader classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]. Use datasampler=False. Batch size: 220 [0m
+[95mINFO: Selected classes for normal dataloader: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mINFO: Use dream dataloader. [0m
+[95mINFO: Use dream and normal datasets simultaneously. [0m
+/home/ubuntu/continual_dreaming/pythonEnv/lib/python3.10/site-packages/torch/optim/lr_scheduler.py:143: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn("Detected call of `lr_scheduler.step()` before `optimizer.step()`. "
+[34mChanged learning rate from: '[0.1]' to: '[0.010000000000000002]' for optimizer index: 0 at epoch: 139 [0m
+[34mChanged learning rate from: '[0.010000000000000002]' to: '[0.0010000000000000002]' for optimizer index: 0 at epoch: 179 [0m
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mScheduler restarted at epoch 299 end. Learning rate: [0.0010000000000000002] [0m
+[34mINFO: Created [95m0[34m sched config: [32mMultiStepLR
+{'gamma': 0.1, 'milestones': [140, 180]} [0m
+[34mENDING TASK 1, loop 1 [0m
+[34mTESTING TASK 1, loop 1 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.3499999940395355     │
+│      test_loss_epoch      │    -188.5960235595703     │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:00:58 • 0:00:00 8.52it/s   
+                                                                                         
+                                                                                         
+Epoch 299  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 246/246 0:00:42 • 0:00:00 6.20it/s   
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:02 • 0:00:00 23.13it/s  
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[34mINFO: hooking model during visualization to - [33mDEEP INVERSION[34m - task: 1, loop 2 [0m
+[34mINFO: For layerloss DeepInversionFeatureLoss used with default value: [36m'10.0'[34m  [0m
+[34mINFO: hooking model during visualization to - [33mVARIATION IMAGE REGULARIZATION[34m - task: 1, loop 2 [0m
+[34mDREAMING DURING TASK: 1, loop 2 [0m
+[36mVIS: Visualization for targets: {50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99} [0m
+[34mVIS: No hook to image after forward and backward pass. [0m
+[34mVIS: Optimizer set during visualization config: [32mAdam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.9, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.05
+    maximize: False
+    weight_decay: 0
+) [0m
+[32mVIS: Image size before (up/down)sample - torch.Size([220, 3, 41, 41]) [0m
+[32mVIS: Image size after (up/down)sample - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: ENABLE DREAM TRANSFORMS [0m
+[32mVIS: Current in use image size - torch.Size([220, 3, 32, 32]) [0m
+[36mVIS: Number of images to visualize (may change in fast-dev-run): 22000; batch size: 220; per target: 440; batches to be generated: 100 [0m
+[36mVIS: Using multitarget visualization [0m
+[34mTime generating features: 01:39:04 [0m
+[34mDREAMING END [0m
+[34mSTARTING TASK 1, loop 2 -- classes in task [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+[95mSelected task number: 1 [0m
+[34mINFO: HOOKING UP NORMAL LOOP [0m
+[34mENDING TASK 1, loop 2 [0m
+[34mTESTING TASK 1, loop 2 [0m
+Files already downloaded and verified
+[95mINFO: Testing for classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] [0m
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric        ┃       DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│         test_acc          │    0.3499999940395355     │
+│      test_loss_epoch      │    -188.5960235595703     │
+└───────────────────────────┴───────────────────────────┘
+Iteration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 500/500 0:00:58 • 0:00:00 8.53it/s   
+                                                                                         
+                                                                                         
+Testing    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46/46   0:00:01 • 0:00:00 24.21it/s  
+[34mINFO: Generated current run name: d30-04-2024_h06-15-44_x6bvrpum [0m
+[31mWARNING: At loop 3 selected last epoch per task "0" because list index out of range. [0m
+[31mWARNING: At loop 3 selected last epoch per task "0" because list index out of range. [0m
+
+End of training.
+[34mINFO: COLLECT STATS: Selected normal dataset. [0m
+[34mSTATISTICS: Collecting model stats [0m
+[34mINFO: Selected None datasampler [0m
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+
+WARNING: Plot 3D only for 3 dimensional space! Found 10 dimensions.
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/std-mean_idx100
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx15
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx31
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx47
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx63
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx79
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx95
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/distance_class_idx100
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/mean_distance_idx100
+INFO: Plot model_save/test/ClLatentChi/CustomResNet34/layerloss/cfg_deep_inversion/regularization/var/model_optim_type-sgd/-deep_inversion/image_reg_var/d30-04-2024_h06-15-44_x6bvrpum/plots/mean_dist_matrix_idx100
+wandb: - 10.759 MB of 10.759 MB uploaded (0.833 MB deduped)wandb: \ 10.759 MB of 10.759 MB uploaded (0.833 MB deduped)wandb: | 10.759 MB of 10.759 MB uploaded (0.833 MB deduped)wandb: / 10.909 MB of 11.185 MB uploaded (0.837 MB deduped)wandb: - 10.909 MB of 11.185 MB uploaded (0.837 MB deduped)wandb: \ 11.185 MB of 11.185 MB uploaded (0.837 MB deduped)wandb:                                                                                
+wandb: W&B sync reduced upload amount by 7.5%             
+wandb: 
+wandb: Run history:
+wandb:     dream_loss/run_0/multi_target_0 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_1 █▆▄▃▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁█▅▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_10 █▅▄▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_11 █▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_12 █▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_13 █▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_14 █▅▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_15 █▅▄▃▂▂▂▂▂▂▁▁▁▁▂▁▁▁▁▁▇▄▃▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_16 █▅▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▅▃▃▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_17 █▅▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_18 █▅▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▄▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_19 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁█▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_2 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_20 █▅▃▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_21 █▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁█▅▄▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_22 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_23 █▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_24 █▅▃▃▃▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁█▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_25 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁█▅▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_26 █▅▄▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_27 █▅▃▃▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_28 █▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_29 █▅▄▃▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_3 █▅▄▃▂▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▇▅▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_30 █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_31 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁█▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_32 █▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_33 █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_34 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_35 █▅▃▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▇▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_36 █▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_37 █▅▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_38 █▅▃▃▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_39 █▅▃▃▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_4 █▅▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁█▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_40 █▅▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_41 █▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▂▁▁▁▂▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_42 █▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁█▆▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_43 █▄▃▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_44 █▅▄▃▃▂▂▂▁▂▁▁▁▂▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_45 █▅▃▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_46 █▅▄▃▃▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▇▅▄▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_47 █▅▄▃▂▂▂▂▂▂▂▁▂▁▁▁▁▁▁▁█▅▄▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_48 █▅▄▃▃▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_0/multi_target_49 █▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_5 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▆▃▃▂▂▂▂▂▁▂▁▂▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_6 █▅▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_7 █▅▄▃▃▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▇▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_8 █▆▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_0/multi_target_9 █▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_0 █▅▄▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_1 █▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▄▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_10 █▄▃▃▂▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▂▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_11 █▅▄▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_12 █▄▃▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▆▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_13 █▅▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_14 █▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_15 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_16 █▅▄▃▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_17 █▅▄▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_18 █▄▄▃▂▂▂▂▂▁▂▁▂▁▁▁▁▁▁▁▇▄▃▂▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_19 █▅▃▃▂▂▂▂▁▂▂▁▁▁▁▁▁▁▁▁▆▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_2 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▂▂▂▂▁▁▁▁▂▂▁▁▁
+wandb:    dream_loss/run_1/multi_target_20 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_21 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_22 █▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_23 █▅▄▃▃▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_24 █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_25 █▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_26 █▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_27 █▄▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_28 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁█▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_29 █▅▄▃▃▂▂▂▁▂▁▂▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_3 █▅▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_30 █▅▄▃▃▂▂▂▂▁▁▁▁▁▁▁▂▁▁▁▇▄▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_31 █▅▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_32 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_33 █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_34 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_35 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_36 █▄▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_37 █▅▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_38 █▅▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_39 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▂▁▁▁▁▇▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_4 █▅▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁█▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_40 █▅▄▃▂▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_41 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▄▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_42 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_43 █▄▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▃▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_44 █▅▃▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_45 █▅▄▃▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_46 █▄▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_47 █▄▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_48 █▄▃▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    dream_loss/run_1/multi_target_49 █▅▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_5 █▅▄▃▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_6 █▅▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▇▅▃▃▃▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_7 █▅▄▃▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▇▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:     dream_loss/run_1/multi_target_8 █▅▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▇▅▃▃▂▂▂▂▂▂▁▂▁▁▁▁▂▁▁▂
+wandb:     dream_loss/run_1/multi_target_9 █▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               epoch ▁▁▂▂▃▃▄▄▄▅▅▆▆▇▇██▁▁▂▂▂▃▃▃▄▄▄▅▅▅▆▆▆▆▇▇▇██
+wandb:                       negative_loss █▆▄▃▃▂▂▁▁▁▁▁▁▁▁▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       positive_loss █▇▃▂▂▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               ratio ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                         rho_sigma_2 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                               scale ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:              stats/collect_accuracy ▃▁▄█▆█▆▆▆▆▇█
+wandb:                  stats/collect_loss ▁█▃▃▄▂▇▄▅▅▂▄
+wandb:                            test_acc █▁▁
+wandb:                     test_loss_epoch ▁██
+wandb:                      test_loss_step ▂▃▂▁▄▃▄▄▃▄▆▅▆█▃▂▃▂▆▅▄▃▅▃▇▅▅▅▆█▄▇▄█▅▆▆▄▃▃
+wandb:                   train_loss/island █▆▃▃▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    train_loss/total █▆▃▃▂▂▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                      train_step_acc ▁▁▂▃▅▆▆▇▇███████████▅▇██████████████████
+wandb:                 trainer/global_step ▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃███████████████████▁
+wandb: val_last_step_loss/dataloader_idx_0 █▆▄▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▄▅▆▆▆▆▆▆▆▆▆▇▇▇▇▇▇▇▇▇
+wandb: val_last_step_loss/dataloader_idx_1 ███▆▇▇▇█████████████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          valid_acc/dataloader_idx_0 ▂▂▃▅▆▆▇▇▇███████████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          valid_acc/dataloader_idx_1 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆▇▇▇████████████████
+wandb: 
+wandb: Run summary:
+wandb:     dream_loss/run_0/multi_target_0 31953.22656
+wandb:     dream_loss/run_0/multi_target_1 42491.5
+wandb:    dream_loss/run_0/multi_target_10 35769.60547
+wandb:    dream_loss/run_0/multi_target_11 37244.07422
+wandb:    dream_loss/run_0/multi_target_12 40581.26562
+wandb:    dream_loss/run_0/multi_target_13 43291.44141
+wandb:    dream_loss/run_0/multi_target_14 37985.71875
+wandb:    dream_loss/run_0/multi_target_15 27385.64648
+wandb:    dream_loss/run_0/multi_target_16 44488.08594
+wandb:    dream_loss/run_0/multi_target_17 35843.38672
+wandb:    dream_loss/run_0/multi_target_18 40495.06641
+wandb:    dream_loss/run_0/multi_target_19 30756.19336
+wandb:     dream_loss/run_0/multi_target_2 46903.96094
+wandb:    dream_loss/run_0/multi_target_20 31534.18164
+wandb:    dream_loss/run_0/multi_target_21 32004.77148
+wandb:    dream_loss/run_0/multi_target_22 45752.03125
+wandb:    dream_loss/run_0/multi_target_23 31804.60352
+wandb:    dream_loss/run_0/multi_target_24 41471.55078
+wandb:    dream_loss/run_0/multi_target_25 34020.60156
+wandb:    dream_loss/run_0/multi_target_26 34326.19531
+wandb:    dream_loss/run_0/multi_target_27 40801.6875
+wandb:    dream_loss/run_0/multi_target_28 39571.66016
+wandb:    dream_loss/run_0/multi_target_29 39930.20312
+wandb:     dream_loss/run_0/multi_target_3 35539.65234
+wandb:    dream_loss/run_0/multi_target_30 37533.21484
+wandb:    dream_loss/run_0/multi_target_31 58335.94531
+wandb:    dream_loss/run_0/multi_target_32 37487.50391
+wandb:    dream_loss/run_0/multi_target_33 35248.03125
+wandb:    dream_loss/run_0/multi_target_34 42573.39844
+wandb:    dream_loss/run_0/multi_target_35 33767.35938
+wandb:    dream_loss/run_0/multi_target_36 47929.91797
+wandb:    dream_loss/run_0/multi_target_37 34838.99609
+wandb:    dream_loss/run_0/multi_target_38 50171.5
+wandb:    dream_loss/run_0/multi_target_39 30408.01562
+wandb:     dream_loss/run_0/multi_target_4 43439.5625
+wandb:    dream_loss/run_0/multi_target_40 29188.47656
+wandb:    dream_loss/run_0/multi_target_41 43050.85156
+wandb:    dream_loss/run_0/multi_target_42 34622.06641
+wandb:    dream_loss/run_0/multi_target_43 44127.32812
+wandb:    dream_loss/run_0/multi_target_44 32530.06836
+wandb:    dream_loss/run_0/multi_target_45 38822.04688
+wandb:    dream_loss/run_0/multi_target_46 27463.05664
+wandb:    dream_loss/run_0/multi_target_47 33914.80859
+wandb:    dream_loss/run_0/multi_target_48 37439.63672
+wandb:    dream_loss/run_0/multi_target_49 45161.86719
+wandb:     dream_loss/run_0/multi_target_5 40468.13672
+wandb:     dream_loss/run_0/multi_target_6 37121.39453
+wandb:     dream_loss/run_0/multi_target_7 34152.27344
+wandb:     dream_loss/run_0/multi_target_8 42126.05859
+wandb:     dream_loss/run_0/multi_target_9 43100.86719
+wandb:     dream_loss/run_1/multi_target_0 42691.59375
+wandb:     dream_loss/run_1/multi_target_1 44772.45312
+wandb:    dream_loss/run_1/multi_target_10 47135.21094
+wandb:    dream_loss/run_1/multi_target_11 57713.72266
+wandb:    dream_loss/run_1/multi_target_12 60503.94922
+wandb:    dream_loss/run_1/multi_target_13 53464.76172
+wandb:    dream_loss/run_1/multi_target_14 56143.30078
+wandb:    dream_loss/run_1/multi_target_15 53183.30469
+wandb:    dream_loss/run_1/multi_target_16 59750.39062
+wandb:    dream_loss/run_1/multi_target_17 52131.26562
+wandb:    dream_loss/run_1/multi_target_18 44736.67969
+wandb:    dream_loss/run_1/multi_target_19 46591.61328
+wandb:     dream_loss/run_1/multi_target_2 59285.95312
+wandb:    dream_loss/run_1/multi_target_20 49031.31641
+wandb:    dream_loss/run_1/multi_target_21 54456.90234
+wandb:    dream_loss/run_1/multi_target_22 46382.49609
+wandb:    dream_loss/run_1/multi_target_23 49952.73047
+wandb:    dream_loss/run_1/multi_target_24 54345.97656
+wandb:    dream_loss/run_1/multi_target_25 48927.44141
+wandb:    dream_loss/run_1/multi_target_26 43833.94531
+wandb:    dream_loss/run_1/multi_target_27 49601.55078
+wandb:    dream_loss/run_1/multi_target_28 55602.24219
+wandb:    dream_loss/run_1/multi_target_29 51906.06641
+wandb:     dream_loss/run_1/multi_target_3 59355.14062
+wandb:    dream_loss/run_1/multi_target_30 48940.40625
+wandb:    dream_loss/run_1/multi_target_31 47127.77344
+wandb:    dream_loss/run_1/multi_target_32 52402.04297
+wandb:    dream_loss/run_1/multi_target_33 43063.16016
+wandb:    dream_loss/run_1/multi_target_34 49653.39062
+wandb:    dream_loss/run_1/multi_target_35 69163.75781
+wandb:    dream_loss/run_1/multi_target_36 53070.73438
+wandb:    dream_loss/run_1/multi_target_37 56606.28906
+wandb:    dream_loss/run_1/multi_target_38 53762.49609
+wandb:    dream_loss/run_1/multi_target_39 61888.67578
+wandb:     dream_loss/run_1/multi_target_4 51109.88281
+wandb:    dream_loss/run_1/multi_target_40 43728.98438
+wandb:    dream_loss/run_1/multi_target_41 49514.53125
+wandb:    dream_loss/run_1/multi_target_42 51160.57031
+wandb:    dream_loss/run_1/multi_target_43 55635.17188
+wandb:    dream_loss/run_1/multi_target_44 57766.83594
+wandb:    dream_loss/run_1/multi_target_45 59145.99219
+wandb:    dream_loss/run_1/multi_target_46 42768.55859
+wandb:    dream_loss/run_1/multi_target_47 48924.82031
+wandb:    dream_loss/run_1/multi_target_48 56298.39453
+wandb:    dream_loss/run_1/multi_target_49 50771.11719
+wandb:     dream_loss/run_1/multi_target_5 48608.54688
+wandb:     dream_loss/run_1/multi_target_6 64546.51562
+wandb:     dream_loss/run_1/multi_target_7 59738.46094
+wandb:     dream_loss/run_1/multi_target_8 56940.37109
+wandb:     dream_loss/run_1/multi_target_9 55876.53516
+wandb:                               epoch 0
+wandb:                       negative_loss -411.03839
+wandb:                       positive_loss -3.75511
+wandb:                               ratio 10.0
+wandb:                         rho_sigma_2 100.0
+wandb:                               scale 120.0
+wandb:              stats/collect_accuracy 0.34848
+wandb:                  stats/collect_loss -188.54509
+wandb:                            test_acc 0.35
+wandb:                     test_loss_epoch -188.59602
+wandb:                      test_loss_step -210.24699
+wandb:                   train_loss/island -414.43451
+wandb:                    train_loss/total -414.43451
+wandb:                      train_step_acc 0.99964
+wandb:                 trainer/global_step 2420
+wandb: val_last_step_loss/dataloader_idx_0 -29.68772
+wandb: val_last_step_loss/dataloader_idx_1 -267.67374
+wandb:          valid_acc/dataloader_idx_0 0.0018
+wandb:          valid_acc/dataloader_idx_1 0.6982
+wandb: 
+wandb: 🚀 View run exp_search_model_type_custom-resnet34_latent_size_10_x6bvrpum_latent-multitarget-multitask_dream_tr_ at: https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59/runs/x6bvrpum
+wandb: ⭐️ View project at: https://wandb.ai/cccvb/exp_2024-04-29%3D10-05-59
+wandb: Synced 6 W&B file(s), 213 media file(s), 1307 artifact file(s) and 1 other file(s)
+wandb: Find logs at: log_run/wandb/run-20240429_215517-x6bvrpum/logs
+End of experiment: exp_search_model_type_custom-resnet34_latent_size_10; repeat 1/1
+Clearing gpu cache and invoking garbage collector
+Done
