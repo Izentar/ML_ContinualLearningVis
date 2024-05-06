@@ -9,13 +9,21 @@ from argparse import ArgumentParser, Namespace
 import wandb
 import time
 from collections.abc import Sequence
+from argparse import RawDescriptionHelpFormatter
 
 def main():
     """
         Change fast_dev_run flag to run full experiments.
     """
     if __name__ == "__main__":
-        parser = ArgumentParser(prog='Continual dreaming', add_help=True, description='Main experiments. Change this script at wish.')
+        parser = ArgumentParser(prog='Continual dreaming', add_help=True, formatter_class=RawDescriptionHelpFormatter, 
+                    description="Main experiments. Change this script at wish. \
+Grid search is in form: ['console_command': ['short_name', args]] where: \
+\n    * 'args' can be left empty for flag type commands -- ['short_name'], \
+\n    * 'args' may be one variable as number or text -- ['short_name', 'var'], \
+\n    * 'args' may be three variables as numbers, similar to range() -- ['short_name', 'start', 'stop', 'step'], \
+\n    * 'args' may be a list of variables -- ['short_name', ['var1', 'var2', ...]]\
+")
         parser.add_argument("-f", "--fast_dev_run", action="store_true", help='Use to fast_dev_run check for errors in code.') ##**
         parser.add_argument("-nl", "--nologic", action="store_true" , help='Run without invoking script logic.') ##**
         parser.add_argument("-r", "--repeat", type=int, default=1 , help='How many times repeat experiments.') ##**
@@ -34,13 +42,15 @@ def main():
 
         today_time = datetime.today().strftime('%Y-%m-%d=%H-%M-%S')
 
-        if(len(grid_search_dict) != 0):
+        if(grid_search_dict is not None and exp_template is not None and len(grid_search_dict) != 0):
             input_commands = grid_search_numerical(exp_template, "exp_search", grid_search_dict)
             experiments.update(input_commands)
+        else:
+            print(f"Skipping grid search.")
 
         print(f"Experiments to be run:")
-        for v in experiments.values():
-            print(f"* {v}")
+        for idx, v in enumerate(experiments.values(), 1):
+            print(f"* {idx} ${v}")
 
         print()
         loop_counter = 0
@@ -488,6 +498,9 @@ experiments = {
     #"chi_sqr_c10_sgd": chi_sqr_c10_sgd,
     #"chi_sqr_c100_sgd": chi_sqr_c100_sgd,
 }
+
+grid_search_dict = None
+exp_template = None
 
 # for note:
 # it can process 3 types of input:
