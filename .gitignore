@@ -15,7 +15,7 @@ data/generated_impressions
 model_save/*
 data_ssd
 *.tmp
-*.txt
+
 .git_old/
 tmp/
 pythonEnv/*
